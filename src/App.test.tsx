@@ -591,6 +591,57 @@ describe("демо не перетирает задание пользовате
   });
 });
 
+describe("тосты подтверждают действие и дают его отменить (B100)", () => {
+  const openDirector = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+  };
+
+  it("подтверждает примененное предложение и предлагает отменить", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+
+    const toast = await screen.findByRole("status");
+    expect(toast.textContent).toMatch(/верси/i);
+    expect(within(toast).getByRole("button", { name: /Отменить/ })).toBeTruthy();
+  });
+
+  it("отменяет действие обратно по кнопке в тосте", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    const before = document.querySelectorAll(".version-row").length;
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+    await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(before + 1));
+
+    const activeBefore = document.querySelector(".version-row.active span")!.textContent;
+    await user.click(within(await screen.findByRole("status")).getByRole("button", { name: /Отменить/ }));
+
+    // Отмена возвращает предыдущую версию, а не удаляет историю.
+    await waitFor(() => expect(document.querySelector(".version-row.active span")!.textContent).not.toBe(activeBefore));
+    expect(document.querySelectorAll(".version-row").length).toBe(before + 1);
+  });
+
+  it("держит на экране не больше двух тостов сразу", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    const cards = within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button");
+    for (const card of cards.slice(0, 3)) {
+      await user.click(card);
+    }
+
+    await waitFor(() => expect(document.querySelectorAll(".toast").length).toBeGreaterThan(0));
+    expect(document.querySelectorAll(".toast").length).toBeLessThanOrEqual(2);
+  });
+});
+
 describe("выбор нескольких предложений директора (B98)", () => {
   const openDirector = async (user: ReturnType<typeof userEvent.setup>) => {
     await openBandDemo(user);

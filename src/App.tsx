@@ -14,6 +14,8 @@ import {
   ListChecks,
   Play,
   Repeat2,
+  X,
+  XCircle,
   SlidersHorizontal,
   Sparkles,
   Share2,
@@ -1230,6 +1232,17 @@ function StagePackShell({
   // Какое необратимое действие ждёт подтверждения. null — диалога нет.
   const [pendingDeletion, setPendingDeletion] = useState<"source" | "results" | null>(null);
   const [pickedSuggestions, setPickedSuggestions] = useState<DirectorActionId[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const dismissToast = (id: string) => setToasts((current) => current.filter((toast) => toast.id !== id));
+
+  const pushToast = (toast: Omit<Toast, "id">) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // Третий вытесняет самый старый: больше двух на экране бренд-бук
+    // запрещает, иначе они перекрывают то, о чём сообщают.
+    setToasts((current) => [...current, { ...toast, id }].slice(-toastLimit));
+    window.setTimeout(() => dismissToast(id), toastLifetimeMs(toast));
+  };
   const [sessionNote, setSessionNote] = useState(
     project.scenario === "education"
       ? "Ученик уверенно сыграл припев. Следующую версию можно сделать выразительнее."
@@ -1267,12 +1280,32 @@ function StagePackShell({
     const titles = project.directorSuggestions
       .filter((suggestion) => picked.includes(suggestion.actionId))
       .map((suggestion) => suggestion.title);
+    const previousVersionId = project.currentVersionId;
     setProject((current) => (current ? applyDirectorActions(current, picked, titles.join(". ")) : current));
     setPickedSuggestions([]);
+    pushToast({
+      kind: "success",
+      title: `Собрана версия из ${picked.length} ${plural(picked.length, "предложения", "предложений", "предложений")}`,
+      detail: "Правки сведены в один шаг и откатываются вместе.",
+      action: {
+        label: "Отменить",
+        run: () => setProject((current) => (current ? rollbackToVersion(current, previousVersionId) : current)),
+      },
+    });
   };
 
   const runAction = (actionId: DirectorActionId, userCommand?: string) => {
+    const previousVersionId = project.currentVersionId;
     setProject((current) => (current ? applyDirectorAction(current, actionId, userCommand) : current));
+    pushToast({
+      kind: "success",
+      title: "Создана новая версия",
+      detail: "Материалы, которых правка касается, помечены на пересборку.",
+      action: {
+        label: "Отменить",
+        run: () => setProject((current) => (current ? rollbackToVersion(current, previousVersionId) : current)),
+      },
+    });
   };
 
   const changeReviewStatus = (issueId: string, status: ReviewStatus) => {
@@ -1373,6 +1406,8 @@ function StagePackShell({
 
   return (
     <section className="stage-shell">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
       {pendingDeletion && (
         <ConfirmDialog
           title={deletionCopy[pendingDeletion].title}
@@ -2149,6 +2184,72 @@ function EmptyState({
  * Чекбокс здесь не формальность: он держит подтверждающую кнопку
  * выключенной, пока пользователь не прочитал, что именно исчезнет.
  */
+export interface Toast {
+  id: string;
+  kind: "success" | "attention" | "error";
+  title: string;
+  detail: string;
+  /** Действие в тосте. Успех по бренд-буку несёт «Отменить». */
+  action?: { label: string; run: () => void };
+}
+
+/**
+ * Сколько тост живёт. Бренд-бук: шесть секунд, с действием — десять, потому
+ * что действие надо успеть прочитать и нажать.
+ */
+export const toastLifetimeMs = (toast: Pick<Toast, "action">): number => (toast.action ? 10000 : 6000);
+
+/** Одновременно на экране не больше двух: третий вытесняет самый старый. */
+export const toastLimit = 2;
+
+function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
+  if (toasts.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="toast-stack">
+      {toasts.map((toast) => (
+        <div key={toast.id} className={`toast ${toast.kind}`} role="status">
+          <span className="toast-icon" aria-hidden="true">
+            {toast.kind === "success" ? (
+              <CheckCircle2 size={17} />
+            ) : toast.kind === "error" ? (
+              <XCircle size={17} />
+            ) : (
+              <AlertTriangle size={17} />
+            )}
+          </span>
+          <div className="toast-body">
+            <strong>{toast.title}</strong>
+            <span>{toast.detail}</span>
+          </div>
+          {toast.action && (
+            <button
+              className="btn btn-outline btn-xs"
+              type="button"
+              onClick={() => {
+                toast.action!.run();
+                onDismiss(toast.id);
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
+          <button
+            className="toast-close"
+            type="button"
+            aria-label="Закрыть уведомление"
+            onClick={() => onDismiss(toast.id)}
+          >
+            <X size={15} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ConfirmDialog({
   title,
   body,

@@ -1645,6 +1645,10 @@ button:not(:disabled):active {
  * Плашки статусов. Каждое состояние — своя пара «подложка + обводка», иначе
  * разные по смыслу статусы читаются как один. Обводка объявлена прозрачной
  * в базе: рамка появляется только цветом и не двигает соседей в ряду.
+ *
+ * Отступы 6/9 — единственное место, где мы уходим со шкалы осознанно.
+ * Бренд-бук задаёт для пилюль 5–6 / 10–11 px, а рамка забирает недостающий
+ * пиксель: внешний габарит плашки остаётся прежним 7/10 и ряд не разъезжается.
  */
 .status-badge {
   border: 1px solid transparent;
@@ -1652,7 +1656,7 @@ button:not(:disabled):active {
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 850;
-  padding: var(--s2) var(--s3);
+  padding: 6px 9px;
 }
 
 /* Готово — состояние файла, подтверждённый результат системы. */
@@ -3318,4 +3322,91 @@ button:disabled {
 .suggestion-pick input {
   flex: 0 0 auto;
   margin-top: var(--s1);
+}
+
+/*
+ * Тосты. Живут шесть секунд, с действием — десять; одновременно не больше
+ * двух. Успех несёт «Отменить»: подтверждение без пути назад бесполезно,
+ * когда действие только что создало новую версию.
+ */
+.toast-stack {
+  bottom: var(--s6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  max-width: min(440px, calc(100vw - var(--s8)));
+  position: fixed;
+  right: var(--s6);
+  z-index: 60;
+}
+
+.toast {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--e-3);
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+}
+
+.toast-icon {
+  align-items: center;
+  border-radius: var(--r-1);
+  display: flex;
+  flex: 0 0 auto;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.toast.success .toast-icon {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.toast.attention .toast-icon {
+  background: var(--warn);
+  color: var(--surface);
+}
+
+.toast.error .toast-icon {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.toast-body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toast-body strong {
+  font-size: 14px;
+}
+
+.toast-body span {
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+
+.toast-close {
+  background: transparent;
+  border: 0;
+  color: var(--ink-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+  line-height: 0;
+  padding: var(--s1);
+}
+
+@media (max-width: 720px) {
+  .toast-stack {
+    bottom: var(--s3);
+    left: var(--s3);
+    max-width: none;
+    right: var(--s3);
+  }
 }
