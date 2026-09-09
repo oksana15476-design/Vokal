@@ -271,6 +271,15 @@ const baseSteps: ProcessingStep[] = [
   { id: "director", label: "Ревью AI-директора", status: "queued", detail: "Ищем проблемы состава, уровня и выдачи материалов." },
 ];
 
+export const processingStepIds: string[] = baseSteps.map((step) => step.id);
+
+export const processingMilestones: Array<{ label: string; detail: string; stepIds: string[] }> = [
+  { label: "Аудио", detail: "файл, громкость, слои", stepIds: ["normalize", "stems"] },
+  { label: "Форма", detail: "BPM, тональность, части песни", stepIds: ["tempo", "structure", "chords"] },
+  { label: "Партии", detail: "MIDI, ноты, материалы", stepIds: ["midi", "notation"] },
+  { label: "Ревью", detail: "что проверить руками", stepIds: ["director"] },
+];
+
 const bandAnalysis: SongAnalysis = {
   title: "Late Train Home",
   artist: "Demo Cover",

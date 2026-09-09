@@ -55,7 +55,7 @@
 - Consumes: no product interfaces yet.
 - Produces: Vite app mounted at `#root`, with `npm run dev`, `npm run typecheck`, `npm run build`, `npm run test`.
 
-- [ ] **Step 1: Add package scripts and dependencies**
+- [x] **Step 1: Add package scripts and dependencies**
 
 Create `package.json`:
 
@@ -87,7 +87,7 @@ Create `package.json`:
 }
 ```
 
-- [ ] **Step 2: Add Vite and TypeScript configuration**
+- [x] **Step 2: Add Vite and TypeScript configuration**
 
 Create `index.html`:
 
@@ -165,7 +165,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Add minimal mounted app**
+- [x] **Step 3: Add minimal mounted app**
 
 Create `src/main.tsx`:
 
@@ -228,13 +228,13 @@ textarea {
 }
 ```
 
-- [ ] **Step 4: Install dependencies**
+- [x] **Step 4: Install dependencies**
 
 Run: `npm install`
 
 Expected: `package-lock.json` is created and dependencies are installed.
 
-- [ ] **Step 5: Verify scaffold**
+- [x] **Step 5: Verify scaffold**
 
 Run: `npm run typecheck`
 
@@ -244,7 +244,7 @@ Run: `npm run build`
 
 Expected: PASS and `dist/` is generated.
 
-- [ ] **Step 6: Commit scaffold**
+- [x] **Step 6: Commit scaffold**
 
 ```bash
 git add package.json package-lock.json index.html tsconfig.json tsconfig.node.json vite.config.ts src/main.tsx src/App.tsx src/styles.css
@@ -278,7 +278,7 @@ git commit -m "feat: scaffold Vokal Director app"
   - `function createShareLinks(project: Project, recipientIds: string[]): Project`
 - Consumes: no backend.
 
-- [ ] **Step 1: Write service tests first**
+- [x] **Step 1: Write service tests first**
 
 Create `src/services/mockServices.test.ts`:
 
@@ -346,17 +346,17 @@ describe("mock services", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npm run test -- --run src/services/mockServices.test.ts`
 
 Expected: FAIL because `mockServices.ts` and domain types do not exist yet.
 
-- [ ] **Step 3: Add domain types**
+- [x] **Step 3: Add domain types**
 
 Create `src/domain/types.ts` with explicit domain interfaces from the spec: project, upload, processing, song analysis, artifacts, versions, review, AI suggestions, recipients, export bundle, legal consent and cost estimate.
 
-- [ ] **Step 4: Add realistic mock data**
+- [x] **Step 4: Add realistic mock data**
 
 Create `src/domain/mockData.ts` with:
 
@@ -369,17 +369,17 @@ Create `src/domain/mockData.ts` with:
 - artifact lists for score, parts, chord chart, lyrics, MIDI, stems, minus, click, rehearsal tracks
 - recipients and share states
 
-- [ ] **Step 5: Add mock services**
+- [x] **Step 5: Add mock services**
 
 Create `src/services/mockServices.ts` implementing project creation, director action, review update, share link creation and processing progress helpers as pure functions.
 
-- [ ] **Step 6: Run service tests**
+- [x] **Step 6: Run service tests**
 
 Run: `npm run test -- --run src/services/mockServices.test.ts`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit domain layer**
+- [x] **Step 7: Commit domain layer**
 
 ```bash
 git add src/domain/types.ts src/domain/mockData.ts src/services/mockServices.ts src/services/mockServices.test.ts
@@ -399,11 +399,11 @@ git commit -m "feat: add Vokal mock domain services"
   - `createProjectFromUpload(input)`
 - Produces: interactive flow states `start`, `setup`, `processing`, `stagePack`; selected scenario, selected goal, consent, uploaded file name, processing steps.
 
-- [ ] **Step 1: Add product state to `App.tsx`**
+- [x] **Step 1: Add product state to `App.tsx`**
 
 Replace the scaffold component with a reducer-driven app that stores scenario, processing goal, file name, consent, current project, current screen, processing progress, selected artifact and mobile tab.
 
-- [ ] **Step 2: Build first working screen**
+- [x] **Step 2: Build first working screen**
 
 Add:
 
@@ -416,17 +416,17 @@ Add:
 - complexity estimate;
 - recent projects.
 
-- [ ] **Step 3: Build setup screen**
+- [x] **Step 3: Build setup screen**
 
 For `Для группы`, show fields for vocal range, guitars, bass, keys, drums, backing vocals, target style and rehearsal date.
 
 For `Для обучения`, show fields for student instrument, level, lesson goal, desired difficulty, number of parts, available class instruments, recipient format and homework materials.
 
-- [ ] **Step 4: Build processing screen**
+- [x] **Step 4: Build processing screen**
 
 Show queued/running/ready/warning/error states for processing steps. Use timers in React state to advance mock processing and route to `Stage Pack` when complete.
 
-- [ ] **Step 5: Verify flow manually**
+- [x] **Step 5: Verify flow manually**
 
 Run: `npm run dev`
 
@@ -439,7 +439,7 @@ Expected:
 - processing advances through visible steps;
 - app lands on `Stage Pack`.
 
-- [ ] **Step 6: Commit flow**
+- [x] **Step 6: Commit flow**
 
 ```bash
 git add src/App.tsx src/styles.css
@@ -461,15 +461,15 @@ git commit -m "feat: add Vokal upload and processing flow"
   - `createShareLinks(project, recipientIds)`
 - Produces: desktop three-pane workspace and mobile tabbed workspace.
 
-- [ ] **Step 1: Add tests for Stage Pack actions**
+- [x] **Step 1: Add tests for Stage Pack actions**
 
 Extend `src/services/mockServices.test.ts` with expectations that AI actions mark artifacts as stale/rebuilt, review actions update issue status, and sharing actions create visible link records.
 
-- [ ] **Step 2: Build artifact list**
+- [x] **Step 2: Build artifact list**
 
 Show all `Stage Pack` artifacts grouped by type. Each row must include name, format, status, confidence and freshness state.
 
-- [ ] **Step 3: Build central preview**
+- [x] **Step 3: Build central preview**
 
 For selected artifact types, show:
 
@@ -479,11 +479,11 @@ For selected artifact types, show:
 - ZIP/share materials as a file bundle list;
 - empty state for material not ready.
 
-- [ ] **Step 4: Build AI-директор panel**
+- [x] **Step 4: Build AI-директор panel**
 
 Show arrangement summary, issue cards, fast actions and chat command field. Fast actions must call `applyDirectorAction` and visibly update version, history and artifacts.
 
-- [ ] **Step 5: Build version, review, and sharing areas**
+- [x] **Step 5: Build version, review, and sharing areas**
 
 Show:
 
@@ -492,7 +492,7 @@ Show:
 - recipients for group and school scenarios;
 - buttons to issue selected mock links and rebuild ZIP.
 
-- [ ] **Step 6: Verify workspace manually**
+- [x] **Step 6: Verify workspace manually**
 
 Expected:
 
@@ -504,7 +504,7 @@ Expected:
 - user can issue mock links to recipients;
 - all visible copy stays in Russian.
 
-- [ ] **Step 7: Commit workspace**
+- [x] **Step 7: Commit workspace**
 
 ```bash
 git add src/App.tsx src/styles.css src/services/mockServices.test.ts
@@ -522,7 +522,7 @@ git commit -m "feat: add Vokal Stage Pack workspace"
 - Consumes: complete app from Tasks 1-4.
 - Produces: polished Russian prototype, updated README, passing QA, pushed GitHub branch.
 
-- [ ] **Step 1: Polish visual system**
+- [x] **Step 1: Polish visual system**
 
 Use a restrained professional palette that avoids one-note purple/blue SaaS defaults:
 
@@ -534,11 +534,11 @@ Use a restrained professional palette that avoids one-note purple/blue SaaS defa
 - blue-gray utility `#58717a`;
 - neutral borders `#d8d0c2`.
 
-- [ ] **Step 2: Polish responsive behavior**
+- [x] **Step 2: Polish responsive behavior**
 
 Desktop must keep three stable columns. Mobile must collapse into tabs `Материалы`, `Просмотр`, `AI-директор` without overlapping labels.
 
-- [ ] **Step 3: Update README**
+- [x] **Step 3: Update README**
 
 Add:
 
@@ -548,7 +548,7 @@ Add:
 - what is mocked;
 - what future integrations replace.
 
-- [ ] **Step 4: Run full QA**
+- [x] **Step 4: Run full QA**
 
 Run:
 
@@ -561,20 +561,20 @@ git diff --check
 
 Expected: all pass.
 
-- [ ] **Step 5: Start local dev server**
+- [x] **Step 5: Start local dev server**
 
 Run: `npm run dev`
 
 Expected: local URL is available, usually `http://127.0.0.1:5173/`.
 
-- [ ] **Step 6: Commit polish and docs**
+- [x] **Step 6: Commit polish and docs**
 
 ```bash
 git add src/App.tsx src/styles.css README.md
 git commit -m "feat: polish Vokal Director prototype"
 ```
 
-- [ ] **Step 7: Push branch**
+- [x] **Step 7: Push branch**
 
 ```bash
 git push origin claude/music-instrument-skills-copy-s3580g
@@ -589,3 +589,20 @@ git push origin claude/music-instrument-skills-copy-s3580g
 **Type consistency:** Type and function names used in Tasks 2-5 match the produced service interfaces.
 
 **Scope note:** This plan intentionally keeps all work in one React app. Real audio processing, backend API, auth, payments, cloud storage, legal documents and real share links remain out of scope for this increment.
+
+---
+
+## Статус выполнения
+
+План выполнен полностью; шаги отмечены. Отличия от плана, принятые по ходу работы:
+
+- `vite.config.ts` импортирует `defineConfig` из `vitest/config` (не из `vite`) —
+  иначе секция `test` не типизируется.
+- `vitest` поднят до `^5.0.0`, добавлены `jsdom` и `@testing-library/react`
+  для компонентных тестов.
+- Мобильная раскладка `Stage Pack` собрана не из трёх вкладок, а из пяти
+  (`Обзор`, `Материалы`, `Проверка`, `AI-директор`, `Экспорт`) с горизонтальной
+  прокруткой: разделов стало больше, чем предполагал план.
+- Пуш идёт в ветку `claude/repo-and-work-review-7vh4df`, а не в
+  `claude/music-instrument-skills-copy-s3580g`, указанную в Задаче 5.
+- Направление первого экрана изменено — см. раздел «Поправки» в спеке.

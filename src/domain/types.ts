@@ -105,6 +105,8 @@ export interface ArrangementVersion {
   createdBy: string;
   status: "draft" | "needs_review" | "approved" | "distributed";
   changes: string[];
+  /** Состояние материалов на момент выхода из версии. Позволяет откатиться назад. */
+  artifactsSnapshot?: Artifact[];
 }
 
 export type ProcessingStepStatus = "queued" | "running" | "done" | "warning" | "error";
@@ -353,6 +355,7 @@ export interface UploadProjectInput {
   scenario: Scenario;
   goalId: ProcessingGoalId;
   fileName: string;
+  fileSizeBytes?: number;
   acceptedConsent: boolean;
   setupSnapshot?: SetupSnapshot;
 }

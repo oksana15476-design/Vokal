@@ -9,6 +9,7 @@ import {
   Download,
   FileAudio,
   FolderOpen,
+  Gauge,
   Layers3,
   ListChecks,
   LockKeyhole,
@@ -20,8 +21,17 @@ import {
   Sparkles,
   Share2,
 } from "lucide-react";
-import { processingGoals } from "./domain/mockData";
-import type { DirectorActionId, ProcessingGoalId, ProcessingStep, Project, ReviewStatus, Scenario } from "./domain/types";
+import { processingGoals, processingMilestones } from "./domain/mockData";
+import type {
+  ArrangementVersion,
+  CostEstimate,
+  DirectorActionId,
+  ProcessingGoalId,
+  ProcessingStep,
+  Project,
+  ReviewStatus,
+  Scenario,
+} from "./domain/types";
 import {
   applyDirectorAction,
   addSessionNote,
@@ -33,7 +43,9 @@ import {
   getGoalsForScenario,
   listDemoProjects,
   rebuildExportBundle,
+  rollbackToVersion,
   updateReviewIssue,
+  validateUploadFile,
 } from "./services/mockServices";
 
 type Screen = "start" | "setup" | "processing" | "stage-pack";
@@ -128,10 +140,24 @@ const setupLabelByKey: Record<string, string> = {
 
 const formatConfidence = (value: number) => `${Math.round(value * 100)}%`;
 
+const confidenceLevel = (value: number): "high" | "mid" | "low" =>
+  value >= 0.85 ? "high" : value >= 0.7 ? "mid" : "low";
+
+const lowConfidenceThreshold = 0.8;
+
 const initialScenario: Scenario = "band";
 const initialGoalId: ProcessingGoalId = "band-rehearsal";
 
-const stepStatusForIndex = (stepIndex: number, activeIndex: number, stepId: string): ProcessingStep["status"] => {
+const stepStatusForIndex = (
+  stepIndex: number,
+  activeIndex: number,
+  stepId: string,
+  errorStepId: string | null,
+): ProcessingStep["status"] => {
+  if (stepIndex === activeIndex && stepId === errorStepId) {
+    return "error";
+  }
+
   if (stepIndex < activeIndex) {
     return stepId === "structure" ? "warning" : "done";
   }
@@ -143,10 +169,10 @@ const stepStatusForIndex = (stepIndex: number, activeIndex: number, stepId: stri
   return "queued";
 };
 
-function makeProcessingSteps(project: Project, activeIndex: number): ProcessingStep[] {
+function makeProcessingSteps(project: Project, activeIndex: number, errorStepId: string | null = null): ProcessingStep[] {
   return project.processing.steps.map((step, index) => ({
     ...step,
-    status: stepStatusForIndex(index, activeIndex, step.id),
+    status: stepStatusForIndex(index, activeIndex, step.id, errorStepId),
   }));
 }
 
@@ -155,10 +181,13 @@ export default function App() {
   const [scenario, setScenario] = useState<Scenario>(initialScenario);
   const [goalId, setGoalId] = useState<ProcessingGoalId>(initialGoalId);
   const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState(0);
   const [acceptedConsent, setAcceptedConsent] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [processingIndex, setProcessingIndex] = useState(0);
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
+  const [retriedSteps, setRetriedSteps] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("overview");
   const [bandSettings, setBandSettings] = useState<Record<string, string>>({
@@ -198,12 +227,21 @@ export default function App() {
     }
   }, [scenario, goalId]);
 
+  const failingStepId =
+    project && project.upload.quality === "low" && !retriedSteps.includes("stems") ? "stems" : null;
+  const activeStepId = project?.processing.steps[processingIndex]?.id ?? null;
+  const errorStepId = failingStepId && activeStepId === failingStepId ? failingStepId : null;
+
   useEffect(() => {
     if (screen !== "processing" || !project) {
       return;
     }
 
-    setProcessingSteps(makeProcessingSteps(project, processingIndex));
+    setProcessingSteps(makeProcessingSteps(project, processingIndex, errorStepId));
+
+    if (errorStepId) {
+      return;
+    }
 
     if (processingIndex >= project.processing.steps.length) {
       const timer = window.setTimeout(() => {
@@ -235,11 +273,12 @@ export default function App() {
     }, 520);
 
     return () => window.clearTimeout(timer);
-  }, [screen, project, processingIndex]);
+  }, [screen, project, processingIndex, errorStepId]);
 
   const startProcessing = (nextProject: Project) => {
     setProject(nextProject);
     setProcessingIndex(0);
+    setRetriedSteps([]);
     setProcessingSteps(makeProcessingSteps(nextProject, 0));
     setWorkspaceTab("overview");
     setScreen("processing");
@@ -252,11 +291,33 @@ export default function App() {
     startProcessing(nextProject);
   };
 
+  const selectFile = (file: File | null) => {
+    if (!file) {
+      setFileName("");
+      setFileSize(0);
+      setUploadError(null);
+      return;
+    }
+
+    const error = validateUploadFile(file);
+    if (error) {
+      setFileName("");
+      setFileSize(0);
+      setUploadError(error);
+      return;
+    }
+
+    setFileName(file.name);
+    setFileSize(file.size);
+    setUploadError(null);
+  };
+
   const startUploadProject = () => {
     const nextProject = createProjectFromUpload({
       scenario,
       goalId,
       fileName,
+      fileSizeBytes: fileSize,
       acceptedConsent,
       setupSnapshot: {
         scenario,
@@ -297,7 +358,8 @@ export default function App() {
           goalId={goalId}
           setGoalId={setGoalId}
           fileName={fileName}
-          setFileName={setFileName}
+          onSelectFile={selectFile}
+          uploadError={uploadError}
           acceptedConsent={acceptedConsent}
           setAcceptedConsent={setAcceptedConsent}
           canStartJob={canStartJob}
@@ -322,7 +384,13 @@ export default function App() {
       )}
 
       {screen === "processing" && project && (
-        <ProcessingScreen project={project} steps={processingSteps} activeIndex={processingIndex} />
+        <ProcessingScreen
+          project={project}
+          steps={processingSteps}
+          activeIndex={processingIndex}
+          errorStepId={errorStepId}
+          onRetry={(stepId) => setRetriedSteps((current) => [...current, stepId])}
+        />
       )}
 
       {screen === "stage-pack" && project && (
@@ -346,7 +414,8 @@ interface StartScreenProps {
   goalId: ProcessingGoalId;
   setGoalId: (goalId: ProcessingGoalId) => void;
   fileName: string;
-  setFileName: (fileName: string) => void;
+  onSelectFile: (file: File | null) => void;
+  uploadError: string | null;
   acceptedConsent: boolean;
   setAcceptedConsent: (accepted: boolean) => void;
   canStartJob: boolean;
@@ -362,7 +431,8 @@ function StartScreen({
   goalId,
   setGoalId,
   fileName,
-  setFileName,
+  onSelectFile,
+  uploadError,
   acceptedConsent,
   setAcceptedConsent,
   canStartJob,
@@ -438,15 +508,22 @@ function StartScreen({
             </span>
           </div>
 
-          <label className="drop-zone job-drop-zone">
+          <label className={uploadError ? "drop-zone job-drop-zone invalid" : "drop-zone job-drop-zone"}>
             <FileAudio size={30} />
-            <span>{fileName || "Добавьте MP3/WAV для бесплатного черновика"}</span>
+            <span>{fileName || "Добавьте MP3, WAV, FLAC или M4A"}</span>
             <input
               type="file"
               accept=".mp3,.wav,.flac,.m4a,audio/*"
-              onChange={(event) => setFileName(event.target.files?.[0]?.name ?? "")}
+              onChange={(event) => onSelectFile(event.target.files?.[0] ?? null)}
             />
           </label>
+
+          {uploadError && (
+            <p className="field-error" role="alert">
+              <AlertTriangle size={15} />
+              {uploadError}
+            </p>
+          )}
 
           <label className="consent-row compact">
             <input
@@ -467,6 +544,14 @@ function StartScreen({
             <Sparkles size={18} />
             Разобрать песню бесплатно
           </button>
+
+          {!canStartJob && (
+            <p className="action-hint">
+              {!fileName
+                ? "Чтобы продолжить, добавьте файл песни."
+                : "Чтобы продолжить, подтвердите право обработать этот материал."}
+            </p>
+          )}
 
           <button className="settings-link" type="button" disabled={!canStartJob} onClick={onOpenSettings}>
             <SlidersHorizontal size={16} />
@@ -728,14 +813,32 @@ function SetupScreen({
   );
 }
 
-function ProcessingScreen({ project, steps, activeIndex }: { project: Project; steps: ProcessingStep[]; activeIndex: number }) {
+function ProcessingScreen({
+  project,
+  steps,
+  activeIndex,
+  errorStepId,
+  onRetry,
+}: {
+  project: Project;
+  steps: ProcessingStep[];
+  activeIndex: number;
+  errorStepId: string | null;
+  onRetry: (stepId: string) => void;
+}) {
   const progress = Math.min(100, Math.round((activeIndex / project.processing.steps.length) * 100));
+  const failedStep = errorStepId ? steps.find((step) => step.id === errorStepId) : undefined;
   const currentStep =
+    steps.find((step) => step.status === "error") ??
     steps.find((step) => step.status === "running") ??
     [...steps].reverse().find((step) => step.status === "done" || step.status === "warning") ??
     steps[0];
   const getMilestoneStatus = (ids: string[]): ProcessingStep["status"] => {
     const relatedSteps = steps.filter((step) => ids.includes(step.id));
+
+    if (relatedSteps.some((step) => step.status === "error")) {
+      return "error";
+    }
 
     if (relatedSteps.some((step) => step.status === "running")) {
       return "running";
@@ -751,28 +854,6 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
 
     return "queued";
   };
-  const milestones = [
-    {
-      label: "Аудио",
-      detail: "файл, громкость, слои",
-      status: getMilestoneStatus(["normalize", "stems"]),
-    },
-    {
-      label: "Форма",
-      detail: "BPM, тональность, части песни",
-      status: getMilestoneStatus(["meter", "structure", "chords"]),
-    },
-    {
-      label: "Партии",
-      detail: "MIDI, ноты, материалы",
-      status: getMilestoneStatus(["midi", "notation"]),
-    },
-    {
-      label: "Ревью",
-      detail: "что проверить руками",
-      status: getMilestoneStatus(["director-review"]),
-    },
-  ];
 
   return (
     <section className="processing-view">
@@ -789,7 +870,7 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
           <span style={{ width: `${progress}%` }} />
         </div>
 
-        <div className="processing-focus">
+        <div className={failedStep ? "processing-focus failed" : "processing-focus"}>
           <span>{progress}%</span>
           <div>
             <strong>{currentStep?.label ?? "Запуск"}</strong>
@@ -797,25 +878,90 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
           </div>
         </div>
 
-        <div className="processing-milestones" aria-label="Этапы обработки">
-          {milestones.map((milestone) => (
-            <div key={milestone.label} className={`processing-milestone ${milestone.status}`}>
-              <span className="step-icon">
-                {milestone.status === "done" ? (
-                  <CheckCircle2 size={18} />
-                ) : milestone.status === "warning" ? (
-                  <AlertTriangle size={18} />
-                ) : (
-                  <Clock3 size={18} />
-                )}
-              </span>
-              <strong>{milestone.label}</strong>
-              <small>{milestone.detail}</small>
+        {failedStep && (
+          <div className="processing-error" role="alert">
+            <AlertTriangle size={18} />
+            <div>
+              <strong>Шаг «{failedStep.label}» не прошел</strong>
+              <p>Исходник записан плотно и тихо, моковому разделению не хватило качества. Шаг можно повторить.</p>
             </div>
-          ))}
+            <button className="secondary-action" type="button" onClick={() => onRetry(failedStep.id)}>
+              <Repeat2 size={16} />
+              Повторить шаг
+            </button>
+          </div>
+        )}
+
+        <div className="processing-milestones" aria-label="Этапы обработки">
+          {processingMilestones.map((milestone) => {
+            const status = getMilestoneStatus(milestone.stepIds);
+
+            return (
+              <div key={milestone.label} className={`processing-milestone ${status}`}>
+                <span className="step-icon">
+                  {status === "done" ? (
+                    <CheckCircle2 size={18} />
+                  ) : status === "warning" || status === "error" ? (
+                    <AlertTriangle size={18} />
+                  ) : (
+                    <Clock3 size={18} />
+                  )}
+                </span>
+                <strong>{milestone.label}</strong>
+                <small>{milestone.detail}</small>
+              </div>
+            );
+          })}
         </div>
+
+        {project.processing.warnings.length > 0 && (
+          <div className="processing-warnings" aria-label="Предупреждения обработки">
+            <strong>
+              <AlertTriangle size={16} />
+              Что уже видно
+            </strong>
+            {project.processing.warnings.map((warning) => (
+              <span key={warning}>{warning}</span>
+            ))}
+          </div>
+        )}
+
+        <CostEstimateBox estimate={project.costEstimate} />
       </div>
     </section>
+  );
+}
+
+function CostEstimateBox({ estimate, compact = false }: { estimate: CostEstimate; compact?: boolean }) {
+  return (
+    <div className={compact ? "cost-estimate compact" : "cost-estimate"} aria-label="Оценка сложности обработки">
+      <div className="cost-estimate-head">
+        <Gauge size={16} />
+        <strong>Оценка обработки</strong>
+        <span className={`cost-chip ${estimate.complexity}`}>{complexityCopy[estimate.complexity]}</span>
+      </div>
+      <div className="cost-estimate-metrics">
+        <span>
+          <b>{estimate.credits}</b>
+          условных кредитов
+        </span>
+        <span>
+          <b>{estimate.runtime}</b>
+          ожидаемое время
+        </span>
+        <span>
+          <b>{tierCopy[estimate.tier]}</b>
+          режим
+        </span>
+      </div>
+      {!compact && (
+        <div className="cost-estimate-notes">
+          {estimate.notes.map((note) => (
+            <span key={note}>{note}</span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -833,6 +979,13 @@ const reviewStatusCopy: Record<ReviewStatus, string> = {
   fixed: "исправлено",
   uncertain: "сомнительно",
   accepted_for_rehearsal: "принято для репетиции",
+};
+
+const versionStatusCopy: Record<ArrangementVersion["status"], string> = {
+  draft: "черновик",
+  needs_review: "нужна проверка",
+  approved: "принята",
+  distributed: "выдана",
 };
 
 const actionLabel: Record<DirectorActionId, string> = {
@@ -853,6 +1006,12 @@ const complexityCopy = {
   low: "низкая сложность",
   medium: "средняя сложность",
   high: "высокая сложность",
+} as const;
+
+const tierCopy = {
+  fast_draft: "быстрый черновик",
+  accurate: "точный разбор",
+  multi_version: "несколько версий",
 } as const;
 
 const freeArtifactTypes = new Set(["score", "chords", "lyrics", "teacher", "student"]);
@@ -917,6 +1076,10 @@ function StagePackShell({
 
   const issueLinks = () => {
     setProject((current) => (current ? createShareLinks(current, selectedRecipients) : current));
+  };
+
+  const rollbackTo = (versionId: string) => {
+    setProject((current) => (current ? rollbackToVersion(current, versionId) : current));
   };
 
   const rebuildBundle = () => {
@@ -1030,6 +1193,23 @@ function StagePackShell({
               <span>{project.analysis.meter}</span>
               <span>{project.analysis.duration}</span>
             </div>
+
+            {averageConfidence < lowConfidenceThreshold && (
+              <div className="inline-warning" role="status">
+                <AlertTriangle size={17} />
+                <span>
+                  Средняя точность разбора {formatConfidence(averageConfidence)}. Это черновик: перед репетицией пройдите
+                  раздел «Проверка».
+                </span>
+              </div>
+            )}
+
+            {project.upload.quality === "low" && (
+              <div className="inline-warning" role="status">
+                <AlertTriangle size={17} />
+                <span>{project.upload.sourceNote} Качество исходника оценено как низкое, партии будут грубее.</span>
+              </div>
+            )}
 
             <SectionTimeline project={project} />
             <TransportBar project={project} />
@@ -1160,6 +1340,13 @@ function StagePackShell({
                   <small>
                     {issue.part} · {formatConfidence(issue.confidence)} · {reviewStatusCopy[issue.status]}
                   </small>
+                  {project.reviewComments
+                    .filter((comment) => comment.issueId === issue.id)
+                    .map((comment) => (
+                      <p key={comment.id} className="review-comment">
+                        <b>{comment.author}:</b> {comment.text}
+                      </p>
+                    ))}
                 </div>
               ))}
             </div>
@@ -1230,6 +1417,21 @@ function StagePackShell({
               ))}
             </div>
 
+            <div className="chat-log" aria-label="Диалог с AI-директором">
+              {project.chat.length === 0 ? (
+                <p className="chat-empty">
+                  Диалога пока нет. Запустите действие карточкой выше или опишите правку своими словами.
+                </p>
+              ) : (
+                project.chat.map((message) => (
+                  <div key={message.id} className={`chat-message ${message.author}`}>
+                    <strong>{message.author === "director" ? "AI-директор" : "Вы"}</strong>
+                    <p>{message.text}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
             <div className="chat-box">
               <label>
                 <span>Команда AI-директору</span>
@@ -1259,12 +1461,10 @@ function StagePackShell({
                     key={version.id}
                     type="button"
                     className={version.id === project.currentVersionId ? "version-row active" : "version-row"}
-                    onClick={() =>
-                      setProject((current) => (current ? { ...current, currentVersionId: version.id } : current))
-                    }
+                    onClick={() => rollbackTo(version.id)}
                   >
                     <span>{version.label}</span>
-                    <small>{version.status === "needs_review" ? "нужна проверка" : "черновик"}</small>
+                    <small>{versionStatusCopy[version.status]}</small>
                   </button>
                 ))}
               </div>
@@ -1334,18 +1534,34 @@ function StagePackShell({
                   </label>
                 ))}
               </div>
-              <button className="secondary-action pro-action" type="button" onClick={issueLinks} disabled={selectedRecipients.length === 0}>
+              <button
+                className="secondary-action pro-action"
+                type="button"
+                onClick={issueLinks}
+                disabled={selectedRecipients.length === 0 || project.dataRetention.resultsDeleted}
+              >
                 <LockKeyhole size={14} />
                 Создать ссылки по подписке
               </button>
-              <button className="secondary-action pro-action" type="button" onClick={rebuildBundle}>
+              <button
+                className="secondary-action pro-action"
+                type="button"
+                onClick={rebuildBundle}
+                disabled={project.dataRetention.resultsDeleted}
+              >
                 <LockKeyhole size={14} />
                 Пересобрать ZIP и треки
               </button>
+              {project.dataRetention.resultsDeleted && (
+                <p className="action-hint">Результаты удалены, выдача и пересборка недоступны.</p>
+              )}
               {project.shareLinks.length > 0 && (
                 <div className="mock-links">
                   {project.shareLinks.map((link) => (
-                    <span key={link.id}>{link.label}</span>
+                    <span key={link.id} className={link.status === "stale" ? "stale" : undefined}>
+                      {link.label}
+                      {link.status === "stale" && <b> · ссылка устарела</b>}
+                    </span>
                   ))}
                 </div>
               )}
@@ -1364,6 +1580,7 @@ function StagePackShell({
 
             <section className="subpanel compact">
               <h3>Настройки обработки</h3>
+              <CostEstimateBox estimate={project.costEstimate} compact />
               <div className="setup-summary-strip compact" aria-label="Настройки задачи">
                 <strong>{project.setupSnapshot.title}</strong>
                 <div>
@@ -1506,8 +1723,12 @@ function StudioTrackStack({
                 <strong>{part}</strong>
                 <span>{index === 0 ? "ведущий слой" : index === 1 ? "ритм" : "поддержка"}</span>
               </div>
-              <i className="track-confidence">
-                <b style={{ width: `${Math.round(value * 100)}%` }} />
+              <i
+                className="track-confidence"
+                title={`Точность разбора: ${formatConfidence(value)}`}
+                aria-label={`${part}: точность разбора ${formatConfidence(value)}`}
+              >
+                <b className={confidenceLevel(value)} style={{ width: `${Math.round(value * 100)}%` }} />
               </i>
               <div className="track-controls">
                 <button type="button" title={`Solo: ${part}`} aria-label={`Solo: ${part}`}>

@@ -14,10 +14,19 @@ import type {
   ReviewStatus,
   Scenario,
   SetupSnapshot,
+  Upload,
   UploadProjectInput,
 } from "../domain/types";
 
 const now = () => new Date().toISOString();
+
+const reviewStatusLabels: Record<ReviewStatus, string> = {
+  needs_review: "нужно проверить",
+  checked: "проверено",
+  fixed: "исправлено",
+  uncertain: "сомнительно",
+  accepted_for_rehearsal: "принято для репетиции",
+};
 
 const cloneProject = (project: Project): Project => JSON.parse(JSON.stringify(project)) as Project;
 
@@ -46,8 +55,31 @@ export const createProjectFromDemo = (projectId: string): Project => {
   return copy;
 };
 
+export const supportedUploadExtensions = ["mp3", "wav", "flac", "m4a"] as const;
+export const maxUploadBytes = 50 * 1024 * 1024;
+export const lowQualityUploadBytes = 20 * 1024 * 1024;
+
+const extensionOf = (fileName: string) => fileName.split(".").pop()?.toLowerCase() ?? "";
+
+export const validateUploadFile = (file: { name: string; size: number }): string | null => {
+  const extension = extensionOf(file.name);
+
+  if (!supportedUploadExtensions.includes(extension as (typeof supportedUploadExtensions)[number])) {
+    return `Формат .${extension || "?"} не поддерживается. Подойдут MP3, WAV, FLAC или M4A.`;
+  }
+
+  if (file.size > maxUploadBytes) {
+    return `Файл больше ${Math.round(maxUploadBytes / 1024 / 1024)} МБ. Для прототипа возьмите файл покороче.`;
+  }
+
+  return null;
+};
+
+export const qualityForSize = (sizeBytes: number): Upload["quality"] =>
+  sizeBytes >= lowQualityUploadBytes ? "low" : "medium";
+
 const extensionToFormat = (fileName: string): "MP3" | "WAV" | "FLAC" | "M4A" => {
-  const extension = fileName.split(".").pop()?.toLowerCase();
+  const extension = extensionOf(fileName);
 
   if (extension === "wav") return "WAV";
   if (extension === "flac") return "FLAC";
@@ -91,7 +123,7 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
       fileName: input.fileName,
       format: extensionToFormat(input.fileName),
       durationSeconds: 214,
-      quality: "medium",
+      quality: qualityForSize(input.fileSizeBytes ?? 0),
       sourceNote: "Локальная моковая запись: файл не отправлен на сервер.",
     },
     bandLineup:
@@ -215,7 +247,11 @@ export const applyDirectorAction = (project: Project, actionId: DirectorActionId
     ...project,
     currentVersionId: versionId,
     versions: [
-      ...project.versions,
+      ...project.versions.map((version) =>
+        version.id === project.currentVersionId && !version.artifactsSnapshot
+          ? { ...version, artifactsSnapshot: project.stagePack.artifacts.map((artifact) => ({ ...artifact })) }
+          : version,
+      ),
       {
         id: versionId,
         label: result.versionLabel,
@@ -262,6 +298,42 @@ export const applyDirectorAction = (project: Project, actionId: DirectorActionId
   };
 };
 
+export const rollbackToVersion = (project: Project, versionId: string): Project => {
+  const target = project.versions.find((version) => version.id === versionId);
+  if (!target || versionId === project.currentVersionId) {
+    return project;
+  }
+
+  const restoredArtifacts = target.artifactsSnapshot ?? project.stagePack.artifacts;
+  const hasStale = restoredArtifacts.some((artifact) => artifact.isStale);
+
+  return {
+    ...project,
+    currentVersionId: versionId,
+    stagePack: {
+      ...project.stagePack,
+      versionId,
+      artifacts: restoredArtifacts.map((artifact) => ({ ...artifact })),
+    },
+    exportBundles: project.exportBundles.map((bundle) => ({
+      ...bundle,
+      status: hasStale ? "stale" : "ready",
+    })),
+    changeLog: [
+      {
+        id: `change-rollback-${versionId}-${Date.now()}`,
+        title: `Откат к версии «${target.label}»`,
+        description: target.artifactsSnapshot
+          ? "Материалы вернулись к состоянию этой версии."
+          : "Для этой версии снимок материалов не сохранялся, показан текущий набор.",
+        createdAt: now(),
+        actor: "Пользователь",
+      },
+      ...project.changeLog,
+    ],
+  };
+};
+
 export const updateReviewIssue = (project: Project, issueId: string, status: ReviewStatus): Project => ({
   ...project,
   reviewIssues: project.reviewIssues.map((issue) =>
@@ -278,7 +350,7 @@ export const updateReviewIssue = (project: Project, issueId: string, status: Rev
       id: `comment-${issueId}-${Date.now()}`,
       issueId,
       author: "Пользователь",
-      text: `Статус изменен на ${status}.`,
+      text: `Статус изменен на «${reviewStatusLabels[status]}».`,
       createdAt: now(),
     },
   ],

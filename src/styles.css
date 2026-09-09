@@ -1610,9 +1610,21 @@ textarea:focus-visible {
 }
 
 .track-confidence b {
-  background: linear-gradient(90deg, var(--pine-2), #f1c57a, var(--coral));
+  border-radius: 999px;
   display: block;
   height: 100%;
+}
+
+.track-confidence b.high {
+  background: #4f9d84;
+}
+
+.track-confidence b.mid {
+  background: #d9a441;
+}
+
+.track-confidence b.low {
+  background: var(--coral);
 }
 
 .track-controls {
@@ -2152,4 +2164,247 @@ textarea:focus-visible {
     align-items: flex-start;
     grid-template-columns: 1fr;
   }
+
+  .processing-error {
+    grid-template-columns: auto 1fr;
+  }
+
+  .processing-error button {
+    grid-column: 1 / -1;
+  }
+
+  .cost-estimate-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .section-segment {
+    min-width: 118px;
+  }
+}
+
+/* --- Обработка: ошибки, предупреждения, оценка --- */
+
+.processing-focus.failed {
+  border-color: var(--coral);
+}
+
+.processing-milestone.error {
+  border-color: var(--coral);
+}
+
+.processing-error {
+  align-items: center;
+  background: #fdf1ee;
+  border: 1px solid var(--coral);
+  border-radius: 8px;
+  color: var(--coral-dark);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto 1fr auto;
+  padding: 14px;
+}
+
+.processing-error strong {
+  display: block;
+}
+
+.processing-error p {
+  color: var(--ink);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+.processing-warnings {
+  background: var(--paper-strong);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brass);
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+  padding: 13px 14px;
+}
+
+.processing-warnings strong {
+  align-items: center;
+  color: var(--brass);
+  display: flex;
+  gap: 7px;
+}
+
+.processing-warnings span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cost-estimate {
+  background: var(--paper-strong);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+}
+
+.cost-estimate.compact {
+  gap: 9px;
+  padding: 11px;
+}
+
+.cost-estimate-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.cost-estimate-head strong {
+  flex: 1;
+}
+
+.cost-chip {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 4px 9px;
+}
+
+.cost-chip.low {
+  background: #e4f0ea;
+  color: var(--pine);
+}
+
+.cost-chip.medium {
+  background: #f6ecd8;
+  color: #8a6318;
+}
+
+.cost-chip.high {
+  background: #fbe6e0;
+  color: var(--coral-dark);
+}
+
+.cost-estimate-metrics {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cost-estimate-metrics span {
+  color: var(--muted);
+  display: grid;
+  font-size: 11px;
+  gap: 2px;
+}
+
+.cost-estimate-metrics b {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.cost-estimate-notes {
+  display: grid;
+  gap: 4px;
+}
+
+.cost-estimate-notes span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* --- Ошибки формы и недоступные действия --- */
+
+.drop-zone.invalid {
+  border-color: var(--coral);
+}
+
+.field-error {
+  align-items: center;
+  color: var(--coral-dark);
+  display: flex;
+  font-size: 13px;
+  gap: 7px;
+  margin: 0;
+}
+
+.action-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
+}
+
+.inline-warning {
+  align-items: center;
+  background: #fdf7ea;
+  border: 1px solid #e8d5a8;
+  border-radius: 8px;
+  color: #7a5a12;
+  display: flex;
+  font-size: 13px;
+  gap: 10px;
+  padding: 11px 13px;
+}
+
+/* --- Диалог с AI-директором --- */
+
+.chat-log {
+  display: grid;
+  gap: 9px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.chat-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.chat-message {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.chat-message.director {
+  background: #eef4f0;
+  border-color: #cfe0d6;
+}
+
+.chat-message.user {
+  background: var(--paper-strong);
+}
+
+.chat-message strong {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chat-message.director strong {
+  color: var(--pine);
+}
+
+.chat-message p {
+  font-size: 13px;
+  margin: 0;
+}
+
+.review-comment {
+  border-left: 2px solid var(--border-strong);
+  color: var(--muted);
+  font-size: 12px;
+  margin: 6px 0 0;
+  padding-left: 9px;
+}
+
+.mock-links span.stale {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.mock-links span.stale b {
+  color: var(--coral-dark);
+  text-decoration: none;
 }
