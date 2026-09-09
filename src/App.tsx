@@ -1985,10 +1985,25 @@ function ConsolePanel({
   const commandForPart = (part: string): { label: string; actionId: DirectorActionId } => {
     const normalized = part.toLowerCase();
 
+    // Ветка урока раньше искала только «вокал». В демо урока партии
+    // называются «Мелодия», «Аккорды», «Гитара», «Бас» — вокала нет вовсе,
+    // поэтому все четыре дорожки получали «усложнить», в том числе
+    // «Аккорды», где команда не имеет смысла, а «разбор к уроку» не
+    // доставался никому.
     if (project.scenario === "education") {
-      return normalized.includes("вокал")
-        ? { label: "разбор к уроку", actionId: "lesson-analysis" }
-        : { label: "усложнить", actionId: "advanced-student-part" };
+      if (normalized.includes("вокал") || normalized.includes("мелод")) {
+        return { label: "разбор к уроку", actionId: "lesson-analysis" };
+      }
+      if (normalized.includes("аккорд")) {
+        return { label: "учебная версия", actionId: "education-version" };
+      }
+      if (normalized.includes("бас")) {
+        return { label: "упростить бас", actionId: "beginner-bass" };
+      }
+      if (normalized.includes("перкус") || normalized.includes("бараб")) {
+        return { label: "на ансамбль", actionId: "student-ensemble" };
+      }
+      return { label: "усложнить", actionId: "advanced-student-part" };
     }
     if (normalized.includes("гитар")) return { label: "объединить", actionId: "merge-guitars" };
     if (normalized.includes("клав")) return { label: "взять струнные", actionId: "move-strings-to-keys" };

@@ -571,6 +571,34 @@ describe("бренд-бук: структура экранов", () => {
     expect(document.querySelectorAll("button.btn-primary").length).toBeLessThanOrEqual(1);
   });
 
+  it("дает каждой партии урока свою команду, а не одну на всех", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    // Демо урока: партии «Мелодия», «Аккорды», «Гитара», «Бас». Вокала в нем
+    // нет, и ветка урока раздавала «усложнить» всем четырем.
+    await user.click(screen.getByRole("button", { name: /Warm Lights: урок гитары/ }));
+    await waitForStagePack();
+
+    const byPart = new Map(
+      [...document.querySelectorAll(".console-track-row")].map((row) => [
+        row.querySelector(".track-name strong")?.textContent?.trim() ?? "",
+        row.querySelector(".track-command")?.textContent?.trim() ?? "",
+      ]),
+    );
+
+    expect(byPart.size).toBeGreaterThan(2);
+    // Раньше все четыре получали «усложнить» — одна команда на весь урок.
+    expect(new Set(byPart.values()).size).toBeGreaterThan(1);
+    // «Усложнить аккорды» не имеет смысла ни в одном прочтении.
+    expect(byPart.get("Аккорды")).not.toBe("усложнить");
+    // «Разбор к уроку» не доставался никому: ветка искала вокал, которого нет.
+    expect([...byPart.values()]).toContain("разбор к уроку");
+    // Ярлыки стоят в колонке фиксированной ширины и не переносятся.
+    for (const label of byPart.values()) {
+      expect(label.length, `ярлык «${label}» длиннее 14 знаков`).toBeLessThanOrEqual(14);
+    }
+  });
+
   it("не выдает за рабочие органы, которых нет", async () => {
     const user = userEvent.setup();
     render(<App />);
