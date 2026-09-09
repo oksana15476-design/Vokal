@@ -288,6 +288,6 @@ describe("загруженный проект не наследует чужой
 
     expect(demo.analysis.source).toBe("demo");
     expect(demo.analysis.chords.length).toBeGreaterThan(0);
-    expect(demo.analysis.key).toBe("G minor");
+    expect(demo.analysis.key).toBe("Gm");
   });
 });

@@ -111,11 +111,11 @@ const scenarioCopy: Record<Scenario, { label: string; description: string }> = {
 };
 
 const workspaceTabs: Array<{ id: WorkspaceTab; label: string; hint: string }> = [
-  { id: "overview", label: "Обзор", hint: "результат" },
+  { id: "overview", label: "Обзор", hint: "что получилось" },
   { id: "materials", label: "Материалы", hint: "что собрано" },
   { id: "review", label: "Проверка", hint: "что проверить" },
-  { id: "director", label: "AI-директор", hint: "изменить" },
-  { id: "export", label: "Экспорт", hint: "выдать" },
+  { id: "director", label: "AI-директор", hint: "что поменять" },
+  { id: "export", label: "Выдача", hint: "кому и что" },
 ];
 
 const setupLabelByKey: Record<string, string> = {
@@ -464,7 +464,7 @@ function AppHeader({
           aria-current={hasProject ? undefined : "page"}
           onClick={onHome}
         >
-          Песни
+          Новая песня
         </button>
         {/*
           «Состав» из бренд-бука здесь нет намеренно: своего экрана у него
@@ -556,7 +556,7 @@ function StartScreen({
           <div className="hero-proof-row" aria-label="Что собрано в прототипе">
             <span>форма и аккорды</span>
             <span>партии и материалы</span>
-            <span>сомнительные такты</span>
+            <span>сомнительные места</span>
             <span>версии и выдача</span>
           </div>
         </section>
@@ -739,7 +739,7 @@ function HomeResultPreview({
       <div className="preview-ai-note">
         <Sparkles size={16} />
         <span>
-          В демо-разборе отмечены сомнительные такты и предложение AI-директора:{" "}
+          В демо-разборе отмечены сомнительные места и предложение AI-директора:{" "}
           {scenario === "education" ? "партия сложнее для ученика" : "усилить припев"}.
         </span>
       </div>
@@ -752,7 +752,7 @@ function AccessModel() {
     <section className="access-model" aria-label="Что внутри прототипа">
       <article className="access-card free">
         <span>собрано</span>
-        <strong>Демо-проекты и разборы</strong>
+        <strong>Демо-песни и разборы</strong>
         <p>Оба сценария, цели, форма, аккорды, партии и материалы Stage Pack — на заранее собранных данных.</p>
       </article>
       <article className="access-card trial">
@@ -814,8 +814,8 @@ function SetupScreen({
   const promiseList =
     scenario === "band"
       ? [
-          "состав сохранится в карточке проекта",
-          "сомнительные такты покажем отдельно",
+          "состав сохранится в карточке песни",
+          "сомнительные места покажем отдельно",
           "файлы и ссылки пока не создаются",
         ]
       : [
@@ -835,7 +835,7 @@ function SetupScreen({
         <p className="eyebrow">{scenarioCopy[scenario].label}</p>
         <h1>Уточнить перед запуском</h1>
         <p>
-          Шаг необязательный. Уточнения сохранятся в карточке проекта, на демо-разбор они не влияют.
+          Шаг необязательный. Уточнения сохранятся в карточке песни, на демо-разбор они не влияют.
         </p>
       </div>
 
@@ -905,7 +905,7 @@ function SetupScreen({
         </div>
         <div>
           <AlertTriangle size={18} />
-          <span>Сомнительные такты — отдельно: принять, исправить или оставить на репетицию.</span>
+          <span>Сомнительные места — отдельно: принять, исправить или оставить на репетицию.</span>
         </div>
       </div>
     </section>
@@ -1094,17 +1094,17 @@ const versionStatusCopy: Record<ArrangementVersion["status"], string> = {
 };
 
 const actionLabel: Record<DirectorActionId, string> = {
-  "transpose-down-2": "Транспонировать",
+  "transpose-down-2": "Опустить на тон",
   "merge-guitars": "Объединить гитары",
-  "move-strings-to-keys": "На клавиши",
-  "simplify-drums": "Упростить",
-  "beginner-bass": "Бас easy",
-  "boost-chorus": "Усилить",
-  "practice-without-bass": "Трек без баса",
-  "education-version": "Учебная версия",
-  "advanced-student-part": "Advanced",
-  "student-ensemble": "Ансамбль",
-  "lesson-analysis": "Разбор урока",
+  "move-strings-to-keys": "Перенести струнные на клавиши",
+  "simplify-drums": "Упростить барабаны",
+  "beginner-bass": "Упростить бас",
+  "boost-chorus": "Усилить припев",
+  "practice-without-bass": "Собрать трек без баса",
+  "education-version": "Сделать учебную версию",
+  "advanced-student-part": "Усложнить партию",
+  "student-ensemble": "Разложить на ансамбль",
+  "lesson-analysis": "Разобрать к уроку",
 };
 
 const uploadQualityCopy = {
@@ -1242,7 +1242,7 @@ function StagePackShell({
       <div className="stage-toolbar">
         <button className="text-button" type="button" onClick={onBack}>
           <ArrowLeft size={17} />
-          Новый проект
+          Новая песня
         </button>
         <div>
           <h1>{project.name}</h1>
@@ -1258,7 +1258,7 @@ function StagePackShell({
         </span>
       </div>
 
-      <div className="metric-strip" aria-label="Состояние проекта">
+      <div className="metric-strip" aria-label="Состояние песни">
         {/*
           Без разбора считать нечего. Четыре карточки с нулями читаются как
           «проверено, ничего нет» — обратное правде, поэтому на этом пути
@@ -1267,12 +1267,16 @@ function StagePackShell({
         {!hasAnalysis ? (
           <div className="metric-card wide">
             <strong>{project.upload.format}</strong>
-            <span>файл прочитан, разбор не выполнялся</span>
+            <span>файл прочитан, разбора песни нет</span>
           </div>
         ) : (
           <>
         <div className="metric-card">
-          <strong>{Number.isInteger(project.analysis.bpm) ? project.analysis.bpm : project.analysis.bpm.toFixed(1)}</strong>
+          <strong>
+            {Number.isInteger(project.analysis.bpm)
+              ? project.analysis.bpm
+              : project.analysis.bpm.toFixed(1).replace(".", ",")}
+          </strong>
           <span>
             BPM · {project.analysis.meter} · {project.analysis.key}
           </span>
@@ -1292,7 +1296,10 @@ function StagePackShell({
           className={hasStaleBundle ? "metric-card console-card stale" : "metric-card console-card"}
           onClick={() => setWorkspaceTab("export")}
         >
-          <span>{hasStaleBundle ? "требует пересборки" : "выдать музыкантам"}</span>
+          <span>
+            Открыть выдачу
+            {hasStaleBundle && <i className="mono-chip on-console">пересобрать</i>}
+          </span>
           <strong>
             {issuedCount}/{project.shareRecipients.length} ссылок · ZIP
           </strong>
@@ -1413,7 +1420,7 @@ function StagePackShell({
                 Посмотреть материалы
               </button>
               <button className="secondary-action" type="button" onClick={() => setWorkspaceTab("review")}>
-                Проверить сомнительные такты
+                Проверить сомнительные места
               </button>
               <button className="secondary-action" type="button" onClick={() => setWorkspaceTab("director")}>
                 Открыть AI-директора
@@ -1536,8 +1543,8 @@ function StagePackShell({
         <section id="workspace-review" className="stage-panel stage-view review-view" role="tabpanel">
           <div className="review-main">
             {project.reviewIssues.length === 0 ? (
-              <EmptyState title="Сомнительных тактов нет, потому что нет разбора" onOpenDemo={onOpenDemo}>
-                Сомнительные такты находит разбор песни. Пока звук не обрабатывается, находить их не в чем — это
+              <EmptyState title="Сомнительных мест нет, потому что нет разбора" onOpenDemo={onOpenDemo}>
+                Сомнительные места находит разбор песни. Пока звук не обрабатывается, находить их не в чем — это
                 не значит, что в вашей песне все чисто.
               </EmptyState>
             ) : (
@@ -1545,8 +1552,8 @@ function StagePackShell({
             <div className="preview-header">
               <div>
                 <p className="eyebrow">Ручная проверка</p>
-                <h2>Сомнительные такты</h2>
-                <p>AI не притворяется идеальным: сомнительные такты вынесены отдельно — их можно принять, исправить или оставить на репетицию.</p>
+                <h2>Сомнительные места</h2>
+                <p>AI не притворяется идеальным: сомнительные места вынесены отдельно — их можно принять, исправить или оставить на репетицию.</p>
               </div>
               <span className="status-badge needs_review">{reviewCount} в работе</span>
             </div>
@@ -1662,8 +1669,8 @@ function StagePackShell({
               {project.chat.length === 0 ? (
                 <p className="chat-empty">
                   {project.directorSuggestions.length > 0
-                    ? "Разговора пока нет. Запустите действие карточкой выше или опишите правку своими словами."
-                    : "Разговора пока нет. Он появится, когда будет что обсуждать: разбор песни."}
+                    ? "Разговора пока нет. Выберите предложение директора выше или напишите, что поменять в аранжировке."
+                    : "Разговор появится вместе с разбором песни."}
                 </p>
               ) : (
                 project.chat.map((message) => (
@@ -1672,7 +1679,7 @@ function StagePackShell({
                     {message.author === "director" && message.id === project.chat[project.chat.length - 1]?.id && (
                       <div className="chat-actions">
                         <button type="button" className="mono-chip" onClick={() => setWorkspaceTab("review")}>
-                          показать такты
+                          открыть проверку
                         </button>
                         {previousVersion && (
                           <button
@@ -1980,14 +1987,14 @@ function ConsolePanel({
 
     if (project.scenario === "education") {
       return normalized.includes("вокал")
-        ? { label: "разбор урока", actionId: "lesson-analysis" }
-        : { label: "под ученика", actionId: "advanced-student-part" };
+        ? { label: "разбор к уроку", actionId: "lesson-analysis" }
+        : { label: "усложнить", actionId: "advanced-student-part" };
     }
     if (normalized.includes("гитар")) return { label: "объединить", actionId: "merge-guitars" };
-    if (normalized.includes("клав")) return { label: "на клавиши", actionId: "move-strings-to-keys" };
+    if (normalized.includes("клав")) return { label: "взять струнные", actionId: "move-strings-to-keys" };
     if (normalized.includes("бараб")) return { label: "упростить", actionId: "simplify-drums" };
     if (normalized.includes("бас")) return { label: "трек без баса", actionId: "practice-without-bass" };
-    return { label: "усилить", actionId: "boost-chorus" };
+    return { label: "усилить припев", actionId: "boost-chorus" };
   };
 
   // Подпись определяется ролью партии, а не номером строки: при другом
@@ -1996,7 +2003,7 @@ function ConsolePanel({
     const normalized = part.toLowerCase();
     if (normalized.includes("вокал")) return "аудиослой + MIDI";
     if (normalized.includes("гитар")) return project.scenario === "band" ? "ведущая партия" : "партия ученика";
-    if (normalized.includes("клав")) return "со струнными оригинала";
+    if (normalized.includes("клав")) return "без струнных оригинала";
     if (normalized.includes("бараб")) return "ритм";
     if (normalized.includes("бас")) return "сопровождение";
     return "сопровождение";
@@ -2015,7 +2022,7 @@ function ConsolePanel({
           className="console-play"
           disabled
           aria-label="Проиграть — звука в прототипе нет"
-          title="Звука нет: воспроизведение не подключено"
+          title="Звука нет: обработка не подключена"
         >
           <Play size={18} />
         </button>
@@ -2110,7 +2117,9 @@ function ConsolePanel({
             {chord.confidence < mediumConfidenceThreshold && " ?"}
           </span>
         ))}
-        <span className="console-hint">янтарная рамка — аккорд под вопросом</span>
+        <span className="console-hint">
+          ? — аккорд под вопросом: точность ниже {Math.round(mediumConfidenceThreshold * 100)}%
+        </span>
       </div>
     </section>
   );

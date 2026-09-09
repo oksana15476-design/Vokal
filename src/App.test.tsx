@@ -132,7 +132,7 @@ describe("Stage Pack", () => {
     expect(log.textContent).toContain("Я нашел две гитарные партии");
     const before = log.querySelectorAll(".chat-bubble").length;
 
-    await user.click(within(screen.getByRole("tabpanel")).getAllByText("Усилить")[0]);
+    await user.click(within(screen.getByRole("tabpanel")).getAllByText("Усилить припев")[0]);
 
     // Две реплики: команда пользователя и ответ директора. Раньше писалась
     // только вторая, и было непонятно, на что директор отвечает.
@@ -175,7 +175,7 @@ describe("Stage Pack", () => {
     const versionsBefore = document.querySelectorAll(".version-row").length;
     const activeLabel = document.querySelector(".version-row.active span")!.textContent!;
 
-    await user.click(within(screen.getByRole("tabpanel")).getAllByText("Усилить")[0]);
+    await user.click(within(screen.getByRole("tabpanel")).getAllByText("Усилить припев")[0]);
     await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore + 1));
 
     await user.click(screen.getByRole("tab", { name: /Материалы/ }));
@@ -207,7 +207,7 @@ describe("доменные поля на экране", () => {
     await user.click(screen.getByRole("tab", { name: /Материалы/ }));
     expect(document.body.textContent).toContain("всем");
 
-    await user.click(screen.getByRole("tab", { name: /Экспорт/ }));
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
     expect(screen.getByText(/Формат: DEMO/)).toBeTruthy();
     expect(screen.getByText(/Качество: среднее/)).toBeTruthy();
   });
@@ -275,7 +275,7 @@ describe("честность текста", () => {
       timeout: PROCESSING_MS,
     });
 
-    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Экспорт/]) {
+    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Выдача/]) {
       await user.click(screen.getByRole("tab", { name: tab }));
       const text = document.body.textContent ?? "";
 
@@ -293,7 +293,7 @@ describe("честность текста", () => {
       timeout: PROCESSING_MS,
     });
 
-    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Экспорт/]) {
+    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Выдача/]) {
       await user.click(screen.getByRole("tab", { name: tab }));
       const text = document.body.textContent ?? "";
 
@@ -336,9 +336,9 @@ describe("правда о загруженном файле", () => {
     render(<App />);
     await startUpload(user);
 
-    // Регресс: раньше на своем файле показывались G minor, 104 BPM и аккорды демо.
+    // Регресс: раньше на своем файле показывались Gm, 104 BPM и аккорды демо.
     const text = document.body.textContent ?? "";
-    expect(text).not.toContain("G minor");
+    expect(text).not.toContain("Gm");
     expect(text).not.toContain("104 BPM");
     expect(screen.queryByLabelText("Аккорды")).toBeNull();
   });
@@ -364,7 +364,7 @@ describe("правда о загруженном файле", () => {
     const user = userEvent.setup();
     render(<App />);
     await startUpload(user);
-    await user.click(screen.getByRole("tab", { name: /Экспорт/ }));
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
 
     // 222.7 c = 3:42. Раньше здесь стояла зашитая константа 214 c = 3:34.
     expect(screen.getAllByText(/3:42/).length).toBeGreaterThan(0);
@@ -381,7 +381,7 @@ describe("правда о загруженном файле", () => {
       timeout: PROCESSING_MS,
     });
 
-    expect(document.body.textContent ?? "").toContain("G minor");
+    expect(document.body.textContent ?? "").toContain("Gm");
   });
 
   it("не делает сетевых вызовов при выборе файла", async () => {
@@ -417,7 +417,7 @@ describe("свой файл не выдается за демо", () => {
     // Регресс: кнопка была подписана «Посмотреть на демо-разборе», а вызывала
     // возврат на первый экран — обещанное действие не выполнялось.
     await user.click(screen.getAllByRole("button", { name: /Открыть демо-разбор/ })[0]);
-    await waitFor(() => expect(document.body.textContent).toContain("G minor"), {
+    await waitFor(() => expect(document.body.textContent).toContain("Gm"), {
       timeout: PROCESSING_MS,
     });
   });
@@ -451,9 +451,9 @@ describe("пустые вкладки объясняют пустоту", () => 
     await uploadPath(user);
 
     // Регресс: полоса показывала «0/0 материалов», «0 на проверку», «0/0 получателей».
-    const strip = screen.getByLabelText("Состояние проекта");
+    const strip = screen.getByLabelText("Состояние песни");
     expect(strip.textContent).not.toContain("0/0");
-    expect(strip.textContent).toContain("разбор не выполнялся");
+    expect(strip.textContent).toContain("разбора песни нет");
   });
 
   it("объясняет, почему нет сомнительных тактов, вместо «0 в работе»", async () => {
@@ -463,7 +463,7 @@ describe("пустые вкладки объясняют пустоту", () => 
     await user.click(screen.getByRole("tab", { name: /Проверка/ }));
 
     // Ноль без объяснения читается как «проверено, проблем нет» — обратное правде.
-    expect(screen.getByText(/Сомнительных тактов нет, потому что нет разбора/)).toBeTruthy();
+    expect(screen.getByText(/Сомнительных мест нет, потому что нет разбора/)).toBeTruthy();
     expect(screen.queryByText(/в работе/)).toBeNull();
   });
 
@@ -475,7 +475,7 @@ describe("пустые вкладки объясняют пустоту", () => 
     await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
     expect(screen.getByText(/Предложений пока нет/)).toBeTruthy();
 
-    await user.click(screen.getByRole("tab", { name: /Экспорт/ }));
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
     expect(screen.getByText(/Получателей пока нет/)).toBeTruthy();
   });
 
@@ -488,7 +488,7 @@ describe("пустые вкладки объясняют пустоту", () => 
     });
 
     await user.click(screen.getByRole("tab", { name: /Проверка/ }));
-    expect(screen.queryByText(/Сомнительных тактов нет/)).toBeNull();
+    expect(screen.queryByText(/Сомнительных мест нет/)).toBeNull();
     expect(screen.getByText(/в работе/)).toBeTruthy();
   });
 });
