@@ -275,7 +275,7 @@ describe("честность текста", () => {
       timeout: PROCESSING_MS,
     });
 
-    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Выдача/]) {
+    for (const tab of [/Обзор/, /Материалы/, /Состав/, /Проверка/, /AI-директор/, /Выдача/]) {
       await user.click(screen.getByRole("tab", { name: tab }));
       const text = document.body.textContent ?? "";
 
@@ -283,6 +283,45 @@ describe("честность текста", () => {
         expect(text, `загрузка, вкладка ${tab}: ${pattern}`).not.toMatch(pattern);
       }
     }
+  });
+
+  // Поверхности, которых при написании сторожа не существовало: состав,
+  // уровни сложности, подтверждение удаления, тосты. Ровно та дыра, из-за
+  // которой сторож однажды не видел путь загрузки целиком.
+  it("не обещает тарифов и сроков на поверхностях, появившихся позже", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /School Hall: ансамбль учеников/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    const assertClean = (where: string) => {
+      const text = document.body.textContent ?? "";
+      for (const pattern of forbidden) {
+        expect(text, `${where}: ${pattern}`).not.toMatch(pattern);
+      }
+    };
+
+    // Состав и все три уровня сложности.
+    await user.click(screen.getByRole("tab", { name: /Состав/ }));
+    assertClean("состав");
+    for (const level of [/Начинающий/, /Средний/, /Продвинутый/]) {
+      await user.click(screen.getByRole("radio", { name: level }));
+      assertClean(`уровень ${level}`);
+    }
+
+    // Тост после действия директора.
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+    await screen.findByRole("status");
+    assertClean("тост");
+
+    // Подтверждение необратимого удаления.
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+    await screen.findByRole("dialog");
+    assertClean("подтверждение удаления");
   });
 
   it("не обещает тарифов, сроков и не содержит жаргона в Stage Pack", async () => {
