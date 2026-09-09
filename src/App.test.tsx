@@ -143,3 +143,24 @@ describe("Stage Pack", () => {
     await waitFor(() => expect(screen.queryByText("нужно пересобрать")).toBeNull());
   });
 });
+
+describe("доменные поля на экране", () => {
+  it("показывает жанр, аудиторию материала и данные исходника", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть готовый разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    // Жанр лежал в модели, но не выводился нигде.
+    expect(screen.getByText("pop/rock")).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: /Материалы/ }));
+    expect(document.body.textContent).toContain("всем");
+
+    await user.click(screen.getByRole("tab", { name: /Экспорт/ }));
+    expect(screen.getByText(/Формат: DEMO/)).toBeTruthy();
+    expect(screen.getByText(/Качество: среднее/)).toBeTruthy();
+  });
+});

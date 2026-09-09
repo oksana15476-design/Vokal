@@ -973,6 +973,14 @@ const artifactStatusCopy = {
   pending: "готовится",
 } as const;
 
+const audienceCopy: Record<Project["stagePack"]["artifacts"][number]["audience"], string> = {
+  all: "всем",
+  band: "группе",
+  teacher: "преподавателю",
+  student: "ученику",
+  instrument: "по инструменту",
+};
+
 const reviewStatusCopy: Record<ReviewStatus, string> = {
   needs_review: "нужно проверить",
   checked: "проверено",
@@ -1001,6 +1009,12 @@ const actionLabel: Record<DirectorActionId, string> = {
   "student-ensemble": "Ансамбль",
   "lesson-analysis": "Разбор урока",
 };
+
+const uploadQualityCopy = {
+  good: "хорошее",
+  medium: "среднее",
+  low: "низкое",
+} as const;
 
 const complexityCopy = {
   low: "низкая сложность",
@@ -1192,6 +1206,7 @@ function StagePackShell({
               <span>{project.analysis.bpm} BPM</span>
               <span>{project.analysis.meter}</span>
               <span>{project.analysis.duration}</span>
+              <span>{project.analysis.genre}</span>
             </div>
 
             {averageConfidence < lowConfidenceThreshold && (
@@ -1271,6 +1286,8 @@ function StagePackShell({
                 <span>{artifact.name}</span>
                 <small>
                   {artifact.format} · {formatConfidence(artifact.confidence)} · {artifactStatusCopy[artifact.status]}
+                  {" · "}
+                  {audienceCopy[artifact.audience]}
                 </small>
                 <span className={hasFreePreview(artifact) ? "access-label free" : "access-label pro"}>
                   {hasFreePreview(artifact) ? "бесплатно" : "подписка"}
@@ -1591,6 +1608,20 @@ function StagePackShell({
                   ))}
                 </div>
               </div>
+            </section>
+
+            <section className="subpanel compact">
+              <h3>Исходник</h3>
+              <div className="constraint-grid">
+                <span>Файл: {project.upload.fileName}</span>
+                <span>Формат: {project.upload.format}</span>
+                <span>
+                  Длительность: {Math.floor(project.upload.durationSeconds / 60)}:
+                  {String(project.upload.durationSeconds % 60).padStart(2, "0")}
+                </span>
+                <span>Качество: {uploadQualityCopy[project.upload.quality]}</span>
+              </div>
+              <p className="privacy-note">{project.upload.sourceNote}</p>
             </section>
 
             <section className="subpanel compact">
