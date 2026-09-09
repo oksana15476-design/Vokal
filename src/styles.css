@@ -3734,3 +3734,57 @@ input[type="radio"] {
   white-space: nowrap;
   width: 1px;
 }
+
+/*
+ * Список песен. Появился вместе с хранением: до него пункт навигации вел бы
+ * на экран, который всегда пуст.
+ */
+.songs-screen {
+  margin: 0 auto;
+  max-width: min(920px, 100%);
+}
+
+.songs-list {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+
+.song-row {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: var(--s3) var(--s4);
+}
+
+.song-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.song-body span {
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+
+.songs-screen .privacy-note {
+  margin-top: var(--s4);
+}
+
+@media (max-width: 720px) {
+  .song-row {
+    grid-template-areas:
+      "body body"
+      "open remove";
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .song-body {
+    grid-area: body;
+  }
+}

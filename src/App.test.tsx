@@ -233,6 +233,61 @@ describe("доменные поля на экране", () => {
 // он определен только по ASCII, и три запрета не могли совпасть НИКОГДА.
 const forbidden = forbiddenClaims.map((claim) => claim.pattern);
 
+describe("список песен (B94)", () => {
+  it("собирает открытые песни в один список", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+    await user.click(screen.getByRole("button", { name: /School Hall: ансамбль учеников/ }));
+    await waitForStagePack();
+
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+    const rows = [...document.querySelectorAll(".song-row")];
+    expect(rows.length).toBe(2);
+    // Недавно открытая — первой.
+    expect(rows[0].textContent).toContain("School Hall");
+  });
+
+  it("открывает песню из списка", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+
+    await user.click(within(document.querySelector(".song-row") as HTMLElement).getByRole("button", { name: /Открыть/ }));
+    expect(await screen.findByRole("tab", { name: /Материалы/ })).toBeTruthy();
+  });
+
+  it("не удаляет песню из списка без подтверждения", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+
+    await user.click(within(document.querySelector(".song-row") as HTMLElement).getByRole("button", { name: /Удалить/ }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(document.querySelectorAll(".song-row").length).toBe(1);
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("checkbox"));
+    await user.click(dialog.getByRole("button", { name: /Удалить навсегда/ }));
+    await waitFor(() => expect(document.querySelectorAll(".song-row").length).toBe(0));
+  });
+
+  it("объясняет пустой список, а не показывает пустоту", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+
+    expect(screen.getByText(/Пока ни одной песни/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Загрузить песню/ })).toBeTruthy();
+  });
+});
+
 describe("песня переживает перезагрузку (B6)", () => {
   it("возвращает открытую песню после перезагрузки страницы", async () => {
     const user = userEvent.setup();

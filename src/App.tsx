@@ -21,7 +21,13 @@ import {
   Share2,
 } from "lucide-react";
 import { lessonLevels, processingGoals, processingMilestones } from "./domain/mockData";
-import { forgetProject, loadProject, saveProject } from "./services/projectStorage";
+import {
+  listStoredProjects,
+  loadProject,
+  removeStoredProject,
+  saveProject,
+  type StoredProject,
+} from "./services/projectStorage";
 import type {
   ArrangementVersion,
   CostEstimate,
@@ -52,7 +58,7 @@ import {
   validateUploadFile,
 } from "./services/mockServices";
 
-type Screen = "start" | "setup" | "processing" | "stage-pack";
+type Screen = "start" | "setup" | "processing" | "stage-pack" | "songs";
 type WorkspaceTab = "overview" | "materials" | "lineup" | "review" | "director" | "export";
 
 const homeJobOptions: Array<{
@@ -416,13 +422,24 @@ export default function App() {
 
   // Сохраняем при каждом изменении, а не по кнопке: кнопки «сохранить» в
   // продукте нет, и пользователь вправе рассчитывать, что работа не пропадет.
+  const [songs, setSongs] = useState<StoredProject[]>(() => listStoredProjects());
+  const [pendingSongDeletion, setPendingSongDeletion] = useState<StoredProject | null>(null);
+
   useEffect(() => {
     if (project) {
       saveProject(project, new Date().toISOString());
-    } else {
-      forgetProject();
+      setSongs(listStoredProjects());
     }
   }, [project]);
+
+  const deleteSong = (projectId: string) => {
+    removeStoredProject(projectId);
+    setSongs(listStoredProjects());
+    if (project?.id === projectId) {
+      setProject(null);
+      setScreen("start");
+    }
+  };
 
   const canStartJob = fileName.trim().length > 0 && acceptedConsent && !isDecoding && fileFacts !== null;
 
@@ -432,6 +449,7 @@ export default function App() {
         hasProject={screen === "stage-pack" && project !== null}
         workspaceTab={workspaceTab}
         onHome={() => setScreen("start")}
+        onSongs={() => setScreen("songs")}
         onOpenTab={setWorkspaceTab}
       />
 
@@ -454,6 +472,34 @@ export default function App() {
           onOpenDemo={openDemo}
           openProject={project}
           onResume={() => setScreen("stage-pack")}
+        />
+      )}
+
+      {screen === "songs" && (
+        <SongsScreen
+          songs={songs}
+          onOpen={(stored) => {
+            setProject(stored.project);
+            setSelectedArtifactId(stored.project.stagePack.artifacts[0]?.id ?? null);
+            setWorkspaceTab("overview");
+            setScreen("stage-pack");
+          }}
+          onAskDelete={setPendingSongDeletion}
+          onNew={() => setScreen("start")}
+        />
+      )}
+
+      {pendingSongDeletion && (
+        <ConfirmDialog
+          title={`Удалить «${pendingSongDeletion.project.name}»?`}
+          body="Удалим песню и все, что к ней собрано: версии, материалы и отметки проверки. Хранится она только в этом браузере, копии нигде нет. Отменить нельзя."
+          acknowledgement="Понимаю, что копии нет и восстановить будет неоткуда"
+          confirmLabel="Удалить навсегда"
+          onCancel={() => setPendingSongDeletion(null)}
+          onConfirm={() => {
+            deleteSong(pendingSongDeletion.project.id);
+            setPendingSongDeletion(null);
+          }}
         />
       )}
 
@@ -505,11 +551,13 @@ function AppHeader({
   hasProject,
   workspaceTab,
   onHome,
+  onSongs,
   onOpenTab,
 }: {
   hasProject: boolean;
   workspaceTab: WorkspaceTab;
   onHome: () => void;
+  onSongs: () => void;
   onOpenTab: (tab: WorkspaceTab) => void;
 }) {
   return (
@@ -525,6 +573,9 @@ function AppHeader({
       </button>
 
       <nav className="app-nav" aria-label="Разделы">
+        <button type="button" className="app-nav-item" onClick={onSongs}>
+          Песни
+        </button>
         <button
           type="button"
           className={hasProject ? "app-nav-item" : "app-nav-item active"}
@@ -2461,6 +2512,97 @@ function ReviewNote({
         Записать
       </button>
     </div>
+  );
+}
+
+/**
+ * Список песен. Появился вместе с хранением (B6): до него пункт навигации
+ * вел бы на экран, который всегда пуст, — ровно то, чего мы не строим.
+ *
+ * Песни лежат в этом браузере и больше нигде. Удаление здесь необратимо не
+ * потому, что так задумано, а потому, что копии нет: поэтому оно проходит
+ * через подтверждение, как удаление результатов.
+ */
+function SongsScreen({
+  songs,
+  onOpen,
+  onAskDelete,
+  onNew,
+}: {
+  songs: StoredProject[];
+  onOpen: (stored: StoredProject) => void;
+  onAskDelete: (stored: StoredProject) => void;
+  onNew: () => void;
+}) {
+  const formatSavedAt = (iso: string) => {
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime())
+      ? "время неизвестно"
+      : date.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <section className="songs-screen stage-panel">
+      {/*
+        Когда список пуст, действие несет пустое состояние: две кнопки с
+        одной подписью и одним действием на экране — избыточность, а не
+        забота.
+      */}
+      <div className="pane-title-row">
+        <h1>Песни</h1>
+        {songs.length > 0 && (
+          <button className="btn btn-primary btn-xs" type="button" onClick={onNew}>
+            Загрузить песню
+          </button>
+        )}
+      </div>
+
+      {songs.length === 0 ? (
+        <div className="no-analysis">
+          <Layers3 size={20} />
+          <div>
+            <span className="empty-reason neutral">ничего не открыто</span>
+            <strong>Пока ни одной песни</strong>
+            <p>
+              Загрузите mp3, wav, flac или m4a — или откройте демо-разбор, чтобы посмотреть, как выглядит готовый
+              Stage Pack. Открытые песни останутся здесь.
+            </p>
+            <div className="empty-actions">
+              <button className="btn btn-outline btn-xs" type="button" onClick={onNew}>
+                Загрузить песню
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="songs-list">
+            {songs.map((stored) => (
+              <div key={stored.project.id} className="song-row">
+                <div className="song-body">
+                  <strong>{stored.project.name}</strong>
+                  <span>
+                    {scenarioCopy[stored.project.scenario].label} · {stored.project.versions.length}{" "}
+                    {plural(stored.project.versions.length, "версия", "версии", "версий")} · открыта{" "}
+                    {formatSavedAt(stored.savedAt)}
+                  </span>
+                </div>
+                <button className="btn btn-outline btn-xs" type="button" onClick={() => onOpen(stored)}>
+                  Открыть
+                </button>
+                <button className="btn btn-danger btn-xs" type="button" onClick={() => onAskDelete(stored)}>
+                  Удалить
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="privacy-note">
+            Песни хранятся в этом браузере и никуда не отправляются. Другое устройство их не увидит, а очистка данных
+            сайта удалит.
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 

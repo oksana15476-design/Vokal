@@ -1,24 +1,35 @@
 import type { Project } from "../domain/types";
 
 /**
- * Сохранение открытой песни между перезагрузками (B6).
+ * Хранилище песен между перезагрузками (B6, B94).
  *
- * Хранилище локальное и только локальное: это `localStorage` браузера, а не
- * облако. Песня не уходит с устройства, не синхронизируется между
- * браузерами и исчезает вместе с очисткой данных сайта. Интерфейс не должен
- * обещать иного, пока нет backend.
+ * Локальное и только локальное: `localStorage` браузера, а не облако. Песни
+ * не уходят с устройства, не синхронизируются между браузерами и исчезают
+ * вместе с очисткой данных сайта. Интерфейс не должен обещать иного, пока
+ * нет backend, — строка об этом занесена в реестр обязательных раскрытий.
  *
  * Схема версионирована. Сохранение, сделанное другой версией приложения,
  * выбрасывается целиком: восстановленный наполовину проект хуже, чем
  * отсутствующий, — он выглядит рабочим и врет в деталях.
  */
-const STORAGE_KEY = "vokal.project.v1";
-const SCHEMA_VERSION = 1;
+const STORAGE_KEY = "vokal.projects.v2";
+const SCHEMA_VERSION = 2;
+
+/**
+ * Хранилище браузера конечно. Без предела запись однажды падает по квоте, и
+ * пользователь теряет текущую работу из-за песен, которые не открывал
+ * месяцами. Вытесняем самые старые по времени открытия.
+ */
+const MAX_PROJECTS = 20;
+
+export interface StoredProject {
+  project: Project;
+  savedAt: string;
+}
 
 interface StoredEnvelope {
   schema: number;
-  savedAt: string;
-  project: Project;
+  projects: StoredProject[];
 }
 
 /** Минимальная проверка формы. Полной валидации схемы здесь нет намеренно:
@@ -39,42 +50,64 @@ const looksLikeProject = (value: unknown): value is Project => {
   );
 };
 
-export const loadProject = (): Project | null => {
+const read = (): StoredProject[] => {
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(STORAGE_KEY);
   } catch {
     // Приватный режим и запрет на хранение данных сайта: работаем без
     // сохранения, а не падаем.
-    return null;
+    return [];
   }
   if (!raw) {
-    return null;
+    return [];
   }
 
   try {
     const parsed = JSON.parse(raw) as Partial<StoredEnvelope>;
-    if (parsed.schema !== SCHEMA_VERSION || !looksLikeProject(parsed.project)) {
+    if (parsed.schema !== SCHEMA_VERSION || !Array.isArray(parsed.projects)) {
       forgetProject();
-      return null;
+      return [];
     }
-    return parsed.project;
+    return parsed.projects.filter(
+      (item): item is StoredProject =>
+        typeof item === "object" && item !== null && typeof item.savedAt === "string" && looksLikeProject(item.project),
+    );
   } catch {
     // Битое сохранение не должно ронять приложение: пользователь остается
-    // без песни, но с работающим экраном.
+    // без песен, но с работающим экраном.
     forgetProject();
-    return null;
+    return [];
   }
 };
 
-export const saveProject = (project: Project, savedAt: string): void => {
+const write = (projects: StoredProject[]): void => {
   try {
-    const envelope: StoredEnvelope = { schema: SCHEMA_VERSION, savedAt, project };
+    const envelope: StoredEnvelope = { schema: SCHEMA_VERSION, projects };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
   } catch {
     // Квота переполнена или хранение запрещено. Терять работу из-за этого
     // нельзя: песня остается в памяти вкладки.
   }
+};
+
+/** Песни, недавно открытая первой. */
+export const listStoredProjects = (): StoredProject[] =>
+  [...read()].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+
+/** Последняя открытая песня. */
+export const loadProject = (): Project | null => listStoredProjects()[0]?.project ?? null;
+
+export const saveProject = (project: Project, savedAt: string): void => {
+  const rest = read().filter((item) => item.project.id !== project.id);
+  const next = [...rest, { project, savedAt }]
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+    .slice(0, MAX_PROJECTS);
+  write(next);
+};
+
+export const removeStoredProject = (projectId: string): void => {
+  write(read().filter((item) => item.project.id !== projectId));
 };
 
 export const forgetProject = (): void => {
