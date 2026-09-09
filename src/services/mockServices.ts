@@ -270,7 +270,16 @@ const markArtifact = (
   return "needs_review";
 };
 
-export const applyDirectorAction = (project: Project, actionId: DirectorActionId): Project => {
+/**
+ * Применяет действие директора. `userCommand` — то, чем пользователь его
+ * вызвал: команда попадает в переписку рядом с ответом, иначе разговор
+ * получается односторонним и непонятно, на что директор отвечает.
+ */
+export const applyDirectorAction = (
+  project: Project,
+  actionId: DirectorActionId,
+  userCommand?: string,
+): Project => {
   const result = getDirectorActionResult(actionId);
   const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
   const versionId = `${actionId}-${project.versions.length + 1}`;
@@ -320,9 +329,19 @@ export const applyDirectorAction = (project: Project, actionId: DirectorActionId
     ],
     chat: [
       ...project.chat,
+      ...(userCommand?.trim()
+        ? [
+            {
+              id: `chat-${actionId}-${Date.now()}-user`,
+              author: "user" as const,
+              text: userCommand.trim(),
+              createdAt: now(),
+            },
+          ]
+        : []),
       {
         id: `chat-${actionId}-${Date.now()}`,
-        author: "director",
+        author: "director" as const,
         text: `${result.historyTitle}. Я создал новую версию и отметил материалы, которые нужно проверить или пересобрать.`,
         createdAt: now(),
       },

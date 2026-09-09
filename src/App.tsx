@@ -6,14 +6,11 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock3,
-  Download,
   FileAudio,
   FolderOpen,
   Gauge,
   Layers3,
   ListChecks,
-  Music2,
-  Pause,
   Play,
   Repeat2,
   SlidersHorizontal,
@@ -149,6 +146,19 @@ const confidenceLevel = (value: number): "high" | "mid" | "low" =>
   value >= 0.85 ? "high" : value >= 0.75 ? "mid" : "low";
 
 const lowConfidenceThreshold = 0.8;
+
+/** Русское склонение по числу: 1 находка, 2 находки, 5 находок. */
+const plural = (count: number, one: string, few: string, many: string): string => {
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  const mod10 = count % 10;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+};
+
+/** Ниже этого порога аккорд показывается под вопросом (порог «внимание» из токенов). */
+const mediumConfidenceThreshold = 0.75;
 
 const initialScenario: Scenario = "band";
 const initialGoalId: ProcessingGoalId = "band-rehearsal";
@@ -353,21 +363,12 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <button className="brand-button" type="button" onClick={() => setScreen("start")} aria-label="На главный экран">
-          <span className="brand-mark">
-            <Music2 size={20} strokeWidth={2.2} />
-          </span>
-          <span>
-            <strong>Vokal Director</strong>
-            <small>прототип AI-директора</small>
-          </span>
-        </button>
-        <div className="topbar-plan" aria-label="Статус прототипа">
-          <span>прототип</span>
-          <span>демо-данные</span>
-        </div>
-      </header>
+      <AppHeader
+        hasProject={screen === "stage-pack" && project !== null}
+        workspaceTab={workspaceTab}
+        onHome={() => setScreen("start")}
+        onOpenTab={setWorkspaceTab}
+      />
 
       {screen === "start" && (
         <StartScreen
@@ -425,6 +426,67 @@ export default function App() {
         />
       )}
     </main>
+  );
+}
+
+/**
+ * Шапка продукта по бренд-буку: знак «такт из четырёх долей», навигация,
+ * состояние справа. Пункты «Состав» и «Выдача» показываются только когда за
+ * ними есть куда идти — мёртвых пунктов в навигации не держим.
+ */
+function AppHeader({
+  hasProject,
+  workspaceTab,
+  onHome,
+  onOpenTab,
+}: {
+  hasProject: boolean;
+  workspaceTab: WorkspaceTab;
+  onHome: () => void;
+  onOpenTab: (tab: WorkspaceTab) => void;
+}) {
+  return (
+    <header className="app-header">
+      <button className="brand-button" type="button" onClick={onHome} aria-label="На главный экран">
+        <span className="brand-mark" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+        <strong>Vokal</strong>
+      </button>
+
+      <nav className="app-nav" aria-label="Разделы">
+        <button
+          type="button"
+          className={hasProject ? "app-nav-item" : "app-nav-item active"}
+          aria-current={hasProject ? undefined : "page"}
+          onClick={onHome}
+        >
+          Песни
+        </button>
+        {/*
+          «Состав» из бренд-бука здесь нет намеренно: своего экрана у него
+          пока не существует (B95), а вешать пункт на «Обзор» — врать
+          подписью. Пункт появится вместе с экраном.
+        */}
+        {hasProject && (
+          <button
+            type="button"
+            className={workspaceTab === "export" ? "app-nav-item active" : "app-nav-item"}
+            aria-current={workspaceTab === "export" ? "page" : undefined}
+            onClick={() => onOpenTab("export")}
+          >
+            Выдача
+          </button>
+        )}
+      </nav>
+
+      <div className="app-header-state">
+        <span className="mono-chip">прототип</span>
+      </div>
+    </header>
   );
 }
 
@@ -567,7 +629,7 @@ function StartScreen({
             ))}
           </div>
 
-          <button className="primary-action job-action" type="button" disabled={!canStartJob} onClick={onStart}>
+          <button className="btn btn-primary job-action" type="button" disabled={!canStartJob} onClick={onStart}>
             <Sparkles size={18} />
             Разобрать мой файл
           </button>
@@ -606,7 +668,7 @@ function StartScreen({
             <h2>{recommendedDemo.name}</h2>
             <p>{scenarioCopy[recommendedDemo.scenario].description}</p>
           </div>
-          <button className="primary-action" type="button" onClick={() => onOpenDemo(recommendedDemo.id)}>
+          <button className="btn btn-outline" type="button" onClick={() => onOpenDemo(recommendedDemo.id)}>
             <ArrowRight size={18} />
             Открыть демо-разбор
           </button>
@@ -829,7 +891,7 @@ function SetupScreen({
               </span>
             ))}
           </div>
-          <button className="primary-action" type="button" onClick={onStart}>
+          <button className="btn btn-primary" type="button" onClick={onStart}>
             <Activity size={18} />
             Разобрать мой файл
           </button>
@@ -1117,8 +1179,8 @@ function StagePackShell({
     : 0;
   const selectedVersionChanges = currentVersion?.changes ?? [];
 
-  const runAction = (actionId: DirectorActionId) => {
-    setProject((current) => (current ? applyDirectorAction(current, actionId) : current));
+  const runAction = (actionId: DirectorActionId, userCommand?: string) => {
+    setProject((current) => (current ? applyDirectorAction(current, actionId, userCommand) : current));
   };
 
   const changeReviewStatus = (issueId: string, status: ReviewStatus) => {
@@ -1134,6 +1196,12 @@ function StagePackShell({
   const issueLinks = () => {
     setProject((current) => (current ? createShareLinks(current, selectedRecipients) : current));
   };
+
+  // Предыдущая версия — та, из которой выросла текущая. По ней строится
+  // чип «вернуть vN» под ответом директора.
+  const previousVersion = project.versions.find(
+    (version) => version.id === project.versions.find((v) => v.id === project.currentVersionId)?.parentVersionId,
+  );
 
   const rollbackTo = (versionId: string) => {
     setProject((current) => (current ? rollbackToVersion(current, versionId) : current));
@@ -1184,47 +1252,53 @@ function StagePackShell({
               : `${project.upload.fileName} · ${project.analysis.duration}`}
           </p>
         </div>
-        <span className="version-pill">{currentVersion?.label ?? "Версия"}</span>
+        <span className="version-pill" title={currentVersion?.label}>
+          v{Math.max(project.versions.findIndex((version) => version.id === project.currentVersionId), 0) + 1} ·
+          активная
+        </span>
       </div>
 
-      <div className="stage-command-strip" aria-label="Состояние проекта">
+      <div className="metric-strip" aria-label="Состояние проекта">
+        {/*
+          Без разбора считать нечего. Четыре карточки с нулями читаются как
+          «проверено, ничего нет» — обратное правде, поэтому на этом пути
+          полоса схлопывается в одну честную карточку.
+        */}
         {!hasAnalysis ? (
-          <div className="command-metric wide">
-            <FileAudio size={18} />
-            <span>
-              <strong>{project.upload.format}</strong>
-              файл прочитан, разбор не выполнялся
-            </span>
+          <div className="metric-card wide">
+            <strong>{project.upload.format}</strong>
+            <span>файл прочитан, разбор не выполнялся</span>
           </div>
         ) : (
           <>
-        <div className="command-metric">
-          <Layers3 size={18} />
+        <div className="metric-card">
+          <strong>{Number.isInteger(project.analysis.bpm) ? project.analysis.bpm : project.analysis.bpm.toFixed(1)}</strong>
           <span>
-            <strong>{readyArtifacts}/{project.stagePack.artifacts.length}</strong>
-            материалов готово
+            BPM · {project.analysis.meter} · {project.analysis.key}
           </span>
         </div>
-        <div className="command-metric">
-          <AlertTriangle size={18} />
-          <span>
-            <strong>{reviewCount}</strong>
-            на проверку
-          </span>
+        <div className="metric-card">
+          <strong>
+            {readyArtifacts}/{project.stagePack.artifacts.length}
+          </strong>
+          <span>материалов готово</span>
         </div>
-        <div className="command-metric">
-          <Share2 size={18} />
-          <span>
-            <strong>{issuedCount}/{project.shareRecipients.length}</strong>
-            получателей с материалами
-          </span>
+        <div className={reviewCount > 0 ? "metric-card attention" : "metric-card"}>
+          <strong>{reviewCount}</strong>
+          <span>{plural(reviewCount, "место", "места", "мест")} на проверку</span>
         </div>
+        <button
+          type="button"
+          className={hasStaleBundle ? "metric-card console-card stale" : "metric-card console-card"}
+          onClick={() => setWorkspaceTab("export")}
+        >
+          <span>{hasStaleBundle ? "требует пересборки" : "выдать музыкантам"}</span>
+          <strong>
+            {issuedCount}/{project.shareRecipients.length} ссылок · ZIP
+          </strong>
+        </button>
           </>
         )}
-        <button className={hasStaleBundle ? "command-action urgent" : "command-action"} type="button" onClick={() => setWorkspaceTab("export")}>
-          <Download size={18} />
-          {hasStaleBundle ? "Экспорт: пересобрать" : "Открыть экспорт"}
-        </button>
       </div>
 
       <div className="workspace-tabs" role="tablist" aria-label="Разделы Stage Pack">
@@ -1236,6 +1310,7 @@ function StagePackShell({
             aria-selected={workspaceTab === tab.id}
             aria-controls={`workspace-${tab.id}`}
             className={workspaceTab === tab.id ? "workspace-tab active" : "workspace-tab"}
+            title={tab.hint}
             onClick={() => setWorkspaceTab(tab.id)}
           >
             <strong>{tab.label}</strong>
@@ -1296,9 +1371,7 @@ function StagePackShell({
 
             {hasAnalysis ? (
               <>
-                <SectionTimeline project={project} />
-                <TransportBar project={project} />
-                <StudioTrackStack project={project} onAction={runAction} />
+                <ConsolePanel project={project} onAction={runAction} />
               </>
             ) : (
               <div className="no-analysis" role="status">
@@ -1349,9 +1422,24 @@ function StagePackShell({
 
             {project.directorSuggestions.length > 0 && (
             <section className="subpanel compact">
-              <h3>AI-директор предлагает</h3>
-              {project.directorSuggestions.slice(0, 2).map((suggestion) => (
-                <button key={suggestion.id} className="suggestion-row" type="button" onClick={() => runAction(suggestion.actionId)}>
+              {/*
+                Бренд-бук называет карточку числом найденного, а не темой:
+                «Директор нашёл 3 проблемы». Общей кнопки «Применить и
+                пересобрать» здесь нет намеренно — сборка версии сразу из
+                нескольких предложений это B98, а кнопка, применяющая одно
+                из трёх, обманывает подписью.
+              */}
+              <h3>
+                Директор нашел {project.directorSuggestions.length}{" "}
+                {plural(project.directorSuggestions.length, "находку", "находки", "находок")}
+              </h3>
+              {project.directorSuggestions.slice(0, 3).map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  className="suggestion-row"
+                  type="button"
+                  onClick={() => runAction(suggestion.actionId, suggestion.title)}
+                >
                   <span>{suggestion.title}</span>
                   <small>{actionLabel[suggestion.actionId]}</small>
                 </button>
@@ -1559,25 +1647,46 @@ function StagePackShell({
                 <div key={suggestion.id} className="suggestion-card">
                   <strong>{suggestion.title}</strong>
                   <p>{suggestion.description}</p>
-                  <button type="button" onClick={() => runAction(suggestion.actionId)}>
+                  <button
+                    className="btn btn-accent"
+                    type="button"
+                    onClick={() => runAction(suggestion.actionId, suggestion.title)}
+                  >
                     {actionLabel[suggestion.actionId]}
                   </button>
                 </div>
               ))}
             </div>
 
-            <div className="chat-log" aria-label="Диалог с AI-директором">
+            <div className="director-thread" aria-label="Разговор с AI-директором">
               {project.chat.length === 0 ? (
                 <p className="chat-empty">
                   {project.directorSuggestions.length > 0
-                    ? "Диалога пока нет. Запустите действие карточкой выше или опишите правку своими словами."
-                    : "Диалога пока нет. Он появится, когда будет что обсуждать: разбор песни."}
+                    ? "Разговора пока нет. Запустите действие карточкой выше или опишите правку своими словами."
+                    : "Разговора пока нет. Он появится, когда будет что обсуждать: разбор песни."}
                 </p>
               ) : (
                 project.chat.map((message) => (
-                  <div key={message.id} className={`chat-message ${message.author}`}>
-                    <strong>{message.author === "director" ? "AI-директор" : "Вы"}</strong>
+                  <div key={message.id} className={`chat-bubble from-${message.author}`}>
                     <p>{message.text}</p>
+                    {message.author === "director" && message.id === project.chat[project.chat.length - 1]?.id && (
+                      <div className="chat-actions">
+                        <button type="button" className="mono-chip" onClick={() => setWorkspaceTab("review")}>
+                          показать такты
+                        </button>
+                        {previousVersion && (
+                          <button
+                            type="button"
+                            className="mono-chip"
+                            title={previousVersion.label}
+                            onClick={() => rollbackTo(previousVersion.id)}
+                          >
+                            вернуть v
+                            {project.versions.findIndex((version) => version.id === previousVersion.id) + 1}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -1596,7 +1705,7 @@ function StagePackShell({
                   }
                 />
               </label>
-              <button className="primary-action" type="button" onClick={submitChat} disabled={!chatCommand.trim()}>
+              <button className="btn btn-primary" type="button" onClick={submitChat} disabled={!chatCommand.trim()}>
                 <Sparkles size={18} />
                 Применить в демо
               </button>
@@ -1831,58 +1940,41 @@ function EmptyState({
   );
 }
 
-function SectionTimeline({ project }: { project: Project }) {
-  const totalBars = Math.max(...project.analysis.sections.map((section) => section.endBar), 1);
-
-  return (
-    <div className="section-timeline" aria-label="Форма песни">
-      {project.analysis.sections.map((section) => {
-        const barsCount = section.endBar - section.startBar + 1;
-
-        return (
-          <div key={section.id} className="section-segment" style={{ flexGrow: barsCount }}>
-            <strong>{section.label}</strong>
-            <span>
-              {section.startBar}-{section.endBar} / {totalBars}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function TransportBar({ project }: { project: Project }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const loopSection = project.scenario === "education" ? "куплет + припев" : "припев 2";
-
-  return (
-    <div className="transport-bar" aria-label="Транспорт, звука нет">
-      <button className="transport-button" type="button" onClick={() => setIsPlaying((value) => !value)}>
-        {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-        <span>{isPlaying ? "Пауза" : "Проиграть без звука"}</span>
-      </button>
-      <div className="transport-metrics">
-        <span>{project.analysis.bpm} BPM</span>
-        <span>{project.analysis.key}</span>
-        <span>{project.analysis.meter}</span>
-        <span>
-          <Repeat2 size={15} />
-          {loopSection}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function StudioTrackStack({
+/**
+ * Пультовая панель. Правило бренд-бука: всё, что связано со звуком, живёт на
+ * одной графитовой поверхности — так дорожки, полосы и цифры читаются, а
+ * светлая часть интерфейса остаётся для решений и текста.
+ *
+ * Уверенность подписана процентом рядом с полосой: цвет не единственный
+ * сигнал, иначе разбор нечитаем при дальтонизме и в ч/б печати партий.
+ */
+function ConsolePanel({
   project,
   onAction,
 }: {
   project: Project;
   onAction: (actionId: DirectorActionId) => void;
 }) {
-  const entries = Object.entries(project.analysis.confidenceByPart);
+  const [activeSectionId, setActiveSectionId] = useState(project.analysis.sections[0]?.id ?? "");
+
+  const sections = project.analysis.sections;
+  const activeIndex = Math.max(sections.findIndex((section) => section.id === activeSectionId), 0);
+  const playedShare = sections.length ? (activeIndex + 1) / sections.length : 0;
+
+  // Столбики строим детерминированно от разбора, а не случайно: картинка
+  // должна быть одинаковой между рендерами, иначе это шум, а не форма песни.
+  const bars = Array.from({ length: 64 }, (_, index) => {
+    const position = index / 64;
+    const section = sections[Math.min(Math.floor(position * sections.length), sections.length - 1)];
+    const weight = section && /припев|chorus|кульмин/i.test(section.label) ? 1 : 0.62;
+    return 0.3 + weight * (0.4 + 0.3 * Math.abs(Math.sin(index * 1.7)));
+  });
+
+  const barToTime = (bar: number) => {
+    const seconds = Math.round(((bar - 1) * 4 * 60) / Math.max(project.analysis.bpm, 1));
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  };
+
   const commandForPart = (part: string): { label: string; actionId: DirectorActionId } => {
     const normalized = part.toLowerCase();
 
@@ -1891,66 +1983,134 @@ function StudioTrackStack({
         ? { label: "разбор урока", actionId: "lesson-analysis" }
         : { label: "под ученика", actionId: "advanced-student-part" };
     }
-
-    if (normalized.includes("гитар")) {
-      return { label: "объединить", actionId: "merge-guitars" };
-    }
-
-    if (normalized.includes("клав")) {
-      return { label: "на клавиши", actionId: "move-strings-to-keys" };
-    }
-
-    if (normalized.includes("бараб")) {
-      return { label: "упростить", actionId: "simplify-drums" };
-    }
-
-    if (normalized.includes("бас")) {
-      return { label: "трек без баса", actionId: "practice-without-bass" };
-    }
-
+    if (normalized.includes("гитар")) return { label: "объединить", actionId: "merge-guitars" };
+    if (normalized.includes("клав")) return { label: "на клавиши", actionId: "move-strings-to-keys" };
+    if (normalized.includes("бараб")) return { label: "упростить", actionId: "simplify-drums" };
+    if (normalized.includes("бас")) return { label: "трек без баса", actionId: "practice-without-bass" };
     return { label: "усилить", actionId: "boost-chorus" };
   };
 
+  // Подпись определяется ролью партии, а не номером строки: при другом
+  // порядке дорожек барабаны получали бы «поддержку», а бас — «ритм».
+  const partNote = (part: string) => {
+    const normalized = part.toLowerCase();
+    if (normalized.includes("вокал")) return "аудиослой + MIDI";
+    if (normalized.includes("гитар")) return project.scenario === "band" ? "ведущая партия" : "партия ученика";
+    if (normalized.includes("клав")) return "со струнными оригинала";
+    if (normalized.includes("бараб")) return "ритм";
+    if (normalized.includes("бас")) return "сопровождение";
+    return "сопровождение";
+  };
+
   return (
-    <section className="studio-track-stack" aria-label="Рабочие дорожки">
-      <div className="studio-head">
-        <div>
-          <Layers3 size={18} />
-          <strong>Рабочие дорожки</strong>
+    <section className="console-panel" aria-label="Пульт песни">
+      <div className="console-transport">
+        {/*
+          Кнопка выключена, а не «работает вхолостую». Звука в продукте нет:
+          нажатие, которое меняет только иконку, читается как обещание
+          воспроизведения. Включается вместе с настоящим плеером.
+        */}
+        <button
+          type="button"
+          className="console-play"
+          disabled
+          aria-label="Проиграть — звука в прототипе нет"
+          title="Звука нет: воспроизведение не подключено"
+        >
+          <Play size={18} />
+        </button>
+        <div className="console-title">
+          <strong>{project.analysis.title}</strong>
+          <span className="console-facts">
+            {project.analysis.bpm} BPM · {project.analysis.key} · {project.analysis.meter} ·{" "}
+            {project.analysis.duration}
+          </span>
         </div>
-        <span>{project.scenario === "education" ? "уровни и роли учеников" : "слои для репетиции и сцены"}</span>
+        {/*
+          Чипы режимов из бренд-бука — клик, скорость, петля — сюда вернутся
+          вместе с плеером. Пока их нет, три плашки описывали бы режимы
+          воспроизведения, которого не существует.
+        */}
+        <div className="console-modes">
+          <span className="mono-chip on-console">звук не подключен</span>
+        </div>
       </div>
-      <div className="studio-track-list">
-        {entries.map(([part, value], index) => {
-          const command = commandForPart(part);
+
+      <div className="console-wave" aria-hidden="true">
+        {bars.map((height, index) => (
+          <i
+            key={index}
+            className={index / bars.length <= playedShare ? "played" : undefined}
+            style={{ height: `${Math.round(height * 100)}%` }}
+          />
+        ))}
+      </div>
+
+      <div className="console-sections" aria-label="Форма песни">
+        {sections.map((section) => {
+          const barsCount = section.endBar - section.startBar + 1;
 
           return (
-            <div key={part} className="studio-track-row">
+            <button
+              key={section.id}
+              type="button"
+              className={section.id === activeSectionId ? "console-section active" : "console-section"}
+              style={{ flexGrow: barsCount }}
+              aria-pressed={section.id === activeSectionId}
+              onClick={() => setActiveSectionId(section.id)}
+            >
+              <strong>{section.label}</strong>
+              <span>{barToTime(section.startBar)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="console-tracks">
+        {Object.entries(project.analysis.confidenceByPart).map(([part, value]) => {
+          const command = commandForPart(part);
+          const percent = Math.round(value * 100);
+
+          return (
+            <div key={part} className="console-track-row">
               <div className="track-name">
                 <strong>{part}</strong>
-                <span>{index === 0 ? "ведущий слой" : index === 1 ? "ритм" : "поддержка"}</span>
+                <span>{partNote(part)}</span>
               </div>
-              <i
-                className="track-confidence"
-                title={`Точность разбора: ${formatConfidence(value)}`}
-                aria-label={`${part}: точность разбора ${formatConfidence(value)}`}
-              >
-                <b className={confidenceLevel(value)} style={{ width: `${Math.round(value * 100)}%` }} />
+              <i className="track-confidence" aria-hidden="true">
+                <b className={confidenceLevel(value)} style={{ width: `${percent}%` }} />
               </i>
+              <span className={`track-percent ${confidenceLevel(value)}`} aria-label={`${part}: точность разбора ${percent}%`}>
+                {percent}%
+              </span>
               <div className="track-controls">
-                <button type="button" title={`Solo: ${part}`} aria-label={`Solo: ${part}`}>
-                  S
-                </button>
                 <button type="button" title={`Mute: ${part}`} aria-label={`Mute: ${part}`}>
                   M
                 </button>
-                <button type="button" onClick={() => onAction(command.actionId)}>
+                <button type="button" title={`Solo: ${part}`} aria-label={`Solo: ${part}`}>
+                  S
+                </button>
+                <button type="button" className="track-command" onClick={() => onAction(command.actionId)}>
                   {command.label}
                 </button>
               </div>
             </div>
           );
         })}
+      </div>
+
+      <div className="console-chords" aria-label="Аккорды">
+        {project.analysis.chords.slice(0, 8).map((chord, index) => (
+          <span
+            key={`${chord.bar}-${chord.beat}-${index}`}
+            className={chord.confidence < mediumConfidenceThreshold ? "chord-chip uncertain" : "chord-chip"}
+            title={`Такт ${chord.bar}, точность ${formatConfidence(chord.confidence)}`}
+          >
+            {chord.chord}
+            {chord.confidence < mediumConfidenceThreshold && " ?"}
+          </span>
+        ))}
+        <span className="console-hint">янтарная рамка — аккорд под вопросом</span>
       </div>
     </section>
   );

@@ -38,6 +38,8 @@
   --ink-muted: var(--graphite-500);
   --surface: var(--white);
   --canvas: var(--steel-100);
+  /* Вдавленная светлая поверхность: активная плашка навигации, входящая реплика. */
+  --surface-inset: var(--steel-200);
   --line: var(--steel-200);
   --console: var(--graphite-900);
   --accent: var(--teal-500);
@@ -152,75 +154,159 @@ button:not(:disabled):active {
   transform: translateY(1px) scale(0.99);
 }
 
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid rgb(201 86 60 / 28%);
-  outline-offset: 2px;
-}
+/* --- Оболочка и шапка продукта --- */
 
+/*
+ * Отступ страницы вынесен в переменную: шапка идёт во всю ширину окна и
+ * выходит из этого отступа ровно на его величину, чтобы нижняя линия
+ * доходила до краёв экрана на любой ширине.
+ */
 .app-shell {
-  min-height: 100dvh;
-  padding: 20px;
-}
+  --page-pad: var(--s6);
 
-.topbar {
-  align-items: center;
   display: flex;
-  gap: 18px;
-  justify-content: space-between;
-  margin: 0 auto 20px;
-  max-width: 1320px;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: 0 var(--page-pad) var(--s8);
 }
 
-.brand-button,
+/*
+ * Флекс-элемент по умолчанию не сжимается уже своего min-content, поэтому
+ * одна широкая строка внутри распирала всю страницу и на 360 px она
+ * разъезжалась до 754 px. Широкое содержимое обязано листаться внутри
+ * своего контейнера, а не двигать страницу.
+ */
+.app-shell > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app-header {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  margin: 0 calc(var(--page-pad) * -1) var(--s6);
+  padding: var(--s2) var(--page-pad);
+}
+
+.brand-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-2);
+  color: var(--ink);
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--s2);
+  min-height: var(--control-md);
+  padding: 0;
+  text-align: left;
+}
+
+.brand-button strong {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Знак Vokal: такт из четырёх долей. */
+.brand-mark {
+  background: var(--console);
+  border-radius: var(--r-1);
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(2, 5px);
+  height: 28px;
+  place-content: center;
+  width: 28px;
+}
+
+.brand-mark i {
+  background: var(--accent);
+  border-radius: 1px;
+  height: 5px;
+  width: 5px;
+}
+
 .text-button {
   align-items: center;
   background: transparent;
   border: 0;
   color: var(--ink);
   display: inline-flex;
-  gap: 10px;
+  gap: var(--s2);
   padding: 0;
   text-align: left;
 }
 
-.brand-button strong,
-.brand-button small {
-  display: block;
+.app-nav {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--s1);
+  min-width: 0;
 }
 
-.brand-button small {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 2px;
-}
-
-.brand-mark {
+.app-nav-item {
   align-items: center;
-  background: var(--pine);
-  border-radius: 8px;
-  color: white;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
   display: inline-flex;
-  height: 40px;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 500;
   justify-content: center;
-  width: 40px;
+  min-height: var(--control-xs);
+  padding: 0 var(--s3);
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
+  white-space: nowrap;
 }
 
-.topbar-plan {
+.app-nav-item:hover:not(:disabled) {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.app-nav-item.active {
+  background: var(--surface-inset);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.app-header-state {
   align-items: center;
   display: flex;
-  font-size: 14px;
-  gap: 8px;
+  flex: 0 0 auto;
+  gap: var(--s2);
+  margin-inline-start: auto;
 }
 
-.topbar-plan span {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  font-weight: 850;
-  padding: 7px 10px;
+/* Моночип: ярлык факта или команды. Строчными, моноширинным. */
+.mono-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  color: var(--ink-muted);
+  display: inline-flex;
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  gap: var(--s1);
+  min-height: 26px;
+  padding: 0 var(--s2);
+  white-space: nowrap;
+}
+
+.mono-chip.on-console {
+  background: var(--console-panel);
+  border-color: var(--console-line);
+  color: var(--console-ink-muted);
 }
 
 .home-lead,
@@ -904,19 +990,21 @@ textarea:focus-visible {
 }
 
 .primary-action:hover:not(:disabled) {
-  background: #242c30;
+  background: var(--ink-2);
+  border-color: var(--ink-2);
   box-shadow: var(--e-2);
-}
-
-.primary-action:hover:not(:disabled) {
-  background: var(--coral-dark);
 }
 
 .setup-view,
 .processing-view,
 .stage-shell {
   margin: 0 auto;
-  max-width: 1480px;
+  /*
+   * `100%` здесь обязателен. Без него оболочка получает ширину по
+   * min-content содержимого — ряд вкладок распирал страницу до 754 px на
+   * 360-й ширине, хотя сами вкладки умеют листаться.
+   */
+  max-width: min(1480px, 100%);
 }
 
 .setup-view {
@@ -1199,84 +1287,106 @@ textarea:focus-visible {
   margin: 6px 0 0;
 }
 
+/* Версия пакета — тёмная плашка: состояние, а не действие. */
 .version-pill {
-  background: rgb(31 79 69 / 10%);
-  border: 1px solid rgb(31 79 69 / 18%);
-  border-radius: 999px;
-  color: var(--pine);
-  font-size: 13px;
-  font-weight: 850;
-  padding: 8px 12px;
-}
-
-.stage-command-strip {
-  background: rgb(255 255 255 / 84%);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 10px 34px rgb(31 79 69 / 8%);
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(170px, 1fr)) minmax(190px, auto);
-  margin-bottom: 14px;
-  padding: 10px;
-}
-
-.command-metric,
-.command-action {
   align-items: center;
-  border-radius: 8px;
-  display: flex;
-  gap: 10px;
-  min-height: 54px;
-  padding: 10px 12px;
-}
-
-.command-metric {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-
-.command-metric svg {
-  color: var(--pine);
+  background: var(--console);
+  border: 1px solid var(--console);
+  border-radius: var(--r-pill);
+  color: var(--console-ink);
+  display: inline-flex;
   flex: 0 0 auto;
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-height: 26px;
+  padding: 0 var(--s3);
+  white-space: nowrap;
 }
 
-.command-metric span,
-.command-metric strong {
-  display: block;
+/* --- Полоса метрик песни: состояние проекта до открытия вкладок --- */
+
+.metric-strip {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin-bottom: var(--s4);
 }
 
-.command-metric strong {
+.metric-card {
+  align-content: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s4);
+  text-align: left;
+}
+
+.metric-card strong {
   color: var(--ink);
-  font-size: 18px;
-  line-height: 1;
+  font-family: var(--font-data);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
-.command-action {
-  background: var(--ink);
-  border: 1px solid var(--ink);
-  border-radius: var(--r-2);
-  color: var(--white);
-  font-size: 13.5px;
-  font-weight: 700;
-  justify-content: center;
+.metric-card span {
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Есть такты на проверку — янтарная рамка и янтарное число. */
+.metric-card.attention {
+  border-color: var(--warn);
+}
+
+.metric-card.attention strong {
+  color: var(--warn);
+}
+
+/* Карточка выдачи — кнопка, поэтому у неё есть наведение и видимый фокус. */
+.metric-card.console-card {
+  align-content: space-between;
+  background: var(--console);
+  border-color: var(--console);
+  color: var(--console-ink);
+  min-height: 92px;
+  transition: background-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 
 /*
- * «Пересобрать» требует внимания, но ничего не разрушает. По дизайн-системе
- * красный закреплен за необратимым, поэтому здесь янтарный: после перекраски
- * палитры кнопка читалась как опасное действие.
+ * Здесь ведёт подпись, а значение — строка «2/3 ссылок · ZIP»: набирать её
+ * теми же 28 px, что число метрики, значит гнать перенос уже на 190 px.
  */
-.command-action.urgent {
-  background: var(--warn);
-  border-color: var(--warn);
-  color: var(--ink);
+.metric-card.console-card strong {
+  color: var(--console-ink);
+  font-size: 17px;
+  letter-spacing: 0;
 }
 
-.command-action:hover:not(:disabled) {
+.metric-card.console-card span {
+  color: var(--console-ink-muted);
+}
+
+.metric-card.console-card:hover:not(:disabled) {
+  background: var(--console-panel);
   box-shadow: var(--e-2);
-  transform: translateY(-1px);
+}
+
+.metric-card.console-card:focus-visible {
+  outline: var(--ring);
+  outline-color: var(--accent);
+  outline-offset: 2px;
+}
+
+/* Ссылки протухли — подпись янтарная, это состояние нельзя прятать. */
+.metric-card.console-card.stale span {
+  color: var(--console-warn-ink);
 }
 
 .plan-banner {
@@ -1378,50 +1488,50 @@ textarea:focus-visible {
   margin: 0 0 14px;
 }
 
+/*
+ * Вкладки по бренд-буку: компактные плашки на вдавленной полосе, активная —
+ * приподнятая белая. Подсказка под названием была растянута на всю ширину
+ * экрана и спорила с полосой метрик за внимание; она уехала в title.
+ */
 .workspace-tabs {
-  background: #e6ece7;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: grid;
-  gap: 5px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-bottom: 14px;
-  padding: 5px;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  display: flex;
+  gap: var(--s1);
+  margin-bottom: var(--s4);
+  padding: var(--s1);
 }
 
 .workspace-tab {
   background: transparent;
   border: 0;
-  border-radius: 6px;
-  color: var(--muted);
-  display: grid;
-  gap: 3px;
-  min-height: 52px;
-  padding: 9px 10px;
-  text-align: left;
-}
-
-.workspace-tab strong,
-.workspace-tab span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: var(--control-xs);
+  padding: 0 var(--s4);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
   white-space: nowrap;
 }
 
-.workspace-tab strong {
-  color: var(--ink);
-  font-size: 13px;
+.workspace-tab span {
+  display: none;
 }
 
-.workspace-tab span {
-  font-size: 11px;
-  font-weight: 800;
+.workspace-tab:hover {
+  color: var(--ink);
 }
 
 .workspace-tab.active {
-  background: var(--paper-strong);
-  box-shadow: 0 8px 22px rgb(31 79 69 / 10%);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+  color: var(--ink);
+}
+
+.workspace-tab.active strong {
+  font-weight: 700;
 }
 
 .stage-view {
@@ -1604,176 +1714,240 @@ textarea:focus-visible {
   padding: 7px 10px;
 }
 
-.section-timeline {
-  background: #1e2b27;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 8px;
-  color: #f7fbf8;
-  display: flex;
-  gap: 3px;
-  min-height: 74px;
-  overflow: hidden;
-  padding: 6px;
-}
+/* --- Пультовая панель --------------------------------------------------
+ * Всё, что связано со звуком, живёт на одной графитовой поверхности:
+ * транспорт, форма песни, дорожки, аккорды. Светлая часть интерфейса
+ * остаётся под решения и текст. Раньше это были три отдельных светлых
+ * виджета (transport-bar, section-timeline, studio-track-stack).
+ * --------------------------------------------------------------------- */
 
-.section-segment {
-  background: rgb(255 255 255 / 7%);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 6px;
+.console-panel {
+  background: var(--console);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-2);
+  color: var(--console-ink);
   display: grid;
-  gap: 4px;
-  min-width: 86px;
-  padding: 10px;
+  gap: var(--s4);
+  padding: var(--s4);
 }
 
-.section-segment:nth-child(2n) {
-  background: rgb(182 132 46 / 18%);
+/* Иначе полосы и дорожки распирают панель по своему содержимому. */
+.console-panel > * {
+  min-width: 0;
 }
 
-.section-segment strong,
-.section-segment span {
+.console-transport {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.console-play {
+  align-items: center;
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: var(--control-md);
+  justify-content: center;
+  padding: 0;
+  width: var(--control-md);
+}
+
+.console-play:hover:not(:disabled) {
+  background: var(--teal-600-hover);
+}
+
+/* Графитовое кольцо на графите не видно — на пульте фокус светлый. */
+.console-play:focus-visible,
+.console-section:focus-visible,
+.track-controls button:focus-visible {
+  outline: var(--ring);
+  outline-color: var(--console-ink);
+  outline-offset: 2px;
+}
+
+.console-title {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.console-title strong {
+  color: var(--console-ink);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.section-segment strong {
-  font-size: 13px;
+.console-facts {
+  color: var(--console-ink-muted);
+  font-family: var(--font-data);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
 }
 
-.section-segment span {
-  color: #d4dfd8;
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.transport-bar {
-  align-items: center;
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(170px, auto) 1fr;
-  margin-top: 10px;
-  padding: 10px;
-}
-
-.transport-button {
-  align-items: center;
-  background: var(--pine);
-  border: 1px solid var(--pine);
-  border-radius: 8px;
-  color: white;
-  display: inline-flex;
-  font-size: 13px;
-  font-weight: 850;
-  gap: 8px;
-  justify-content: center;
-  min-height: 40px;
-  padding: 9px 12px;
-}
-
-.transport-metrics {
+.console-modes {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: var(--s2);
+  margin-inline-start: auto;
 }
 
-.transport-metrics span {
-  align-items: center;
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  display: inline-flex;
-  font-size: 12px;
-  font-weight: 850;
-  gap: 5px;
-  min-height: 34px;
-  padding: 7px 10px;
-}
-
-.studio-track-stack {
-  background: #1e2b27;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 8px;
-  color: #f7fbf8;
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 12px;
-}
-
-.studio-head {
-  align-items: center;
+/* Волна: проигранная часть бирюзовая, остальное — линия пульта. */
+.console-wave {
+  align-items: flex-end;
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
+  gap: 2px;
+  height: 68px;
+  overflow: hidden;
 }
 
-.studio-head div {
-  align-items: center;
-  display: inline-flex;
-  gap: 8px;
+.console-wave i {
+  background: var(--console-line);
+  border-radius: 1px;
+  flex: 1 1 auto;
+  min-width: 3px;
 }
 
-.studio-head svg {
-  color: #f1c57a;
+.console-wave i.played {
+  background: var(--accent);
 }
 
-.studio-head span {
-  color: #d4dfd8;
-  font-size: 12px;
-  font-weight: 850;
+/* Форма песни: ширина сегмента — по числу тактов (flex-grow из разметки). */
+.console-sections {
+  display: flex;
+  gap: 2px;
 }
 
-.studio-track-list {
+.console-section {
+  background: var(--console-panel);
+  border: 0;
+  border-radius: 0;
+  color: var(--console-ink-muted);
   display: grid;
-  gap: 8px;
+  flex-basis: 0;
+  flex-shrink: 1;
+  gap: 2px;
+  min-height: var(--control-md);
+  min-width: 56px;
+  padding: var(--s2) var(--s3);
+  text-align: left;
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
 }
 
-.studio-track-row {
-  align-items: center;
-  background: rgb(255 255 255 / 7%);
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 8px;
+.console-section:first-child {
+  border-end-start-radius: var(--r-2);
+  border-start-start-radius: var(--r-2);
+}
+
+.console-section:last-child {
+  border-end-end-radius: var(--r-2);
+  border-start-end-radius: var(--r-2);
+}
+
+.console-section strong,
+.console-section span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-section strong {
+  color: var(--console-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.console-section span {
+  color: inherit;
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.console-section:hover:not(.active) {
+  background: var(--console-line);
+  color: var(--console-ink);
+}
+
+.console-section.active {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.console-section.active strong {
+  color: var(--ink);
+}
+
+.console-tracks {
   display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(110px, 0.7fr) minmax(120px, 1fr) auto;
-  min-height: 54px;
-  padding: 9px;
+  gap: var(--s2);
+}
+
+.console-track-row {
+  align-items: center;
+  background: var(--console-panel);
+  border-radius: var(--r-2);
+  display: grid;
+  gap: var(--s3);
+  /*
+   * Каждая дорожка — отдельный грид, поэтому колонки выравниваются только
+   * фиксированной шириной. С `auto` ярлык команды («усилить» против «трек
+   * без баса») растягивал последнюю колонку по-своему в каждой строке,
+   * полосы уверенности выходили разной длины, а проценты не собирались в
+   * колонку — партии становилось нечем сравнивать.
+   */
+  grid-template-columns: minmax(150px, 1.2fr) 3fr 46px 216px;
+  padding: var(--s2) var(--s3);
+}
+
+.track-name {
+  min-width: 0;
 }
 
 .track-name strong,
 .track-name span {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .track-name strong {
-  font-size: 13px;
+  color: var(--console-ink);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .track-name span {
-  color: #d4dfd8;
-  font-size: 11px;
-  font-weight: 800;
-  margin-top: 3px;
+  color: var(--console-ink-quiet);
+  font-size: 12px;
+  margin-top: 2px;
 }
 
 .track-confidence {
-  background: rgb(255 255 255 / 12%);
-  border-radius: 999px;
+  background: var(--console-line);
+  border-radius: var(--r-pill);
   display: block;
-  height: 10px;
+  height: 6px;
+  min-width: 0;
   overflow: hidden;
 }
 
 .track-confidence b {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   display: block;
-  height: 100%;
+  height: 6px;
 }
 
 .track-confidence b.high {
@@ -1781,33 +1955,108 @@ textarea:focus-visible {
 }
 
 .track-confidence b.mid {
-  background: var(--warn);
+  background: var(--console-warn-ink);
 }
 
 .track-confidence b.low {
-  background: var(--danger);
+  background: var(--console-danger-ink);
+}
+
+/*
+ * Процент — второй сигнал уверенности помимо цвета. Требование доступности:
+ * дальтонизм и чёрно-белая печать партий. Полоса без числа не читается.
+ */
+.track-percent {
+  color: var(--console-ink-muted);
+  font-family: var(--font-data);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+  text-align: right;
+}
+
+.track-percent.high {
+  color: var(--accent);
+}
+
+.track-percent.mid {
+  color: var(--console-warn-ink);
+}
+
+.track-percent.low {
+  color: var(--console-danger-ink);
 }
 
 .track-controls {
   display: flex;
-  gap: 6px;
+  gap: var(--s1);
 }
 
 .track-controls button {
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 7px;
-  color: #f7fbf8;
+  align-items: center;
+  background: var(--console-line);
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  color: var(--console-ink-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--font-data);
   font-size: 12px;
-  font-weight: 900;
-  min-height: 32px;
-  padding: 7px 9px;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
+  width: 30px;
 }
 
-.track-controls button:last-child {
-  background: #f1c57a;
-  border-color: #f1c57a;
-  color: #1e2b27;
+.track-controls button:hover:not(:disabled) {
+  color: var(--console-ink);
+}
+
+/* Ярлык команды директору — моноширинный, строчными. */
+.track-controls .track-command {
+  background: transparent;
+  border-color: var(--console-line);
+  padding: 0 var(--s3);
+  text-transform: lowercase;
+  white-space: nowrap;
+  width: auto;
+}
+
+.track-controls .track-command:hover:not(:disabled) {
+  background: var(--console-line);
+  color: var(--console-ink);
+}
+
+.console-chords {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.chord-chip {
+  background: var(--console-line);
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  color: var(--console-ink);
+  font-family: var(--font-data);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 10px;
+}
+
+/* Аккорд под вопросом отличается рамкой и знаком «?», а не только цветом. */
+.chord-chip.uncertain {
+  background: transparent;
+  border-color: var(--console-warn-ink);
+  color: var(--console-warn-ink);
+}
+
+.console-hint {
+  color: var(--console-ink-quiet);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .mock-score {
@@ -2176,23 +2425,12 @@ textarea:focus-visible {
 
 @media (max-width: 980px) {
   .app-shell {
-    padding: 14px;
-  }
-
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .topbar-plan {
-    flex-wrap: wrap;
-    gap: 10px;
+    --page-pad: var(--s4);
   }
 
   .home-hero,
   .home-support-row,
   .setup-layout,
-  .stage-command-strip,
   .plan-banner,
   .access-model,
   .overview-view,
@@ -2210,8 +2448,7 @@ textarea:focus-visible {
     padding: 22px;
   }
 
-  .processing-milestones,
-  .transport-bar {
+  .processing-milestones {
     grid-template-columns: 1fr;
   }
 
@@ -2231,26 +2468,130 @@ textarea:focus-visible {
   .preview-header {
     display: grid;
   }
+}
 
-  .transport-metrics {
-    justify-content: flex-start;
+/* --- Планшет и телефон: пульт и шапка перестраиваются --- */
+@media (max-width: 720px) {
+  .app-shell {
+    --page-pad: var(--s3);
   }
 
-  .studio-head {
-    align-items: flex-start;
-    flex-direction: column;
+  /* Навигация уезжает на свою строку и скроллится, подписи не режем. */
+  .app-nav {
+    flex-basis: 100%;
+    order: 3;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
   }
 
-  .studio-track-row {
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-nav-item {
+    min-height: var(--control-md);
+    scroll-snap-align: start;
+  }
+
+  .metric-strip {
     grid-template-columns: 1fr;
   }
 
-  .track-controls {
-    flex-wrap: wrap;
+  .metric-card {
+    padding: var(--s3);
   }
 
-  .section-timeline {
+  .metric-card.console-card {
+    min-height: var(--control-lg);
+  }
+
+  .console-panel {
+    gap: var(--s3);
+    padding: var(--s3);
+  }
+
+  .console-modes {
+    margin-inline-start: 0;
+    width: 100%;
+  }
+
+  /* 64 столбика по 3 px не помещаются в 360 px — сужаем шаг, а не режем волну. */
+  .console-wave {
+    gap: 1px;
+    height: 56px;
+  }
+
+  .console-wave i {
+    min-width: 2px;
+  }
+
+  /* Форма песни листается по горизонтали внутри панели, страница не едет. */
+  .console-sections {
     overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .console-section {
+    flex-basis: 128px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  /*
+   * Дорожка в три строки. В двух строках полоса делила место с кнопками и
+   * сжималась до ~70 px — главный сигнал переставал читаться. Полоса
+   * получает свою строку целиком.
+   */
+  .console-track-row {
+    gap: var(--s2) var(--s3);
+    grid-template-areas:
+      "name percent"
+      "bar bar"
+      "controls controls";
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .track-controls {
+    justify-content: flex-start;
+  }
+
+  .track-name {
+    grid-area: name;
+  }
+
+  .track-confidence {
+    grid-area: bar;
+  }
+
+  .track-percent {
+    grid-area: percent;
+  }
+
+  .track-controls {
+    grid-area: controls;
+  }
+
+  /* Тач-цель на мобильном — не меньше 44 px. */
+  .track-controls button {
+    height: var(--control-md);
+    width: var(--control-md);
+  }
+
+  .track-controls .track-command {
+    width: auto;
+  }
+
+  .btn,
+  .btn-sm,
+  .btn-xs {
+    min-height: var(--control-md);
+  }
+
+  .chat-bubble,
+  .chat-actions {
+    max-width: 90%;
   }
 }
 
@@ -2290,34 +2631,11 @@ textarea:focus-visible {
   }
 
   .version-pill {
-    font-size: 12px;
-    padding: 6px 9px;
+    padding: 0 var(--s2);
   }
 
-  .stage-command-strip {
-    gap: 8px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-bottom: 10px;
-    padding: 8px;
-  }
-
-  .command-metric,
-  .command-action {
-    gap: 8px;
-    min-height: 48px;
-    padding: 8px;
-  }
-
-  .command-metric {
-    font-size: 12px;
-  }
-
-  .command-metric strong {
-    font-size: 16px;
-  }
-
-  .command-action {
-    grid-column: 1 / -1;
+  .metric-card strong {
+    font-size: 24px;
   }
 
   .workspace-tabs {
@@ -2354,10 +2672,6 @@ textarea:focus-visible {
 
   .cost-estimate-metrics {
     grid-template-columns: 1fr;
-  }
-
-  .section-segment {
-    min-width: 118px;
   }
 }
 
@@ -2634,14 +2948,9 @@ textarea:focus-visible {
  * прыгают при обновлении и колонки не выравниваются.
  */
 .song-facts span,
-.transport-metrics span,
-.command-metric strong,
 .cost-estimate-metrics b,
-.track-confidence + .track-value,
 .artifact-row small,
-.section-segment span,
 .constraint-grid span,
-.version-pill,
 .mock-links span {
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
@@ -2670,6 +2979,196 @@ button:disabled {
   opacity: 0.4;
 }
 
-.command-metric.wide {
-  grid-column: 1 / -2;
+/* --- Кнопки: иерархия действий бренд-бука -----------------------------
+ * Графит — главное действие шага, и он на экране один. Бирюза подтверждает
+ * результат системы. Контур — вторичное. Красный — необратимое.
+ * Высоты берём из токенов: 48 / 44 / 38 / 34 (--control-*).
+ * --------------------------------------------------------------------- */
+
+.btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: var(--s2);
+  justify-content: center;
+  min-height: var(--control-md);
+  padding: 0 var(--s4);
+  text-align: center;
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease), color var(--t-base) var(--ease);
+}
+
+.btn:focus-visible {
+  outline: var(--ring);
+  outline-offset: 2px;
+}
+
+.btn-lg {
+  min-height: var(--control-lg);
+  padding: 0 var(--s6);
+}
+
+.btn-sm {
+  font-size: 13.5px;
+  min-height: var(--control-sm);
+  padding: 0 var(--s3);
+}
+
+.btn-xs {
+  font-size: 13px;
+  min-height: var(--control-xs);
+  padding: 0 var(--s3);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 700;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+  box-shadow: var(--e-2);
+}
+
+/* На бирюзе белый текст не читается — здесь графитовый. */
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: var(--teal-600-hover);
+  border-color: var(--teal-600-hover);
+}
+
+.btn-outline {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--canvas);
+  border-color: var(--steel-border-strong);
+}
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--red-tint);
+  border-color: var(--danger-ink);
+}
+
+.btn-danger.solid {
+  background: var(--danger-ink);
+  border-color: var(--danger-ink);
+  color: var(--surface);
+}
+
+.btn-danger.solid:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/*
+ * Выключенная кнопка — серая заливка и приглушённый текст, а не полупрозрачный
+ * призрак: состояние должно читаться, а не растворяться.
+ */
+.btn:disabled {
+  background: var(--canvas);
+  border-color: var(--line);
+  box-shadow: none;
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
+.btn-accent:disabled,
+.btn-primary:disabled {
+  background: var(--canvas);
+  border-color: var(--line);
+  color: var(--ink-muted);
+}
+
+/* --- Разговор с директором: переписка, а не список карточек --- */
+
+.director-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.chat-bubble {
+  border-radius: var(--r-3);
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 78%;
+  padding: var(--s3) var(--s4);
+  text-wrap: pretty;
+}
+
+.chat-bubble p {
+  margin: 0;
+}
+
+.chat-bubble.from-user {
+  align-self: flex-end;
+  background: var(--console);
+  color: var(--console-ink);
+}
+
+.chat-bubble.from-director {
+  align-self: flex-start;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.chat-actions {
+  align-self: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  max-width: 78%;
+}
+
+/* Ярлыки команд директору — моноширинные, строчными. */
+.chat-actions button,
+.chat-actions .mono-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  color: var(--ink-2);
+  display: inline-flex;
+  font-family: var(--font-data);
+  font-size: 12px;
+  min-height: var(--control-sm);
+  padding: 0 var(--s3);
+  text-transform: lowercase;
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease),
+    color var(--t-base) var(--ease);
+}
+
+.chat-actions button:hover:not(:disabled) {
+  background: var(--canvas);
+  border-color: var(--steel-border-strong);
+  color: var(--ink);
 }

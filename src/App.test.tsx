@@ -128,15 +128,17 @@ describe("Stage Pack", () => {
 
     await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
     // Демо-проекты приходят с готовой репликой директора: до правки она не рендерилась вовсе.
-    const log = screen.getByLabelText("Диалог с AI-директором");
+    const log = screen.getByLabelText("Разговор с AI-директором");
     expect(log.textContent).toContain("Я нашел две гитарные партии");
-    const before = log.querySelectorAll(".chat-message").length;
+    const before = log.querySelectorAll(".chat-bubble").length;
 
     await user.click(within(screen.getByRole("tabpanel")).getAllByText("Усилить")[0]);
 
+    // Две реплики: команда пользователя и ответ директора. Раньше писалась
+    // только вторая, и было непонятно, на что директор отвечает.
     await waitFor(() =>
-      expect(screen.getByLabelText("Диалог с AI-директором").querySelectorAll(".chat-message").length).toBe(
-        before + 1,
+      expect(screen.getByLabelText("Разговор с AI-директором").querySelectorAll(".chat-bubble").length).toBe(
+        before + 2,
       ),
     );
   });
@@ -150,9 +152,17 @@ describe("Stage Pack", () => {
     // Пороги задаёт дизайн-система: 85 и выше — акцент, 75-84 — внимание,
     // ниже 75 — опасность. Вокал 91 -> high, Клавиши 78 -> mid, Гитара 72 -> low.
     // Раньше градиент красил высокие значения в красный независимо от порогов.
-    expect(screen.getByLabelText(/Вокал: точность разбора/).querySelector("b")!.className).toBe("high");
-    expect(screen.getByLabelText(/Клавиши: точность разбора/).querySelector("b")!.className).toBe("mid");
-    expect(screen.getByLabelText(/Гитара: точность разбора/).querySelector("b")!.className).toBe("low");
+    const barFor = (part: string) => {
+      const row = [...document.querySelectorAll(".console-track-row")].find((node) =>
+        node.querySelector(".track-name strong")?.textContent?.includes(part),
+      );
+      expect(row, `нет дорожки «${part}»`).toBeTruthy();
+      return row!.querySelector(".track-confidence b")!.className;
+    };
+
+    expect(barFor("Вокал")).toBe("high");
+    expect(barFor("Клавиши")).toBe("mid");
+    expect(barFor("Гитара")).toBe("low");
   });
 
   it("откатывает материалы к предыдущей версии", async () => {
@@ -480,5 +490,121 @@ describe("пустые вкладки объясняют пустоту", () => 
     await user.click(screen.getByRole("tab", { name: /Проверка/ }));
     expect(screen.queryByText(/Сомнительных тактов нет/)).toBeNull();
     expect(screen.getByText(/в работе/)).toBeTruthy();
+  });
+});
+
+describe("бренд-бук: структура экранов", () => {
+  it("показывает шапку продукта со знаком и навигацией", async () => {
+    render(<App />);
+
+    const header = document.querySelector(".app-header");
+    expect(header).not.toBeNull();
+    expect(within(header as HTMLElement).getByText("Vokal")).toBeTruthy();
+  });
+
+  it("показывает полосу метрик песни до открытия вкладок", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const strip = document.querySelector(".metric-strip");
+    expect(strip).not.toBeNull();
+    // BPM, готовые материалы, такты на проверку, выдача.
+    expect(strip!.querySelectorAll(".metric-card").length).toBe(4);
+    expect(within(strip as HTMLElement).getByText(/BPM/)).toBeTruthy();
+  });
+
+  it("собирает весь звук на одной графитовой панели", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const console_ = document.querySelector(".console-panel");
+    expect(console_).not.toBeNull();
+    // Транспорт, форма песни, дорожки и аккорды — внутри неё, а не рядом.
+    for (const part of [".console-transport", ".console-wave", ".console-sections", ".console-tracks", ".console-chords"]) {
+      expect(console_!.querySelector(part), `нет ${part} внутри пульта`).not.toBeNull();
+    }
+  });
+
+  it("подписывает процентом каждую полосу уверенности", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const rows = [...document.querySelectorAll(".console-track-row")];
+    expect(rows.length).toBeGreaterThan(0);
+    // Цвет — не единственный сигнал: число стоит рядом с полосой.
+    for (const row of rows) {
+      expect(row.querySelector(".track-confidence"), "нет полосы").not.toBeNull();
+      expect(row.querySelector(".track-percent")?.textContent, "нет процента").toMatch(/^\d+%$/);
+    }
+  });
+
+  it("отличает аккорд под вопросом рамкой, а не только наведением", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const chords = [...document.querySelectorAll(".console-chords .chord-chip")];
+    expect(chords.length).toBeGreaterThan(0);
+    expect(chords.some((chip) => chip.className.includes("uncertain"))).toBe(true);
+  });
+
+  it("держит не больше одной графитовой кнопки на экране", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Правило бренд-бука: главное действие шага — одно. Стартовый экран
+    // раньше держал два графитовых CTA рядом: «подготовить» и «демо».
+    expect(document.querySelectorAll("button.btn-primary").length).toBe(1);
+
+    await openBandDemo(user);
+    await waitForStagePack();
+    expect(document.querySelectorAll("button.btn-primary").length).toBeLessThanOrEqual(1);
+
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    expect(document.querySelectorAll("button.btn-primary").length).toBeLessThanOrEqual(1);
+  });
+
+  it("не выдает за рабочие органы, которых нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    // Звука в продукте нет. Кнопка воспроизведения, которая нажимается и
+    // ничего не делает, — обещание, а не элемент управления.
+    const play = document.querySelector(".console-play") as HTMLButtonElement;
+    expect(play).not.toBeNull();
+    expect(play.disabled).toBe(true);
+    expect(play.getAttribute("aria-label")).toMatch(/звук/i);
+
+    // То же про режимы транспорта: клика, скорости и петли не существует.
+    expect(document.querySelectorAll(".console-modes .mono-chip").length).toBeLessThanOrEqual(1);
+  });
+
+  it("показывает разговор с директором репликами, а не списком карточек", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+
+    // В демо директор уже сказал первое слово, но пользователь — ещё нет.
+    expect(document.querySelectorAll(".director-thread .chat-bubble.from-director").length).toBe(1);
+    expect(document.querySelectorAll(".director-thread .chat-bubble.from-user").length).toBe(0);
+
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+
+    const thread = document.querySelector(".director-thread");
+    expect(thread).not.toBeNull();
+    // Команда пользователя тоже остаётся в переписке, а не только ответ директора.
+    expect(thread!.querySelectorAll(".chat-bubble.from-user").length).toBeGreaterThan(0);
+    expect(thread!.querySelectorAll(".chat-bubble.from-director").length).toBeGreaterThan(0);
   });
 });
