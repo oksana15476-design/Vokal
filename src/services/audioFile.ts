@@ -37,15 +37,34 @@ export const formatDuration = (seconds: number): string => {
 /**
  * Качество считается по содержимому записи, а не по размеру файла: размер
  * говорит о битрейте контейнера и ничего не говорит о самой записи.
+ *
+ * Техническая пригодность и громкость — разные вещи, и смешивать их нельзя.
+ * Моно и низкая частота дискретизации действительно мешают разбору. Пик у
+ * единицы — это обычный современный мастеринг: почти любой коммерческий трек
+ * упирается в потолок, и трактовать это как непригодность значит забраковать
+ * песню, которую музыкант принес на репетицию.
  */
 export const qualityFromAudio = (audio: DecodedAudio): Upload["quality"] => {
-  const clipping = audio.peak >= 0.999;
-
-  if (audio.numberOfChannels < 2 || audio.sampleRate < 32000 || clipping) {
+  if (audio.numberOfChannels < 2 || audio.sampleRate < 32000) {
     return "low";
   }
 
-  return audio.sampleRate >= 44100 ? "good" : "medium";
+  const clipping = audio.peak >= 0.999;
+
+  return audio.sampleRate >= 44100 && !clipping ? "good" : "medium";
+};
+
+/** Причина низкого качества человеческим языком: «низкое» само по себе не помогает. */
+export const qualityReason = (audio: DecodedAudio): string | null => {
+  if (audio.numberOfChannels < 2) {
+    return "запись моно: разделить ее на партии заметно труднее";
+  }
+
+  if (audio.sampleRate < 32000) {
+    return `низкая частота дискретизации (${audio.sampleRate} Гц): в записи мало высоких`;
+  }
+
+  return null;
 };
 
 interface FileLike {

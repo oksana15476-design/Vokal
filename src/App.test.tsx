@@ -260,7 +260,7 @@ describe("честность текста", () => {
     render(<App />);
     await pickFile();
     await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: /Запустить демо-разбор/ }));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
     await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
       timeout: PROCESSING_MS,
     });
@@ -315,7 +315,7 @@ describe("правда о загруженном файле", () => {
   const startUpload = async (user: ReturnType<typeof userEvent.setup>) => {
     await pickFile();
     await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: /Запустить демо-разбор/ }));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
     await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
       timeout: PROCESSING_MS,
     });
@@ -382,5 +382,103 @@ describe("правда о загруженном файле", () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("свой файл не выдается за демо", () => {
+  it("кнопка запуска на своем файле не называет разбор демонстрационным", async () => {
+    render(<App />);
+    await pickFile();
+
+    expect(screen.getByRole("button", { name: /Разобрать мой файл/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Запустить демо-разбор/ })).toBeNull();
+  });
+
+  it("пустое состояние открывает демо-разбор, а не выбрасывает на главную", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    // Регресс: кнопка была подписана «Посмотреть на демо-разборе», а вызывала
+    // возврат на первый экран — обещанное действие не выполнялось.
+    await user.click(screen.getAllByRole("button", { name: /Открыть демо-разбор/ })[0]);
+    await waitFor(() => expect(document.body.textContent).toContain("G minor"), {
+      timeout: PROCESSING_MS,
+    });
+  });
+});
+
+describe("пустые вкладки объясняют пустоту", () => {
+  const uploadPath = async (user: ReturnType<typeof userEvent.setup>) => {
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+  };
+
+  it("не выдает отсутствие разбора за успех", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+
+    // Регресс: «без разбора» рисовалось классом успеха, а сводка справа
+    // утверждала, что форма и аккорды собраны — на этом пути это неправда.
+    expect(screen.getByText("без разбора").className).not.toContain("ready");
+    const summary = screen.getByText("Собрано").closest("span")!;
+    expect(summary.textContent).not.toContain("аккорды");
+  });
+
+  it("не показывает три нуля вместо состояния проекта", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+
+    // Регресс: полоса показывала «0/0 материалов», «0 на проверку», «0/0 получателей».
+    const strip = screen.getByLabelText("Состояние проекта");
+    expect(strip.textContent).not.toContain("0/0");
+    expect(strip.textContent).toContain("разбор не выполнялся");
+  });
+
+  it("объясняет, почему нет сомнительных тактов, вместо «0 в работе»", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+    await user.click(screen.getByRole("tab", { name: /Проверка/ }));
+
+    // Ноль без объяснения читается как «проверено, проблем нет» — обратное правде.
+    expect(screen.getByText(/Сомнительных тактов нет, потому что нет разбора/)).toBeTruthy();
+    expect(screen.queryByText(/в работе/)).toBeNull();
+  });
+
+  it("объясняет пустого AI-директора и пустой экспорт", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    expect(screen.getByText(/Предложений пока нет/)).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: /Экспорт/ }));
+    expect(screen.getByText(/Получателей пока нет/)).toBeTruthy();
+  });
+
+  it("демо-путь пустых состояний не показывает", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    await user.click(screen.getByRole("tab", { name: /Проверка/ }));
+    expect(screen.queryByText(/Сомнительных тактов нет/)).toBeNull();
+    expect(screen.getByText(/в работе/)).toBeTruthy();
   });
 });

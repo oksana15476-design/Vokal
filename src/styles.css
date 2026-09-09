@@ -2609,3 +2609,7 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }
+
+.command-metric.wide {
+  grid-column: 1 / -2;
+}

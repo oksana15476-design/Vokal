@@ -3,6 +3,7 @@ import {
   type DecodedAudio,
   formatDuration,
   qualityFromAudio,
+  qualityReason,
   readAudioFacts,
 } from "./audioFile";
 
@@ -48,12 +49,27 @@ describe("качество исходника по содержимому", () =
     expect(qualityFromAudio(decoded({ sampleRate: 22050 }))).toBe("low");
   });
 
-  it("клиппинг понижает качество", () => {
-    expect(qualityFromAudio(decoded({ peak: 1 }))).toBe("low");
+  it("клиппинг НЕ делает коммерческий мастеринг непригодным", () => {
+    // Регресс: правило peak >= 0.999 объявляло низкокачественным почти любой
+    // отмастеренный трек — современный мастеринг штатно упирается в единицу.
+    // На интервью песня музыканта была бы забракована и уронила бы обработку.
+    expect(qualityFromAudio(decoded({ peak: 1 }))).toBe("medium");
+    expect(qualityFromAudio(decoded({ peak: 0.9999 }))).toBe("medium");
+  });
+
+  it("непригодность определяется техническими признаками, а не громкостью", () => {
+    expect(qualityFromAudio(decoded({ numberOfChannels: 1, peak: 0.5 }))).toBe("low");
+    expect(qualityFromAudio(decoded({ sampleRate: 22050, peak: 0.5 }))).toBe("low");
   });
 
   it("стерео 32000 без клиппинга — среднее", () => {
     expect(qualityFromAudio(decoded({ sampleRate: 32000 }))).toBe("medium");
+  });
+
+  it("сообщает причину низкого качества, а не общее слово", () => {
+    expect(qualityReason(decoded({ numberOfChannels: 1 }))).toContain("моно");
+    expect(qualityReason(decoded({ sampleRate: 22050 }))).toContain("частота");
+    expect(qualityReason(decoded())).toBeNull();
   });
 });
 

@@ -1,4 +1,4 @@
-import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
+import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -421,6 +421,7 @@ export default function App() {
           workspaceTab={workspaceTab}
           setWorkspaceTab={setWorkspaceTab}
           onBack={() => setScreen("start")}
+          onOpenDemo={() => openDemo(scenario === "education" ? "education-lesson-demo" : "band-demo")}
         />
       )}
     </main>
@@ -568,7 +569,7 @@ function StartScreen({
 
           <button className="primary-action job-action" type="button" disabled={!canStartJob} onClick={onStart}>
             <Sparkles size={18} />
-            Запустить демо-разбор
+            Разобрать мой файл
           </button>
 
           {!canStartJob && (
@@ -830,7 +831,7 @@ function SetupScreen({
           </div>
           <button className="primary-action" type="button" onClick={onStart}>
             <Activity size={18} />
-            Запустить демо-разбор
+            Разобрать мой файл
           </button>
         </aside>
       </div>
@@ -897,7 +898,7 @@ function ProcessingScreen({
         <div className="panel-heading">
           <Activity size={24} />
           <div>
-            <h1>Собираем демо-разбор</h1>
+            <h1>{project.analysis.source === "demo" ? "Собираем демо-разбор" : "Читаем ваш файл"}</h1>
             <p>{project.name}</p>
           </div>
         </div>
@@ -1075,6 +1076,7 @@ function StagePackShell({
   workspaceTab,
   setWorkspaceTab,
   onBack,
+  onOpenDemo,
 }: {
   project: Project;
   setProject: Dispatch<SetStateAction<Project | null>>;
@@ -1083,6 +1085,7 @@ function StagePackShell({
   workspaceTab: WorkspaceTab;
   setWorkspaceTab: (tab: WorkspaceTab) => void;
   onBack: () => void;
+  onOpenDemo: () => void;
 }) {
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>(
     project.shareRecipients.filter((recipient) => recipient.status !== "opened").slice(0, 2).map((recipient) => recipient.id),
@@ -1185,6 +1188,16 @@ function StagePackShell({
       </div>
 
       <div className="stage-command-strip" aria-label="Состояние проекта">
+        {!hasAnalysis ? (
+          <div className="command-metric wide">
+            <FileAudio size={18} />
+            <span>
+              <strong>{project.upload.format}</strong>
+              файл прочитан, разбор не выполнялся
+            </span>
+          </div>
+        ) : (
+          <>
         <div className="command-metric">
           <Layers3 size={18} />
           <span>
@@ -1206,6 +1219,8 @@ function StagePackShell({
             получателей с материалами
           </span>
         </div>
+          </>
+        )}
         <button className={hasStaleBundle ? "command-action urgent" : "command-action"} type="button" onClick={() => setWorkspaceTab("export")}>
           <Download size={18} />
           {hasStaleBundle ? "Экспорт: пересобрать" : "Открыть экспорт"}
@@ -1238,7 +1253,9 @@ function StagePackShell({
                 <h2>{project.analysis.title}</h2>
                 {hasAnalysis && <p>{project.analysis.summary}</p>}
               </div>
-              <span className="status-badge ready">{hasAnalysis ? "демо-данные" : "без разбора"}</span>
+              <span className={hasAnalysis ? "status-badge ready" : "status-badge pending"}>
+                {hasAnalysis ? "демо-данные" : "без разбора"}
+              </span>
             </div>
 
             {hasAnalysis ? (
@@ -1293,8 +1310,8 @@ function StagePackShell({
                     точность разбора появятся с настоящей обработкой звука — подставлять сюда данные другой песни
                     было бы неправдой.
                   </p>
-                  <button className="secondary-action" type="button" onClick={onBack}>
-                    Посмотреть на демо-разборе
+                  <button className="secondary-action" type="button" onClick={onOpenDemo}>
+                    Открыть демо-разбор
                   </button>
                 </div>
               </div>
@@ -1305,11 +1322,15 @@ function StagePackShell({
             <div className="access-summary">
               <span>
                 <b>Собрано</b>
-                форма, аккорды, партии, материалы и предложения AI-директора
+                {hasAnalysis
+                  ? "форма, аккорды, партии, материалы и предложения AI-директора"
+                  : "параметры вашего файла: длительность, каналы, частота, качество"}
               </span>
               <span>
                 <b>Нужна обработка</b>
-                PDF, MIDI, аудио и ссылки пока не создаются
+                {hasAnalysis
+                  ? "PDF, MIDI, аудио и ссылки пока не создаются"
+                  : "разбор песни, партии, материалы и выдача"}
               </span>
             </div>
 
@@ -1326,6 +1347,7 @@ function StagePackShell({
               </button>
             </section>
 
+            {project.directorSuggestions.length > 0 && (
             <section className="subpanel compact">
               <h3>AI-директор предлагает</h3>
               {project.directorSuggestions.slice(0, 2).map((suggestion) => (
@@ -1335,6 +1357,7 @@ function StagePackShell({
                 </button>
               ))}
             </section>
+            )}
           </aside>
         </section>
       )}
@@ -1354,8 +1377,8 @@ function StagePackShell({
                   Партии, ноты, MIDI и аудиослои собираются из разбора песни. Пока звук не обрабатывается,
                   собирать их не из чего. Как это выглядит на готовом разборе, видно в демо-проекте.
                 </p>
-                <button className="secondary-action" type="button" onClick={onBack}>
-                  Посмотреть на демо-разборе
+                <button className="secondary-action" type="button" onClick={onOpenDemo}>
+                  Открыть демо-разбор
                 </button>
               </div>
             </div>
@@ -1424,6 +1447,13 @@ function StagePackShell({
       {workspaceTab === "review" && (
         <section id="workspace-review" className="stage-panel stage-view review-view" role="tabpanel">
           <div className="review-main">
+            {project.reviewIssues.length === 0 ? (
+              <EmptyState title="Сомнительных тактов нет, потому что нет разбора" onOpenDemo={onOpenDemo}>
+                Сомнительные такты находит разбор песни. Пока звук не обрабатывается, находить их не в чем — это
+                не значит, что в вашей песне все чисто.
+              </EmptyState>
+            ) : (
+            <>
             <div className="preview-header">
               <div>
                 <p className="eyebrow">Ручная проверка</p>
@@ -1460,6 +1490,8 @@ function StagePackShell({
                 </div>
               ))}
             </div>
+            </>
+            )}
           </div>
 
           <aside className="review-side">
@@ -1515,6 +1547,13 @@ function StagePackShell({
               </div>
             </div>
 
+            {project.directorSuggestions.length === 0 && (
+              <EmptyState title="Предложений пока нет" onOpenDemo={onOpenDemo}>
+                AI-директор строит предложения на разборе песни: состав, партии, спорные места. Пока разбора нет,
+                предлагать нечего.
+              </EmptyState>
+            )}
+
             <div className="suggestions-grid">
               {project.directorSuggestions.slice(0, 4).map((suggestion) => (
                 <div key={suggestion.id} className="suggestion-card">
@@ -1530,7 +1569,9 @@ function StagePackShell({
             <div className="chat-log" aria-label="Диалог с AI-директором">
               {project.chat.length === 0 ? (
                 <p className="chat-empty">
-                  Диалога пока нет. Запустите действие карточкой выше или опишите правку своими словами.
+                  {project.directorSuggestions.length > 0
+                    ? "Диалога пока нет. Запустите действие карточкой выше или опишите правку своими словами."
+                    : "Диалога пока нет. Он появится, когда будет что обсуждать: разбор песни."}
                 </p>
               ) : (
                 project.chat.map((message) => (
@@ -1620,6 +1661,13 @@ function StagePackShell({
 
             <section className="subpanel compact">
               <h3>Кому выдать материалы</h3>
+              {project.shareRecipients.length === 0 && (
+                <EmptyState title="Получателей пока нет" onOpenDemo={onOpenDemo}>
+                  Список получателей собирается из состава группы или класса, а материалы для выдачи — из разбора.
+                  Пока нет ни того, ни другого.
+                </EmptyState>
+              )}
+
               <div className="recipient-list">
                 {project.shareRecipients.map((recipient) => (
                   <label key={recipient.id} className="recipient-row">
@@ -1657,7 +1705,7 @@ function StagePackShell({
                 className="secondary-action pro-action"
                 type="button"
                 onClick={rebuildBundle}
-                disabled={project.dataRetention.resultsDeleted}
+                disabled={project.dataRetention.resultsDeleted || project.exportBundles.length === 0}
               >
                 <Repeat2 size={14} />
                 Пересобрать пакет
@@ -1680,6 +1728,7 @@ function StagePackShell({
           </div>
 
           <aside className="export-side">
+            {project.exportBundles.length > 0 && (
             <div className="bundle-box">
               <strong>Пакеты</strong>
               {project.exportBundles.map((bundle) => (
@@ -1688,6 +1737,7 @@ function StagePackShell({
                 </span>
               ))}
             </div>
+            )}
 
             <section className="subpanel compact">
               <h3>Настройки задачи</h3>
@@ -1750,6 +1800,34 @@ function StagePackShell({
         </section>
       )}
     </section>
+  );
+}
+
+/**
+ * Одно пустое состояние на все вкладки. Пустой заголовок со счетчиком «0»
+ * читается как «проверено, проблем нет» — то есть ровно наоборот, поэтому
+ * пустоту всегда объясняем и даем один выход.
+ */
+function EmptyState({
+  title,
+  children,
+  onOpenDemo,
+}: {
+  title: string;
+  children: ReactNode;
+  onOpenDemo: () => void;
+}) {
+  return (
+    <div className="no-analysis">
+      <Layers3 size={20} />
+      <div>
+        <strong>{title}</strong>
+        <p>{children}</p>
+        <button className="secondary-action" type="button" onClick={onOpenDemo}>
+          Открыть демо-разбор
+        </button>
+      </div>
+    </div>
   );
 }
 
