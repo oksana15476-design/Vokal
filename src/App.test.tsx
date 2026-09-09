@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { forbiddenClaims, requiredDisclosures } from "./domain/claims";
 
 // В jsdom нет AudioContext, поэтому декодер подменяется. Ровно ради этого он
 // вынесен за интерфейс в audioFile.ts.
@@ -213,31 +214,87 @@ describe("доменные поля на экране", () => {
   });
 });
 
-// Регресс: интерфейс обещал бесплатный тариф, подписку Pro и сроки обработки,
-// которых в прототипе нет. Ось заменена на «собрано / имитация / нужна обработка».
-// Сторож проверяет СВОЙСТВО «не обещаем цен и сроков», а не список исторических строк.
-// Первая версия списка была литеральной и пропускала «3-5 минут» под подписью
-// «ориентир по времени» — зеленый тест удостоверял не то, что требовалось.
-// Вторая версия смотрела только в document.body и пропустила «моковый» в <head>.
-// Третья версия использовала \b на кириллице. В JavaScript \b определен только
-// по ASCII, поэтому /\bмок/i, /\bруб/ и /\bцена\b/ не могли совпасть НИКОГДА:
-// три запрета молча ничего не проверяли, а тест был зеленым, потому что не мог
-// упасть. Граница слова для кириллицы — только через \p{L} с флагом u.
-const forbidden = [
-  /бесплатн/i,
-  /подписк/i,
-  /\bPro\b/,
-  /\bFree\b/,
-  /без оплаты/i,
-  // любое обещание срока: число рядом с единицей времени
-  /\d+\s*[-–—]?\s*\d*\s*(секунд|минут|час)/i,
-  /за несколько (секунд|минут|час)/i,
-  // любое обещание цены
-  /₽|(?<!\p{L})руб|(?<!\p{L})цен[аыуе]|стоимост|тариф|кредит/iu,
-  // жаргон разработчика
-  /(?<!\p{L})мок/iu,
-  /ё/,
-];
+// Запреты и обязательные раскрытия переехали в реестр обещаний
+// `src/domain/claims.ts` (B11a). До этого запреты жили списком регулярных
+// выражений прямо здесь, а раскрытия не проверялись вовсе: любое из них
+// можно было удалить при правке верстки, и ни один тест бы не упал.
+//
+// Сторож проверяет СВОЙСТВО «не обещаем цен и сроков», а не список
+// исторических строк. Первая версия списка была литеральной и пропускала
+// «3-5 минут» под подписью «ориентир по времени» — зеленый тест удостоверял
+// не то, что требовалось. Вторая смотрела только в document.body и
+// пропустила «моковый» в <head>. Третья использовала \b на кириллице, где
+// он определен только по ASCII, и три запрета не могли совпасть НИКОГДА.
+const forbidden = forbiddenClaims.map((claim) => claim.pattern);
+
+describe("счетчики склоняются (B7)", () => {
+  it("не пишет «1 материалов» в пакетах выдачи", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+
+    const text = document.body.textContent ?? "";
+    // Форма числительного: 1 материал, 2 материала, 5 материалов.
+    expect(text).not.toMatch(/(?<!\d)1 материалов/);
+    expect(text).not.toMatch(/(?<!\d)[234] материалов/);
+    expect(text).not.toMatch(/(?<!\d)[05-9] материала(?!х)/);
+  });
+
+  it("склоняет число находок директора", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const heading = screen.getByText(/Директор нашел/);
+    const match = heading.textContent!.match(/Директор нашел (\d+) (\S+)/)!;
+    const n = Number(match[1]);
+    const word = match[2];
+    const expected = n % 10 === 1 && n % 100 !== 11 ? "находку" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 11 || n % 100 > 14) ? "находки" : "находок";
+    expect(word, `${n} ${word}`).toBe(expected);
+  });
+});
+
+describe("обязательные раскрытия не исчезают", () => {
+  const on = (surface: string) => requiredDisclosures.filter((item) => item.surface === surface);
+
+  it("говорит на первом экране, что звук не обрабатывается и файл остается у пользователя", () => {
+    render(<App />);
+    const text = document.body.textContent ?? "";
+
+    for (const item of on("первый экран")) {
+      expect(text, `${item.id}: ${item.because}`).toMatch(item.pattern);
+    }
+  });
+
+  it("говорит на пути загрузки, что разбор не создается", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await screen.findByRole("heading", { name: /Читаем ваш файл/ });
+    const text = document.body.textContent ?? "";
+
+    for (const item of on("путь загрузки")) {
+      expect(text, `${item.id}: ${item.because}`).toMatch(item.pattern);
+    }
+  });
+
+  it("держит реестр непустым и без дубликатов", () => {
+    // Реестр, из которого молча вычистили строки, выглядит как пройденная
+    // проверка. Пустой список запретов проходит любой текст.
+    expect(forbiddenClaims.length).toBeGreaterThan(5);
+    expect(requiredDisclosures.length).toBeGreaterThan(2);
+    expect(new Set(forbiddenClaims.map((c) => c.id)).size).toBe(forbiddenClaims.length);
+    expect(new Set(requiredDisclosures.map((c) => c.id)).size).toBe(requiredDisclosures.length);
+    for (const claim of [...forbiddenClaims, ...requiredDisclosures]) {
+      expect(claim.because.length, `${claim.id}: причина не записана`).toBeGreaterThan(20);
+    }
+  });
+});
 
 describe("честность текста", () => {
   it("не обещает тарифов, сроков и не содержит жаргона на первом экране", () => {

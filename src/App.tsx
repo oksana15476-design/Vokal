@@ -1798,7 +1798,7 @@ function StagePackShell({
               <strong>Пакеты экспорта</strong>
               {project.exportBundles.map((bundle) => (
                 <span key={bundle.id}>
-                  {bundle.label}: {bundle.filesCount} материалов, {bundle.status === "ready" ? "актуален" : "устарел"}
+                  {bundle.label}: {bundle.filesCount} {plural(bundle.filesCount, "материал", "материала", "материалов")}, {bundle.status === "ready" ? "актуален" : "устарел"}
                 </span>
               ))}
             </div>
@@ -2149,7 +2149,7 @@ function StagePackShell({
               <strong>Пакеты</strong>
               {project.exportBundles.map((bundle) => (
                 <span key={bundle.id}>
-                  {bundle.label}: {bundle.filesCount} материалов, {bundle.status === "ready" ? "актуален" : "устарел"}
+                  {bundle.label}: {bundle.filesCount} {plural(bundle.filesCount, "материал", "материала", "материалов")}, {bundle.status === "ready" ? "актуален" : "устарел"}
                 </span>
               ))}
             </div>
