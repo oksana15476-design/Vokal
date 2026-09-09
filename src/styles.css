@@ -1,4 +1,9 @@
 :root {
+  /*
+   * Весов выше 800 в Manrope Variable нет: 850 и 900 схлопывались в 800, и
+   * различие между ними было мнимым. Раздел «Миграция» бренд-бука требует
+   * настоящих весов — 700 и 800.
+   */
   /* --- Дизайн-система Vokal, направление «Пульт». Источник: docs/design/tokens.json --- */
   /* Примитивы. Хекс внутри компонента — ошибка ревью: пользуемся ролями ниже. */
   --graphite-900: #0d1113;
@@ -44,6 +49,12 @@
   --console: var(--graphite-900);
   --accent: var(--teal-500);
   --accent-ink: var(--teal-700);
+  /*
+   * Акцент как текст на бирюзовой подложке. --accent-ink задан с расчётом
+   * на белый фон (4.6:1); на --teal-tint он даёт 3.85:1 и норму не проходит.
+   * Здесь 5.2:1 на подложке и 5.5:1 на белом.
+   */
+  --accent-ink-tint: #00775f;
   --danger: var(--red-500);
   --danger-ink: var(--red-700);
   --warn: var(--amber-500);
@@ -343,10 +354,15 @@ button:not(:disabled):active {
   padding: var(--s6);
 }
 
-/* На широком экране колонки одной высоты, и разгон по краям уместен. */
+/*
+ * `space-between` разгонял содержимое по краям колонки, и между вводным
+ * текстом и чипами доказательств оставалось около 350 px пустоты: колонка
+ * заметно ниже соседней карточки задания. Содержимое прижато к верху,
+ * колонка по-прежнему тянется на всю высоту фоном.
+ */
 @media (width >= 1100px) {
   .home-lead {
-    align-content: space-between;
+    align-content: start;
   }
 }
 
@@ -405,7 +421,7 @@ button:not(:disabled):active {
   border-radius: var(--r-pill);
   color: var(--ink-muted);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   padding: var(--s2) var(--s3);
 }
 
@@ -431,12 +447,17 @@ button:not(:disabled):active {
 
 .job-card-head > span {
   align-items: center;
-  background: var(--accent-ink);
+  /*
+   * Белый текст на --accent-ink даёт 4.05:1. Дизайн-система задаёт обратную
+   * пару: бирюза как фон, текст на ней только графитовый. Так и контраст в
+   * норме, и правило соблюдено.
+   */
+  background: var(--accent);
   border-radius: var(--r-2);
-  color: var(--white);
+  color: var(--ink);
   display: inline-flex;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
   height: 34px;
   justify-content: center;
   width: 34px;
@@ -525,7 +546,7 @@ button:not(:disabled):active {
 .free-preview-note {
   background: var(--teal-tint);
   border: 1px solid var(--teal-tint-border);
-  color: var(--accent-ink);
+  color: var(--accent-ink-tint);
   font-size: 12px;
   font-weight: 800;
 }
@@ -556,7 +577,7 @@ button:not(:disabled):active {
 .result-preview-top span {
   color: var(--accent);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
   text-transform: uppercase;
 }
 
@@ -628,7 +649,7 @@ button:not(:disabled):active {
   border-radius: var(--r-pill);
   color: var(--console-ink);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   padding: var(--s2);
 }
 
@@ -647,7 +668,7 @@ button:not(:disabled):active {
 .preview-track span {
   color: var(--console-ink-muted);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -801,7 +822,7 @@ button:not(:disabled):active {
   border-radius: var(--r-pill);
   color: var(--warn-ink);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   padding: var(--s2) var(--s3);
 }
 
@@ -817,7 +838,7 @@ button:not(:disabled):active {
   color: var(--ink-muted);
   display: inline-flex;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 700;
   gap: var(--s2);
   justify-content: center;
   min-height: 36px;
@@ -855,14 +876,14 @@ button:not(:disabled):active {
   align-self: start;
   border-radius: var(--r-pill);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 800;
   padding: var(--s1) var(--s2);
   width: max-content;
 }
 
 .access-card.free span {
   background: var(--teal-tint);
-  color: var(--accent-ink);
+  color: var(--accent-ink-tint);
 }
 
 .access-card.trial span {
@@ -1205,7 +1226,7 @@ button:not(:disabled):active {
   color: var(--console-ink);
   display: inline-flex;
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 800;
   height: 64px;
   justify-content: center;
   width: 64px;
@@ -1256,7 +1277,7 @@ button:not(:disabled):active {
 .processing-milestone.running .step-icon,
 .processing-milestone.done .step-icon {
   background: var(--teal-tint);
-  color: var(--accent-ink);
+  color: var(--accent-ink-tint);
 }
 
 .processing-milestone.warning .step-icon {
@@ -1337,11 +1358,15 @@ button:not(:disabled):active {
 
 /* Есть такты на проверку — янтарная рамка и янтарное число. */
 .metric-card.attention {
-  border-color: var(--warn);
+  border-color: var(--warn-ink);
 }
 
 .metric-card.attention strong {
-  color: var(--warn);
+  /*
+   * --warn на белом даёт 2.95:1 при норме 3 для крупного текста. Число —
+   * главный сигнал карточки, читаться должно с запасом.
+   */
+  color: var(--warn-ink);
 }
 
 /* Карточка выдачи — кнопка, поэтому у неё есть наведение и видимый фокус. */
@@ -1502,7 +1527,11 @@ button:not(:disabled):active {
   background: transparent;
   border: 0;
   border-radius: var(--r-pill);
-  color: var(--ink-muted);
+  /*
+   * --ink-muted на вдавленной полосе даёт 4.43:1 при норме 4.5 — норма не
+   * выполняется на волос, и это всё равно нарушение. --ink-2 даёт запас.
+   */
+  color: var(--ink-2);
   font-size: 14px;
   font-weight: 600;
   min-height: var(--control-xs);
@@ -1573,7 +1602,7 @@ button:not(:disabled):active {
   border-radius: var(--r-pill);
   color: var(--ink-muted);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   padding: var(--s1) var(--s2);
 }
 
@@ -1592,14 +1621,14 @@ button:not(:disabled):active {
   display: block;
   font-size: 12px;
   font-style: normal;
-  font-weight: 850;
+  font-weight: 700;
   margin-top: var(--s2);
 }
 
 .access-label {
   border-radius: var(--r-pill);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 800;
   margin-top: var(--s2);
   padding: var(--s1) var(--s2);
   width: max-content;
@@ -1607,7 +1636,7 @@ button:not(:disabled):active {
 
 .access-label.assembled {
   background: var(--teal-tint);
-  color: var(--accent-ink);
+  color: var(--accent-ink-tint);
 }
 
 .access-label.processing {
@@ -1655,7 +1684,7 @@ button:not(:disabled):active {
   border-radius: var(--r-pill);
   flex: 0 0 auto;
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   padding: 6px 9px;
 }
 
@@ -1663,7 +1692,7 @@ button:not(:disabled):active {
 .status-badge.ready {
   background: var(--teal-tint);
   border-color: var(--teal-tint-border);
-  color: var(--accent-ink);
+  color: var(--accent-ink-tint);
 }
 
 /* Черновик — тоже состояние файла: собран, но не сверен. Обводка мягкая. */
@@ -1714,7 +1743,7 @@ button:not(:disabled):active {
   border-radius: var(--r-pill);
   color: var(--ink-muted);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   padding: var(--s2) var(--s3);
 }
 
@@ -2377,7 +2406,7 @@ button:not(:disabled):active {
 .chat-box label span {
   color: var(--ink-muted);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .chat-box textarea {
@@ -2786,13 +2815,13 @@ button:not(:disabled):active {
 .cost-chip {
   border-radius: var(--r-pill);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 700;
   padding: var(--s1) var(--s2);
 }
 
 .cost-chip.low {
   background: var(--teal-tint);
-  color: var(--accent-ink);
+  color: var(--accent-ink-tint);
 }
 
 .cost-chip.medium {
@@ -2942,7 +2971,7 @@ button:not(:disabled):active {
   color: var(--ink-muted);
   font-size: 11px;
   font-style: normal;
-  font-weight: 850;
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -3627,4 +3656,51 @@ button:disabled {
   flex-wrap: wrap;
   gap: var(--s2);
   margin-top: var(--s3);
+}
+
+/*
+ * Тач-цели на узком экране. Дизайн-система требует 44 px: пункты навигации,
+ * вкладки и мелкие кнопки на десктопе 34 px, пальцем в них не попасть.
+ */
+@media (max-width: 720px) {
+  .app-nav-item,
+  .workspace-tab,
+  .btn-xs,
+  .level-option {
+    min-height: var(--control-md);
+  }
+
+  .overview-next button,
+  .empty-actions button,
+  .pane-tools button {
+    min-height: var(--control-md);
+  }
+}
+
+/*
+ * Тач-цели на устройствах с пальцем вместо мыши. Медиазапрос по ширине не
+ * покрывает планшет и ноутбук с сенсорным экраном: там ширина большая, а
+ * попадать всё равно пальцем.
+ */
+@media (pointer: coarse) {
+  .app-nav-item,
+  .workspace-tab,
+  .level-option,
+  .btn-xs,
+  .text-button {
+    min-height: var(--control-md);
+  }
+}
+
+/* Стандартный чекбокс 13 px — цель меньше половины нормы. */
+input[type="checkbox"],
+input[type="radio"] {
+  height: 20px;
+  width: 20px;
+}
+
+@media (max-width: 720px) {
+  .text-button {
+    min-height: var(--control-md);
+  }
 }
