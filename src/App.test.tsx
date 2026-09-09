@@ -30,7 +30,13 @@ const pickFile = async (name = "moya-pesnya.mp3", size = 4_000_000) => {
   await waitFor(() => expect(screen.getByText(name)).toBeTruthy());
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // Песня теперь переживает перезагрузку (B6). Без очистки она пережила бы
+  // и границу между тестами, а протечка состояния незаметна: тест просто
+  // начинает проверять не то, что написано в его названии.
+  window.localStorage.clear();
+});
 
 const PROCESSING_MS = 8000;
 
@@ -227,6 +233,66 @@ describe("доменные поля на экране", () => {
 // он определен только по ASCII, и три запрета не могли совпасть НИКОГДА.
 const forbidden = forbiddenClaims.map((claim) => claim.pattern);
 
+describe("песня переживает перезагрузку (B6)", () => {
+  it("возвращает открытую песню после перезагрузки страницы", async () => {
+    const user = userEvent.setup();
+    const first = render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    const name = document.querySelector(".stage-toolbar h1")!.textContent;
+    first.unmount();
+
+    // Новое монтирование = перезагрузка вкладки.
+    render(<App />);
+    const resume = await screen.findByRole("button", { name: /Вернуться к песне/ });
+    expect(resume.closest(".resume-row")!.textContent).toContain(name);
+  });
+
+  it("не падает на испорченном сохранении, а начинает с чистого листа", () => {
+    window.localStorage.setItem("vokal.project.v1", "{это не json");
+    render(<App />);
+
+    // Битое сохранение не должно ронять приложение: пользователь остается
+    // без песни, но с работающим экраном.
+    expect(screen.getByRole("heading", { name: /От выбора песни/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Вернуться к песне/ })).toBeNull();
+  });
+
+  it("выбрасывает сохранение чужой версии схемы", () => {
+    window.localStorage.setItem(
+      "vokal.project.v1",
+      JSON.stringify({ schema: 999, project: { id: "x", name: "Старая песня" } }),
+    );
+    render(<App />);
+
+    expect(screen.queryByText(/Старая песня/)).toBeNull();
+  });
+
+  it("забывает песню, когда пользователь удалил результаты", async () => {
+    const user = userEvent.setup();
+    const first = render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("checkbox"));
+    await user.click(dialog.getByRole("button", { name: /Удалить навсегда/ }));
+    await waitFor(() => expect(screen.getByText(/Результаты: удалены/)).toBeTruthy());
+    first.unmount();
+
+    // Удаление должно доходить и до сохранения, иначе «удалено» — неправда:
+    // перезагрузка вернула бы то, что пользователь удалил.
+    render(<App />);
+    const resume = screen.queryByRole("button", { name: /Вернуться к песне/ });
+    if (resume) {
+      await user.click(resume);
+      await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+      expect(screen.getByText(/Результаты: удалены/)).toBeTruthy();
+    }
+  });
+});
+
 describe("слой проверки полон (B8)", () => {
   const openReview = async (user: ReturnType<typeof userEvent.setup>) => {
     await openBandDemo(user);
@@ -321,6 +387,19 @@ describe("обязательные раскрытия не исчезают", ()
     const text = document.body.textContent ?? "";
 
     for (const item of on("первый экран")) {
+      expect(text, `${item.id}: ${item.because}`).toMatch(item.pattern);
+    }
+  });
+
+  it("говорит, где лежит сохраненная песня", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+    const text = document.body.textContent ?? "";
+
+    for (const item of on("первый экран с открытой песней")) {
       expect(text, `${item.id}: ${item.because}`).toMatch(item.pattern);
     }
   });

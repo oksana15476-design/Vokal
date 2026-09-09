@@ -335,6 +335,37 @@ export interface CostEstimate {
    */
 }
 
+/**
+ * Настройка, введённая пользователем на экране уточнений.
+ *
+ * Отдельный тип, а не `Record<string, string>` с подписями: раньше сервис
+ * искал значения по русским подписям («Диапазон вокала»), и переименование
+ * подписи копирайтером молча заменяло настройку пользователя умолчанием.
+ * Ошибка тихая — ни исключения, ни пустого поля, просто чужое значение.
+ *
+ * `SetupSnapshot` остаётся, но только для показа: это то, что пользователь
+ * видит в сводке, а не то, из чего считается аранжировка.
+ */
+export interface BandSetup {
+  kind: "band";
+  vocalRange: string;
+  guitars: number;
+  bass: string;
+  keys: string;
+  drums: string;
+  targetStyle: string;
+}
+
+export interface LessonSetup {
+  kind: "lesson";
+  instrument: string;
+  level: string;
+  lessonGoal: string;
+  difficulty: string;
+}
+
+export type ProjectSetup = BandSetup | LessonSetup;
+
 export interface SetupSnapshot {
   scenario: Scenario;
   title: string;
@@ -394,7 +425,10 @@ export interface UploadProjectInput {
   goalId: ProcessingGoalId;
   fileName: string;
   acceptedConsent: boolean;
+  /** Показывается пользователю в сводке. Из него ничего не вычисляется. */
   setupSnapshot?: SetupSnapshot;
+  /** Введённые значения. Именно из них строится аранжировка. */
+  setup?: ProjectSetup;
   /** Факты из декодированного файла. Отсутствуют, если декодирование не удалось. */
   facts?: {
     durationSeconds: number;

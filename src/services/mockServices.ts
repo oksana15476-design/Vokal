@@ -84,9 +84,6 @@ const extensionToFormat = (fileName: string): "MP3" | "WAV" | "FLAC" | "M4A" => 
   return "MP3";
 };
 
-const getSetupValue = (snapshot: SetupSnapshot | undefined, label: string, fallback: string) =>
-  snapshot?.fields.find((field) => field.label === label)?.value || fallback;
-
 const estimateFromSetup = (scenario: Scenario, snapshot: SetupSnapshot | undefined): CostEstimate => {
   const highComplexitySignals = ["сложнее", "ансамб", "концерт", "плотнее", "сцен"];
   const setupText = snapshot?.fields.map((field) => field.value.toLowerCase()).join(" ") ?? "";
@@ -129,6 +126,9 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
   const base = cloneProject(input.scenario === "band" ? demoProjects[0] : demoProjects[1]);
   const goal = getGoal(input.goalId);
   const facts = input.facts;
+  // Разбор по подписям заменён типами: см. `ProjectSetup` в domain/types.ts.
+  const bandSetup = input.setup?.kind === "band" ? input.setup : undefined;
+  const lessonSetup = input.setup?.kind === "lesson" ? input.setup : undefined;
 
   return {
     ...base,
@@ -165,17 +165,17 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
       input.scenario === "band"
         ? {
             leadVocal: true,
-            vocalRange: getSetupValue(input.setupSnapshot, "Диапазон вокала", base.bandLineup?.vocalRange ?? "A2-E4"),
-            guitars: Number.parseInt(getSetupValue(input.setupSnapshot, "Гитаристов", String(base.bandLineup?.guitars ?? 1)), 10) || 1,
+            vocalRange: bandSetup?.vocalRange || base.bandLineup?.vocalRange || "A2-E4",
+            guitars: bandSetup?.guitars || base.bandLineup?.guitars || 1,
             guitarTuning: base.bandLineup?.guitarTuning ?? "Standard E",
             capo: base.bandLineup?.capo ?? "нет",
-            bass: getSetupValue(input.setupSnapshot, "Бас", "4 струны").includes("5") ? "5 strings" : "4 strings",
-            keys: getSetupValue(input.setupSnapshot, "Клавиши", "да").toLowerCase() !== "нет",
-            keysCanCoverLayers: /layer|сло/i.test(getSetupValue(input.setupSnapshot, "Клавиши", "слои")),
-            drums: getSetupValue(input.setupSnapshot, "Барабаны", "да").toLowerCase() !== "нет",
+            bass: (bandSetup?.bass ?? "4 струны").includes("5") ? "5 strings" : "4 strings",
+            keys: (bandSetup?.keys ?? "да").toLowerCase() !== "нет",
+            keysCanCoverLayers: /layer|сло/i.test(bandSetup?.keys ?? "слои"),
+            drums: (bandSetup?.drums ?? "да").toLowerCase() !== "нет",
             backingVocals: base.bandLineup?.backingVocals ?? false,
             musicianLevel: base.bandLineup?.musicianLevel ?? "middle",
-            targetStyle: getSetupValue(input.setupSnapshot, "Стиль версии", base.bandLineup?.targetStyle ?? "рабочая версия"),
+            targetStyle: bandSetup?.targetStyle || base.bandLineup?.targetStyle || "рабочая версия",
           }
         : undefined,
     studentProfile:
@@ -190,10 +190,10 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
               chordKnowledge: "базовые аккорды",
               homeInstrument: "домашний инструмент",
             }),
-            instrument: getSetupValue(input.setupSnapshot, "Инструмент ученика", base.studentProfile?.instrument ?? "гитара"),
-            level: getSetupValue(input.setupSnapshot, "Уровень", base.studentProfile?.level ?? "начальный").includes("силь")
+            instrument: lessonSetup?.instrument || base.studentProfile?.instrument || "гитара",
+            level: (lessonSetup?.level ?? base.studentProfile?.level ?? "начальный").includes("силь")
               ? "сильный"
-              : getSetupValue(input.setupSnapshot, "Уровень", base.studentProfile?.level ?? "начальный").includes("сред")
+              : (lessonSetup?.level ?? base.studentProfile?.level ?? "начальный").includes("сред")
                 ? "средний"
                 : "начальный",
           }
@@ -201,11 +201,11 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
     lesson:
       input.scenario === "education"
         ? {
-            goal: getSetupValue(input.setupSnapshot, "Цель урока", base.lesson?.goal ?? "разобрать песню"),
-            homeworkFormat: getSetupValue(input.setupSnapshot, "Кому выдать", base.lesson?.homeworkFormat ?? "ученику"),
-            desiredDifficulty: getSetupValue(input.setupSnapshot, "Сложность результата", "проще оригинала").includes("слож")
+            goal: lessonSetup?.lessonGoal || base.lesson?.goal || "разобрать песню",
+            homeworkFormat: base.lesson?.homeworkFormat ?? "ученику",
+            desiredDifficulty: (lessonSetup?.difficulty ?? "проще оригинала").includes("слож")
               ? "сложнее оригинала"
-              : getSetupValue(input.setupSnapshot, "Сложность результата", "проще оригинала").includes("близ")
+              : (lessonSetup?.difficulty ?? "проще оригинала").includes("близ")
                 ? "близко к оригиналу"
                 : "проще оригинала",
           }

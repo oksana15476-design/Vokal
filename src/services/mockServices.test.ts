@@ -35,6 +35,15 @@ describe("mock services", () => {
       goalId: "lesson-analysis",
       fileName: "lesson-song.mp3",
       acceptedConsent: true,
+      // Значения приходят типами. Снимок остается рядом, но только для
+      // показа: из него больше ничего не вычисляется (B5).
+      setup: {
+        kind: "lesson",
+        instrument: "фортепиано",
+        level: "сильный",
+        lessonGoal: "подготовить школьный концерт",
+        difficulty: "сложнее оригинала",
+      },
       setupSnapshot: {
         scenario: "education",
         title: "Учебная задача",
@@ -377,5 +386,42 @@ describe("сборка версии сразу из нескольких пре�
   it("пустой список ничего не меняет", () => {
     const demo = listDemoProjects().find((project) => project.scenario === "band")!;
     expect(applyDirectorActions(demo, [])).toBe(demo);
+  });
+});
+
+describe("настройка передается типами, а не подписями (B5)", () => {
+  it("не теряет настройку пользователя при переименовании подписи", () => {
+    const withSetup = createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "moya-pesnya.mp3",
+      acceptedConsent: true,
+      setup: { kind: "band", vocalRange: "C3-A4", guitars: 2, bass: "5 струн", keys: "нет", drums: "да", targetStyle: "плотнее" },
+      // Снимок нужен только для показа. Переименование подписи в нем — это
+      // работа копирайтера, а не потеря данных: раньше сервис искал значения
+      // по русским подписям и молча подставлял умолчание.
+      setupSnapshot: {
+        scenario: "band",
+        title: "Состав группы",
+        fields: [{ label: "Диапазон вокалиста", value: "C3-A4" }],
+      },
+    });
+
+    expect(withSetup.bandLineup?.vocalRange).toBe("C3-A4");
+    expect(withSetup.bandLineup?.guitars).toBe(2);
+    expect(withSetup.bandLineup?.bass).toBe("5 strings");
+    expect(withSetup.bandLineup?.keys).toBe(false);
+  });
+
+  it("работает без настройки вовсе", () => {
+    const bare = createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "moya-pesnya.mp3",
+      acceptedConsent: true,
+    });
+
+    expect(bare.bandLineup).toBeDefined();
+    expect(bare.bandLineup?.guitars).toBeGreaterThan(0);
   });
 });

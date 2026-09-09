@@ -21,6 +21,7 @@ import {
   Share2,
 } from "lucide-react";
 import { lessonLevels, processingGoals, processingMilestones } from "./domain/mockData";
+import { forgetProject, loadProject, saveProject } from "./services/projectStorage";
 import type {
   ArrangementVersion,
   CostEstimate,
@@ -221,6 +222,9 @@ function makeProcessingSteps(project: Project, activeIndex: number, errorStepId:
 }
 
 export default function App() {
+  // Открытая песня переживает перезагрузку вкладки. Хранилище локальное:
+  // localStorage браузера, не облако. Подробности и границы — в
+  // src/services/projectStorage.ts.
   const [screen, setScreen] = useState<Screen>("start");
   const [scenario, setScenario] = useState<Scenario>(initialScenario);
   const [goalId, setGoalId] = useState<ProcessingGoalId>(initialGoalId);
@@ -228,7 +232,7 @@ export default function App() {
   const [fileFacts, setFileFacts] = useState<AudioFacts | null>(null);
   const [isDecoding, setIsDecoding] = useState(false);
   const [acceptedConsent, setAcceptedConsent] = useState(false);
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<Project | null>(() => loadProject());
   const [processingIndex, setProcessingIndex] = useState(0);
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
   const [retriedSteps, setRetriedSteps] = useState<string[]>([]);
@@ -377,6 +381,9 @@ export default function App() {
       fileName,
       acceptedConsent,
       facts: fileFacts ?? undefined,
+      // Снимок — для показа, `setup` — для расчёта. Раньше сервис искал
+      // значения в снимке по русским подписям, и переименование подписи
+      // молча заменяло настройку пользователя умолчанием.
       setupSnapshot: {
         scenario,
         title: scenario === "band" ? "Состав группы" : "Учебная задача",
@@ -385,9 +392,37 @@ export default function App() {
           value,
         })),
       },
+      setup:
+        scenario === "band"
+          ? {
+              kind: "band",
+              vocalRange: bandSettings.vocalRange,
+              guitars: Number.parseInt(bandSettings.guitars, 10) || 1,
+              bass: bandSettings.bass,
+              keys: bandSettings.keys,
+              drums: bandSettings.drums,
+              targetStyle: bandSettings.targetStyle,
+            }
+          : {
+              kind: "lesson",
+              instrument: lessonSettings.instrument,
+              level: lessonSettings.level,
+              lessonGoal: lessonSettings.lessonGoal,
+              difficulty: lessonSettings.difficulty,
+            },
     });
     startProcessing(nextProject);
   };
+
+  // Сохраняем при каждом изменении, а не по кнопке: кнопки «сохранить» в
+  // продукте нет, и пользователь вправе рассчитывать, что работа не пропадет.
+  useEffect(() => {
+    if (project) {
+      saveProject(project, new Date().toISOString());
+    } else {
+      forgetProject();
+    }
+  }, [project]);
 
   const canStartJob = fileName.trim().length > 0 && acceptedConsent && !isDecoding && fileFacts !== null;
 
@@ -710,6 +745,12 @@ function StartScreen({
           <div>
             <p className="eyebrow">Песня открыта</p>
             <strong>{openProject.name}</strong>
+            {/*
+              Пользователь вправе знать, где лежит его работа. Хранилище
+              локальное: другой браузер и другое устройство её не увидят, а
+              очистка данных сайта удалит.
+            */}
+            <span className="privacy-note">Сохранена в этом браузере, на сервер не уходит</span>
           </div>
           <button className="btn btn-outline" type="button" onClick={onResume}>
             <ArrowRight size={18} />
