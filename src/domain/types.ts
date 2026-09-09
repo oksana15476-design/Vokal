@@ -297,6 +297,15 @@ export interface CostEstimate {
   notes: string[];
 }
 
+export interface SetupSnapshot {
+  scenario: Scenario;
+  title: string;
+  fields: Array<{
+    label: string;
+    value: string;
+  }>;
+}
+
 export interface LegalConsent {
   accepted: boolean;
   text: string;
@@ -335,6 +344,7 @@ export interface Project {
   shareLinks: ShareLink[];
   exportBundles: ExportBundle[];
   costEstimate: CostEstimate;
+  setupSnapshot: SetupSnapshot;
   legalConsent: LegalConsent;
   dataRetention: DataRetentionState;
 }
@@ -344,4 +354,5 @@ export interface UploadProjectInput {
   goalId: ProcessingGoalId;
   fileName: string;
   acceptedConsent: boolean;
+  setupSnapshot?: SetupSnapshot;
 }

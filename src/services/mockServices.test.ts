@@ -27,10 +27,27 @@ describe("mock services", () => {
       goalId: "lesson-analysis",
       fileName: "lesson-song.mp3",
       acceptedConsent: true,
+      setupSnapshot: {
+        scenario: "education",
+        title: "Учебная задача",
+        fields: [
+          { label: "Инструмент ученика", value: "фортепиано" },
+          { label: "Уровень", value: "сильный" },
+          { label: "Цель урока", value: "подготовить школьный концерт" },
+          { label: "Сложность результата", value: "сложнее оригинала" },
+          { label: "Кому выдать", value: "ансамблю и преподавателю" },
+        ],
+      },
     });
 
     expect(project.scenario).toBe("education");
     expect(project.upload.fileName).toBe("lesson-song.mp3");
+    expect(project.studentProfile?.instrument).toBe("фортепиано");
+    expect(project.studentProfile?.level).toBe("сильный");
+    expect(project.lesson?.desiredDifficulty).toBe("сложнее оригинала");
+    expect(project.setupSnapshot.fields.find((field) => field.label === "Цель урока")?.value).toBe(
+      "подготовить школьный концерт",
+    );
     expect(project.processing.steps.every((step) => step.status === "queued")).toBe(true);
   });
 
@@ -49,6 +66,7 @@ describe("mock services", () => {
 
     expect(updated.stagePack.artifacts.find((artifact) => artifact.type === "score")?.isStale).toBe(true);
     expect(updated.stagePack.artifacts.find((artifact) => artifact.type === "zip")?.status).toBe("rebuild_required");
+    expect(updated.exportBundles[0].status).toBe("stale");
   });
 
   it("updates review issue status", () => {

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Workflow,
   UploadCloud,
   Users,
 } from "lucide-react";
@@ -48,6 +49,50 @@ const statusCopy: Record<ProcessingStep["status"], string> = {
   done: "готово",
   warning: "предупреждение",
   error: "ошибка",
+};
+
+const architectureLayers = [
+  {
+    title: "Stems",
+    ready: "AudioShake или Demucs",
+    own: "ModelRouter, оценка качества stem, связь с SongGraph",
+    status: "будущая интеграция",
+  },
+  {
+    title: "MIDI и ноты",
+    ready: "Basic Pitch, Klangio, OSMD, Verovio, music21",
+    own: "post-processing, MusicXML-шаблоны, проверяемые партии",
+    status: "пока мок",
+  },
+  {
+    title: "AI-директор",
+    ready: "LLM через адаптер, например OpenAI Responses API",
+    own: "DirectorAction DSL, rules engine, версии и audit trail",
+    status: "моковые действия",
+  },
+  {
+    title: "Обучение",
+    ready: "готового универсального API нет",
+    own: "Pedagogy Engine: Easy, Original-like, Advanced, ансамбль",
+    status: "делаем свое",
+  },
+];
+
+const setupLabelByKey: Record<string, string> = {
+  rehearsalDate: "Срок репетиции",
+  vocalRange: "Диапазон вокала",
+  guitars: "Гитаристов",
+  bass: "Бас",
+  keys: "Клавиши",
+  drums: "Барабаны",
+  targetStyle: "Стиль версии",
+  instrument: "Инструмент ученика",
+  level: "Уровень",
+  lessonGoal: "Цель урока",
+  difficulty: "Сложность результата",
+  partsCount: "Количество партий",
+  classInstruments: "Инструменты в классе",
+  recipientFormat: "Кому выдать",
 };
 
 const formatConfidence = (value: number) => `${Math.round(value * 100)}%`;
@@ -178,6 +223,14 @@ export default function App() {
       goalId,
       fileName,
       acceptedConsent,
+      setupSnapshot: {
+        scenario,
+        title: scenario === "band" ? "Состав группы" : "Учебная задача",
+        fields: Object.entries(scenario === "band" ? bandSettings : lessonSettings).map(([key, value]) => ({
+          label: setupLabelByKey[key] ?? key,
+          value,
+        })),
+      },
     });
     startProcessing(nextProject);
   };
@@ -324,6 +377,8 @@ function StartScreen({
             </button>
           ))}
         </div>
+
+        <ArchitecturePanel />
       </div>
 
       <aside className="upload-panel">
@@ -383,6 +438,36 @@ function StartScreen({
           ))}
         </div>
       </aside>
+    </section>
+  );
+}
+
+function ArchitecturePanel() {
+  return (
+    <section className="architecture-panel" aria-label="Архитектура обработки">
+      <div className="panel-heading">
+        <Workflow size={20} />
+        <div>
+          <h2>Архитектура обработки</h2>
+          <p>В прототипе это моки, но границы уже такие, как в будущем продукте.</p>
+        </div>
+      </div>
+      <div className="architecture-grid">
+        {architectureLayers.map((layer) => (
+          <article key={layer.title} className="architecture-card">
+            <div>
+              <strong>{layer.title}</strong>
+              <span>{layer.status}</span>
+            </div>
+            <p>
+              <b>Берем готовое:</b> {layer.ready}
+            </p>
+            <p>
+              <b>Делаем свое:</b> {layer.own}
+            </p>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -520,6 +605,15 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
             настоящую аудиообработку.
           </span>
         </div>
+
+        <div className="processing-architecture">
+          {architectureLayers.map((layer) => (
+            <div key={layer.title}>
+              <strong>{layer.title}</strong>
+              <span>{layer.status}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -554,6 +648,12 @@ const actionLabel: Record<DirectorActionId, string> = {
   "student-ensemble": "Ансамбль",
   "lesson-analysis": "Разбор урока",
 };
+
+const complexityCopy = {
+  low: "низкая сложность",
+  medium: "средняя сложность",
+  high: "высокая сложность",
+} as const;
 
 function StagePackShell({
   project,
@@ -696,6 +796,34 @@ function StagePackShell({
             <span>{project.analysis.bpm} BPM</span>
             <span>{project.analysis.meter}</span>
             <span>{project.analysis.duration}</span>
+          </div>
+
+          <div className="model-router-strip">
+            <div>
+              <strong>Оценка обработки</strong>
+              <span>
+                {complexityCopy[project.costEstimate.complexity]} · {project.costEstimate.credits} кредитов ·{" "}
+                {project.costEstimate.runtime}
+              </span>
+            </div>
+            <div>
+              <strong>ModelRouter</strong>
+              <span>
+                Сейчас мок. Позже выберет AudioShake/Demucs, Klangio/Basic Pitch и LLM-адаптер по цели,
+                жанру и цене.
+              </span>
+            </div>
+          </div>
+
+          <div className="setup-summary-strip" aria-label="Настройки задачи">
+            <strong>{project.setupSnapshot.title}</strong>
+            <div>
+              {project.setupSnapshot.fields.slice(0, 6).map((field) => (
+                <span key={`${field.label}-${field.value}`}>
+                  {field.label}: {field.value}
+                </span>
+              ))}
+            </div>
           </div>
 
           <ArtifactPreview project={project} artifact={selectedArtifact} />

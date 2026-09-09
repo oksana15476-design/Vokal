@@ -2,6 +2,7 @@ import type {
   ArrangementVersion,
   Artifact,
   CostEstimate,
+  DirectorActionId,
   DirectorActionResult,
   DirectorSuggestion,
   ProcessingGoal,
@@ -128,7 +129,7 @@ export const processingGoals: ProcessingGoal[] = [
   },
 ];
 
-export const directorActionResults: Record<string, DirectorActionResult> = {
+export const directorActionResults: Record<DirectorActionId, DirectorActionResult> = {
   "transpose-down-2": {
     versionLabel: "Транспозиция под вокал",
     versionKind: "band",
@@ -613,6 +614,17 @@ export const demoProjects: Project[] = [
     shareLinks: [],
     exportBundles: [{ id: "zip-band", label: "Stage Pack ZIP", filesCount: 14, status: "ready" }],
     costEstimate: cost("medium", 7),
+    setupSnapshot: {
+      scenario: "band",
+      title: "Состав группы",
+      fields: [
+        { label: "Диапазон вокала", value: "A2-E4" },
+        { label: "Гитаристов", value: "1" },
+        { label: "Бас", value: "4 струны" },
+        { label: "Клавиши", value: "да, закрывают layers" },
+        { label: "Стиль версии", value: "плотнее и сценически" },
+      ],
+    },
     legalConsent: { accepted: true, text: "Материал используется для приватной репетиции или внутренней подготовки.", acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Исходник и результаты можно удалить из проекта." },
   },
@@ -645,6 +657,17 @@ export const demoProjects: Project[] = [
     shareLinks: [],
     exportBundles: [{ id: "zip-lesson", label: "Пакет урока", filesCount: 8, status: "ready" }],
     costEstimate: cost("low", 4),
+    setupSnapshot: {
+      scenario: "education",
+      title: "Учебная задача",
+      fields: [
+        { label: "Инструмент ученика", value: "гитара" },
+        { label: "Уровень", value: "начальный" },
+        { label: "Цель урока", value: "сыграть куплет и припев с кликом" },
+        { label: "Сложность результата", value: "проще оригинала" },
+        { label: "Кому выдать", value: "ученику и преподавателю" },
+      ],
+    },
     legalConsent: { accepted: true, text: "Материал используется для приватного урока и домашней практики.", acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Учебные материалы можно удалить после урока." },
   },
@@ -683,6 +706,17 @@ export const demoProjects: Project[] = [
     shareLinks: [],
     exportBundles: [{ id: "zip-ensemble", label: "Пакет ансамбля", filesCount: 11, status: "ready" }],
     costEstimate: cost("high", 10),
+    setupSnapshot: {
+      scenario: "education",
+      title: "Ансамблевая задача",
+      fields: [
+        { label: "Инструменты", value: "гитара, клавиши, перкуссия, вокал" },
+        { label: "Количество партий", value: "4" },
+        { label: "Цель урока", value: "подготовить номер к школьному концерту" },
+        { label: "Сложность результата", value: "близко к оригиналу" },
+        { label: "Кому выдать", value: "ансамблю и преподавателю" },
+      ],
+    },
     legalConsent: { accepted: true, text: "Материал используется для приватной школьной подготовки.", acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Материалы можно удалить после концерта." },
   },

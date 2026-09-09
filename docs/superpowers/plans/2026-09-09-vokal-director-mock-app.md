@@ -1,4 +1,4 @@
-# Vokal Director Mock App Implementation Plan
+# План реализации мокового приложения Vokal Director
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vite, React, TypeScript, Vitest, lucide-react, CSS modules-free single stylesheet with design tokens.
 
-## Global Constraints
+## Общие ограничения
 
 - Интерфейс и рабочая продуктовая документация ведутся на русском.
 - Приложение должно ощущаться как рабочий инструмент, а не как лендинг.
@@ -22,7 +22,7 @@
 
 ---
 
-## File Structure
+## Структура файлов
 
 - Create: `package.json` — scripts, dependencies, QA commands.
 - Create: `index.html` — Vite entry document.
@@ -39,7 +39,7 @@
 - Modify: `README.md` — explain local run, mock limitations, QA commands.
 - Read: `docs/architecture.md` — target architecture, provider/model choices, and Vokal-owned model boundaries.
 
-## Task 1: App Scaffold and Tooling
+## Задача 1: Каркас приложения и инструменты
 
 **Files:**
 - Create: `package.json`
@@ -251,7 +251,7 @@ git add package.json package-lock.json index.html tsconfig.json tsconfig.node.js
 git commit -m "feat: scaffold Vokal Director app"
 ```
 
-## Task 2: Domain Model, Mock Data, and Services
+## Задача 2: Доменная модель, моковые данные и сервисы
 
 **Files:**
 - Create: `src/domain/types.ts`
@@ -386,7 +386,7 @@ git add src/domain/types.ts src/domain/mockData.ts src/services/mockServices.ts 
 git commit -m "feat: add Vokal mock domain services"
 ```
 
-## Task 3: Upload, Setup, and Processing Flow
+## Задача 3: Загрузка, настройка и обработка
 
 **Files:**
 - Modify: `src/App.tsx`
@@ -446,7 +446,7 @@ git add src/App.tsx src/styles.css
 git commit -m "feat: add Vokal upload and processing flow"
 ```
 
-## Task 4: Stage Pack Workspace
+## Задача 4: Рабочая область Stage Pack
 
 **Files:**
 - Modify: `src/App.tsx`
@@ -511,7 +511,7 @@ git add src/App.tsx src/styles.css src/services/mockServices.test.ts
 git commit -m "feat: add Vokal Stage Pack workspace"
 ```
 
-## Task 5: Responsive Polish, Documentation, and QA
+## Задача 5: Адаптивная полировка, документация и QA
 
 **Files:**
 - Modify: `src/App.tsx`
@@ -580,7 +580,7 @@ git commit -m "feat: polish Vokal Director prototype"
 git push origin claude/music-instrument-skills-copy-s3580g
 ```
 
-## Self-Review
+## Самопроверка
 
 **Spec coverage:** Plan covers scenario switch, demo projects, setup, processing, `Stage Pack`, versions, AI actions, review statuses, instrument/education constraints, sharing, privacy consent, complexity estimate, Russian UI, responsive desktop/mobile, README mock explanation and QA.
 

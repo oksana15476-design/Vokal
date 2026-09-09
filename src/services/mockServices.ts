@@ -8,10 +8,12 @@ import type {
   ArtifactStatus,
   ArtifactType,
   DirectorActionId,
+  CostEstimate,
   ProcessingGoalId,
   Project,
   ReviewStatus,
   Scenario,
+  SetupSnapshot,
   UploadProjectInput,
 } from "../domain/types";
 
@@ -53,6 +55,27 @@ const extensionToFormat = (fileName: string): "MP3" | "WAV" | "FLAC" | "M4A" => 
   return "MP3";
 };
 
+const getSetupValue = (snapshot: SetupSnapshot | undefined, label: string, fallback: string) =>
+  snapshot?.fields.find((field) => field.label === label)?.value || fallback;
+
+const estimateFromSetup = (scenario: Scenario, snapshot: SetupSnapshot | undefined): CostEstimate => {
+  const highComplexitySignals = ["сложнее", "ансамб", "концерт", "плотнее", "сцен"];
+  const setupText = snapshot?.fields.map((field) => field.value.toLowerCase()).join(" ") ?? "";
+  const complexity: CostEstimate["complexity"] = highComplexitySignals.some((signal) => setupText.includes(signal))
+    ? "high"
+    : scenario === "education"
+      ? "low"
+      : "medium";
+
+  return {
+    tier: complexity === "high" ? "multi_version" : "fast_draft",
+    complexity,
+    credits: complexity === "high" ? 10 : complexity === "medium" ? 7 : 4,
+    runtime: complexity === "high" ? "8-12 минут" : complexity === "medium" ? "5-7 минут" : "3-5 минут",
+    notes: ["Расчет моковый.", "Учтены цель обработки и настройки сценария."],
+  };
+};
+
 export const createProjectFromUpload = (input: UploadProjectInput): Project => {
   const base = cloneProject(input.scenario === "band" ? demoProjects[0] : demoProjects[1]);
   const goal = getGoal(input.goalId);
@@ -71,6 +94,55 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
       quality: "medium",
       sourceNote: "Локальная моковая запись: файл не отправлен на сервер.",
     },
+    bandLineup:
+      input.scenario === "band"
+        ? {
+            leadVocal: true,
+            vocalRange: getSetupValue(input.setupSnapshot, "Диапазон вокала", base.bandLineup?.vocalRange ?? "A2-E4"),
+            guitars: Number.parseInt(getSetupValue(input.setupSnapshot, "Гитаристов", String(base.bandLineup?.guitars ?? 1)), 10) || 1,
+            guitarTuning: base.bandLineup?.guitarTuning ?? "Standard E",
+            capo: base.bandLineup?.capo ?? "нет",
+            bass: getSetupValue(input.setupSnapshot, "Бас", "4 струны").includes("5") ? "5 strings" : "4 strings",
+            keys: getSetupValue(input.setupSnapshot, "Клавиши", "да").toLowerCase() !== "нет",
+            keysCanCoverLayers: getSetupValue(input.setupSnapshot, "Клавиши", "layers").toLowerCase().includes("layer"),
+            drums: getSetupValue(input.setupSnapshot, "Барабаны", "да").toLowerCase() !== "нет",
+            backingVocals: base.bandLineup?.backingVocals ?? false,
+            musicianLevel: base.bandLineup?.musicianLevel ?? "middle",
+            targetStyle: getSetupValue(input.setupSnapshot, "Стиль версии", base.bandLineup?.targetStyle ?? "рабочая версия"),
+          }
+        : undefined,
+    studentProfile:
+      input.scenario === "education"
+        ? {
+            ...(base.studentProfile ?? {
+              name: "Ученик",
+              instrument: "гитара",
+              level: "начальный",
+              ageGroup: "10-12",
+              notationReading: "простые ноты",
+              chordKnowledge: "базовые аккорды",
+              homeInstrument: "домашний инструмент",
+            }),
+            instrument: getSetupValue(input.setupSnapshot, "Инструмент ученика", base.studentProfile?.instrument ?? "гитара"),
+            level: getSetupValue(input.setupSnapshot, "Уровень", base.studentProfile?.level ?? "начальный").includes("силь")
+              ? "сильный"
+              : getSetupValue(input.setupSnapshot, "Уровень", base.studentProfile?.level ?? "начальный").includes("сред")
+                ? "средний"
+                : "начальный",
+          }
+        : undefined,
+    lesson:
+      input.scenario === "education"
+        ? {
+            goal: getSetupValue(input.setupSnapshot, "Цель урока", base.lesson?.goal ?? "разобрать песню"),
+            homeworkFormat: getSetupValue(input.setupSnapshot, "Кому выдать", base.lesson?.homeworkFormat ?? "ученику"),
+            desiredDifficulty: getSetupValue(input.setupSnapshot, "Сложность результата", "проще оригинала").includes("слож")
+              ? "сложнее оригинала"
+              : getSetupValue(input.setupSnapshot, "Сложность результата", "проще оригинала").includes("близ")
+                ? "близко к оригиналу"
+                : "проще оригинала",
+          }
+        : undefined,
     versions: [
       {
         id: "uploaded-draft",
@@ -84,6 +156,13 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
     ],
     currentVersionId: "uploaded-draft",
     processing: createQueuedProcessing(`job-upload-${Date.now()}`),
+    costEstimate: estimateFromSetup(input.scenario, input.setupSnapshot),
+    setupSnapshot:
+      input.setupSnapshot ?? {
+        scenario: input.scenario,
+        title: input.scenario === "band" ? "Состав группы" : "Учебная задача",
+        fields: [],
+      },
     legalConsent: {
       accepted: input.acceptedConsent,
       text: "Материал используется для приватной репетиции, урока или внутренней подготовки.",
@@ -157,6 +236,10 @@ export const applyDirectorAction = (project: Project, actionId: DirectorActionId
         status: markArtifact(artifact.status, result.staleArtifactTypes, artifact.type),
       })),
     },
+    exportBundles: project.exportBundles.map((bundle) => ({
+      ...bundle,
+      status: result.staleArtifactTypes.includes("zip") ? "stale" : bundle.status,
+    })),
     changeLog: [
       {
         id: `change-${actionId}-${Date.now()}`,
