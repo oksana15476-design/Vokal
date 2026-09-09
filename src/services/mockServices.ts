@@ -104,7 +104,7 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
             capo: base.bandLineup?.capo ?? "нет",
             bass: getSetupValue(input.setupSnapshot, "Бас", "4 струны").includes("5") ? "5 strings" : "4 strings",
             keys: getSetupValue(input.setupSnapshot, "Клавиши", "да").toLowerCase() !== "нет",
-            keysCanCoverLayers: getSetupValue(input.setupSnapshot, "Клавиши", "layers").toLowerCase().includes("layer"),
+            keysCanCoverLayers: /layer|сло/i.test(getSetupValue(input.setupSnapshot, "Клавиши", "слои")),
             drums: getSetupValue(input.setupSnapshot, "Барабаны", "да").toLowerCase() !== "нет",
             backingVocals: base.bandLineup?.backingVocals ?? false,
             musicianLevel: base.bandLineup?.musicianLevel ?? "middle",

@@ -55,6 +55,29 @@ describe("mock services", () => {
     expect(project.processing.steps.every((step) => step.status === "queued")).toBe(true);
   });
 
+  it("understands Russian setup wording for keys covering layers", () => {
+    const project = createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "band-song.wav",
+      acceptedConsent: true,
+      setupSnapshot: {
+        scenario: "band",
+        title: "Состав группы",
+        fields: [
+          { label: "Диапазон вокала", value: "A2-E4" },
+          { label: "Гитаристов", value: "1" },
+          { label: "Бас", value: "4 струны" },
+          { label: "Клавиши", value: "да, закрывает слои" },
+          { label: "Барабаны", value: "средний уровень" },
+        ],
+      },
+    });
+
+    expect(project.bandLineup?.keys).toBe(true);
+    expect(project.bandLineup?.keysCanCoverLayers).toBe(true);
+  });
+
   it("applies director action by creating a new version and history entry", () => {
     const project = createProjectFromDemo("band-demo");
     const updated = applyDirectorAction(project, "boost-chorus");

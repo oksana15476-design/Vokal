@@ -40,8 +40,8 @@ export const processingGoals: ProcessingGoal[] = [
     id: "band-minus",
     scenario: "band",
     label: "Сделать минус",
-    description: "Подготовить stems, минус и треки без выбранного инструмента.",
-    expectedOutputs: ["Stems", "Минус", "Репетиционные треки"],
+    description: "Подготовить аудиослои, минус и треки без выбранного инструмента.",
+    expectedOutputs: ["Аудиослои", "Минус", "Репетиционные треки"],
   },
   {
     id: "band-parts",
@@ -262,11 +262,11 @@ export const directorSuggestions: DirectorSuggestion[] = [
 
 const baseSteps: ProcessingStep[] = [
   { id: "normalize", label: "Нормализация аудио", status: "queued", detail: "Проверяем формат и уровень громкости." },
-  { id: "stems", label: "Разделение на stems", status: "queued", detail: "Имитируем вокал, барабаны, бас, гитару и клавиши." },
+  { id: "stems", label: "Разделение на аудиослои", status: "queued", detail: "Имитируем вокал, барабаны, бас, гитару и клавиши." },
   { id: "tempo", label: "BPM, тональность и размер", status: "queued", detail: "Ищем пульс, тональный центр и смены метра." },
   { id: "structure", label: "Структура песни", status: "queued", detail: "Собираем intro, куплеты, припевы, bridge и coda." },
   { id: "chords", label: "Аккорды", status: "queued", detail: "Строим черновую аккордовую сетку." },
-  { id: "midi", label: "MIDI-черновики", status: "queued", detail: "Переводим важные stems в MIDI-партии." },
+  { id: "midi", label: "MIDI-черновики", status: "queued", detail: "Переводим важные аудиослои в MIDI-партии." },
   { id: "notation", label: "MusicXML и PDF", status: "queued", detail: "Готовим моковые ноты и карточки страниц." },
   { id: "director", label: "Ревью AI-директора", status: "queued", detail: "Ищем проблемы состава, уровня и выдачи материалов." },
 ];
@@ -474,14 +474,14 @@ const artifacts = (scenario: Scenario): Artifact[] => [
   {
     id: "stems",
     type: "stem",
-    name: "Stems",
+    name: "Аудиослои",
     format: "WAV",
-    description: "Вокал, барабаны, бас, гитара, клавиши и other.",
+    description: "Вокал, барабаны, бас, гитара, клавиши и прочие слои.",
     status: "ready",
     confidence: 0.87,
     audience: "all",
     isStale: false,
-    preview: { kind: "waveform", title: "Stems", lines: ["Vocals", "Drums", "Bass", "Guitar", "Keys", "Other"] },
+    preview: { kind: "waveform", title: "Аудиослои", lines: ["Вокал", "Барабаны", "Бас", "Гитара", "Клавиши", "Прочее"] },
   },
   {
     id: "minus-track",
@@ -553,8 +553,8 @@ const bandRecipients: ShareRecipient[] = [
   { id: "vocalist-1", name: "Оксана", role: "vocalist", material: "Вокал + текст", status: "opened" },
   { id: "guitarist-1", name: "Илья", role: "guitarist", material: "Гитара + TAB", status: "not_issued" },
   { id: "bassist-1", name: "Марк", role: "bassist", material: "Бас + трек без баса", status: "not_issued" },
-  { id: "keys-1", name: "Лена", role: "keys", material: "Клавиши + strings layer", status: "needs_fix" },
-  { id: "drummer-1", name: "Даня", role: "drummer", material: "Drum lead sheet + клик", status: "not_issued" },
+  { id: "keys-1", name: "Лена", role: "keys", material: "Клавиши + струнный слой", status: "needs_fix" },
+  { id: "drummer-1", name: "Даня", role: "drummer", material: "Партия барабанов + клик", status: "not_issued" },
 ];
 
 const educationRecipients: ShareRecipient[] = [
@@ -569,7 +569,7 @@ const cost = (complexity: CostEstimate["complexity"], credits: number): CostEsti
   complexity,
   credits,
   runtime: complexity === "high" ? "8-12 минут" : "3-5 минут",
-  notes: ["Расчет моковый.", "В будущем цена зависит от длительности, stems, партий и повторной обработки."],
+  notes: ["Расчет моковый.", "В будущем цена зависит от длительности, аудиослоев, партий и повторной обработки."],
 });
 
 export const demoProjects: Project[] = [
@@ -609,7 +609,7 @@ export const demoProjects: Project[] = [
     reviewComments: [],
     directorSuggestions: directorSuggestions.filter((suggestion) => suggestion.scenario !== "education"),
     chat: [{ id: "chat-1", author: "director", text: "Я нашел две гитарные партии и струнный слой в припеве. Для вашего состава лучше сделать концертную версию.", createdAt: "2026-09-09T12:04:00+04:00" }],
-    changeLog: [{ id: "change-1", title: "Создан Stage Pack", description: "Подготовлены партии, stems, MIDI и первые предупреждения.", createdAt: "2026-09-09T12:05:00+04:00", actor: "AI-директор" }],
+    changeLog: [{ id: "change-1", title: "Создан Stage Pack", description: "Подготовлены партии, аудиослои, MIDI и первые предупреждения.", createdAt: "2026-09-09T12:05:00+04:00", actor: "AI-директор" }],
     shareRecipients: bandRecipients,
     shareLinks: [],
     exportBundles: [{ id: "zip-band", label: "Stage Pack ZIP", filesCount: 14, status: "ready" }],
@@ -621,7 +621,7 @@ export const demoProjects: Project[] = [
         { label: "Диапазон вокала", value: "A2-E4" },
         { label: "Гитаристов", value: "1" },
         { label: "Бас", value: "4 струны" },
-        { label: "Клавиши", value: "да, закрывают layers" },
+        { label: "Клавиши", value: "да, закрывают слои" },
         { label: "Стиль версии", value: "плотнее и сценически" },
       ],
     },

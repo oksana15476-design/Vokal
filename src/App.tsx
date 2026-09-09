@@ -3,19 +3,25 @@ import {
   Activity,
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   Clock3,
+  Download,
   FileAudio,
   FolderOpen,
-  Gauge,
   GraduationCap,
+  Layers3,
+  ListChecks,
+  LockKeyhole,
   Music2,
-  ShieldCheck,
+  Pause,
+  Play,
+  Repeat2,
   SlidersHorizontal,
   Sparkles,
-  Workflow,
-  UploadCloud,
+  Share2,
   Users,
+  Volume2,
 } from "lucide-react";
 import { processingGoals } from "./domain/mockData";
 import type { DirectorActionId, ProcessingGoalId, ProcessingStep, Project, ReviewStatus, Scenario } from "./domain/types";
@@ -34,12 +40,12 @@ import {
 } from "./services/mockServices";
 
 type Screen = "start" | "setup" | "processing" | "stage-pack";
-type MobileTab = "materials" | "preview" | "director";
+type WorkspaceTab = "overview" | "materials" | "review" | "director" | "export";
 
 const scenarioCopy: Record<Scenario, { label: string; description: string }> = {
   band: {
     label: "Для группы",
-    description: "Подготовка кавера к репетиции или сцене: партии, stems, минус, клик и адаптация под состав.",
+    description: "Подготовка кавера к репетиции или сцене: партии, аудиослои, минус, клик и адаптация под состав.",
   },
   education: {
     label: "Для обучения",
@@ -55,31 +61,12 @@ const statusCopy: Record<ProcessingStep["status"], string> = {
   error: "ошибка",
 };
 
-const architectureLayers = [
-  {
-    title: "Stems",
-    ready: "AudioShake или Demucs",
-    own: "ModelRouter, оценка качества stem, связь с SongGraph",
-    status: "будущая интеграция",
-  },
-  {
-    title: "MIDI и ноты",
-    ready: "Basic Pitch, Klangio, OSMD, Verovio, music21",
-    own: "post-processing, MusicXML-шаблоны, проверяемые партии",
-    status: "пока мок",
-  },
-  {
-    title: "AI-директор",
-    ready: "LLM через адаптер, например OpenAI Responses API",
-    own: "DirectorAction DSL, rules engine, версии и audit trail",
-    status: "моковые действия",
-  },
-  {
-    title: "Обучение",
-    ready: "готового универсального API нет",
-    own: "Pedagogy Engine: Easy, Original-like, Advanced, ансамбль",
-    status: "делаем свое",
-  },
+const workspaceTabs: Array<{ id: WorkspaceTab; label: string; hint: string }> = [
+  { id: "overview", label: "Обзор", hint: "результат" },
+  { id: "materials", label: "Материалы", hint: "что готово" },
+  { id: "review", label: "Проверка", hint: "что проверить" },
+  { id: "director", label: "AI-директор", hint: "изменить" },
+  { id: "export", label: "Экспорт", hint: "выдать" },
 ];
 
 const setupLabelByKey: Record<string, string> = {
@@ -133,13 +120,13 @@ export default function App() {
   const [processingIndex, setProcessingIndex] = useState(0);
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
-  const [mobileTab, setMobileTab] = useState<MobileTab>("preview");
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("overview");
   const [bandSettings, setBandSettings] = useState<Record<string, string>>({
     rehearsalDate: "через 5 дней",
     vocalRange: "A2-E4",
     guitars: "1",
     bass: "4 струны",
-    keys: "да, закрывает layers",
+    keys: "да, закрывает слои",
     drums: "средний уровень",
     targetStyle: "плотнее и сценически",
   });
@@ -159,7 +146,10 @@ export default function App() {
     [goalId, goals],
   );
   const demos = useMemo(() => listDemoProjects(), []);
-  const selectedArtifact = project?.stagePack.artifacts.find((artifact) => artifact.id === selectedArtifactId);
+
+  useEffect(() => {
+    window.scrollTo({ left: 0, top: 0 });
+  }, [screen]);
 
   useEffect(() => {
     const currentGoals = getGoalsForScenario(scenario);
@@ -211,6 +201,7 @@ export default function App() {
     setProject(nextProject);
     setProcessingIndex(0);
     setProcessingSteps(makeProcessingSteps(nextProject, 0));
+    setWorkspaceTab("overview");
     setScreen("processing");
   };
 
@@ -253,11 +244,10 @@ export default function App() {
             <small>моковый AI-директор</small>
           </span>
         </button>
-        <nav className="topbar-nav" aria-label="Разделы продукта">
-          <span>Stage Pack</span>
-          <span>SongGraph</span>
-          <span>Архитектура моков</span>
-        </nav>
+        <div className="topbar-plan" aria-label="Доступ">
+          <span>Free тест</span>
+          <span>Pro экспорт</span>
+        </div>
       </header>
 
       {screen === "start" && (
@@ -282,6 +272,9 @@ export default function App() {
         <SetupScreen
           scenario={scenario}
           selectedGoalLabel={selectedGoal.label}
+          goals={goals}
+          goalId={goalId}
+          setGoalId={setGoalId}
           bandSettings={bandSettings}
           setBandSettings={setBandSettings}
           lessonSettings={lessonSettings}
@@ -301,9 +294,8 @@ export default function App() {
           setProject={setProject}
           selectedArtifactId={selectedArtifactId}
           setSelectedArtifactId={setSelectedArtifactId}
-          selectedArtifactName={selectedArtifact?.name ?? "Материал"}
-          mobileTab={mobileTab}
-          setMobileTab={setMobileTab}
+          workspaceTab={workspaceTab}
+          setWorkspaceTab={setWorkspaceTab}
           onBack={() => setScreen("start")}
         />
       )}
@@ -342,136 +334,151 @@ function StartScreen({
   demos,
   onOpenDemo,
 }: StartScreenProps) {
+  const recommendedDemo = demos.find((demo) => demo.scenario === scenario) ?? demos[0];
+  const activeGoal = goals.find((goal) => goal.id === goalId) ?? goals[0];
+  const expectedOutputs = activeGoal.expectedOutputs.slice(0, 4);
+  const quickGoals = goals.slice(0, 5);
+  const jobText =
+    scenario === "band"
+      ? `Подготовь песню для репетиции: ${activeGoal.label.toLowerCase()}, партии, аудиослои, клик и выдачу музыкантам.`
+      : `Подготовь песню для урока: ${activeGoal.label.toLowerCase()}, уровень ученика, домашку и несколько партий.`;
+
   return (
-    <section className="start-grid">
-      <div className="intro-panel">
-        <p className="eyebrow">Рабочий прототип</p>
-        <h1>Песня превращается в план репетиции, урока и выдачу материалов.</h1>
-        <p className="intro-copy">
-          Сейчас это моковый продукт без реальной обработки аудио. Но сущности уже такие, как в будущем backend:
-          проект, версии, Stage Pack, сомнительные такты, AI-действия и раздача материалов.
-        </p>
-
-        <div className="scenario-switch" role="tablist" aria-label="Сценарий">
-          {(["band", "education"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={item === scenario ? "segment active" : "segment"}
-              onClick={() => setScenario(item)}
-            >
-              {item === "band" ? <Users size={18} /> : <GraduationCap size={18} />}
-              <span>{scenarioCopy[item].label}</span>
-            </button>
-          ))}
+    <section className="home-screen">
+      <div className="home-lead">
+        <div>
+          <p className="eyebrow">AI-задание</p>
+          <h1>Что сделать с песней?</h1>
+          <p className="intro-copy">
+            Загрузите трек, выберите задачу и получите бесплатный черновой разбор. Полный Stage Pack и экспорт
+            открываются в подписке.
+          </p>
         </div>
-
-        <p className="scenario-note">{scenarioCopy[scenario].description}</p>
-
-        <div className="goal-grid" aria-label="Цели обработки">
-          {goals.map((goal) => (
-            <button
-              key={goal.id}
-              type="button"
-              className={goal.id === goalId ? "goal-card selected" : "goal-card"}
-              onClick={() => setGoalId(goal.id)}
-            >
-              <strong>{goal.label}</strong>
-              <span>{goal.description}</span>
-            </button>
-          ))}
-        </div>
-
-        <ArchitecturePanel />
       </div>
 
-      <aside className="upload-panel">
-        <div className="panel-heading">
-          <UploadCloud size={22} />
-          <div>
-            <h2>Загрузка</h2>
-            <p>MP3, WAV, FLAC или M4A</p>
+      <div className="job-layout">
+        <section className="job-card" aria-label="Создать AI-задание">
+          <div className="scenario-switch" role="tablist" aria-label="Сценарий">
+            {(["band", "education"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={item === scenario ? "segment active" : "segment"}
+                onClick={() => setScenario(item)}
+              >
+                {item === "band" ? <Users size={18} /> : <GraduationCap size={18} />}
+                <span>{scenarioCopy[item].label}</span>
+              </button>
+            ))}
           </div>
-        </div>
 
-        <label className="drop-zone">
-          <FileAudio size={30} />
-          <span>{fileName || "Выберите файл для моковой обработки"}</span>
-          <input
-            type="file"
-            accept=".mp3,.wav,.flac,.m4a,audio/*"
-            onChange={(event) => setFileName(event.target.files?.[0]?.name ?? "")}
-          />
-        </label>
+          <label className="drop-zone job-drop-zone">
+            <FileAudio size={30} />
+            <span>{fileName || "Добавьте песню для бесплатного черновика"}</span>
+            <input
+              type="file"
+              accept=".mp3,.wav,.flac,.m4a,audio/*"
+              onChange={(event) => setFileName(event.target.files?.[0]?.name ?? "")}
+            />
+          </label>
 
-        <label className="consent-row">
-          <input
-            type="checkbox"
-            checked={acceptedConsent}
-            onChange={(event) => setAcceptedConsent(event.target.checked)}
-          />
-          <span>Я вправе обработать этот материал для приватной репетиции, урока или внутренней подготовки.</span>
-        </label>
+          <label className="consent-row compact">
+            <input
+              type="checkbox"
+              checked={acceptedConsent}
+              onChange={(event) => setAcceptedConsent(event.target.checked)}
+            />
+            <span>Я вправе обработать этот материал для приватной репетиции, урока или внутренней подготовки.</span>
+          </label>
 
-        <div className="estimate-list">
-          <div>
-            <Gauge size={18} />
-            <span>Оценка обработки: 3-8 минут, 4-10 кредитов в будущем.</span>
+          <div className="job-result-row" aria-label="Что получится">
+            {expectedOutputs.map((output) => (
+              <span key={output}>{output}</span>
+            ))}
           </div>
-          <div>
-            <ShieldCheck size={18} />
-            <span>AI отметит сомнительные такты и не будет обещать идеальные ноты.</span>
-          </div>
-        </div>
 
-        <button className="primary-action" type="button" disabled={!canContinueToSetup} onClick={onContinue}>
-          <SlidersHorizontal size={18} />
-          Настроить задачу
-        </button>
+          <button className="primary-action job-action" type="button" disabled={!canContinueToSetup} onClick={onContinue}>
+            <SlidersHorizontal size={18} />
+            Настроить и запустить бесплатно
+          </button>
 
-        <div className="demo-list">
-          <div className="section-title">
-            <FolderOpen size={17} />
-            <span>Открыть пример</span>
+          <div className="ai-composer" aria-label="AI-команда">
+            <div className="composer-top">
+              <span>
+                <Sparkles size={18} />
+                Задание AI-директору
+              </span>
+              <small>можно изменить в настройках</small>
+            </div>
+            <p>{jobText}</p>
+            <div className="composer-actions" aria-label="Быстрые AI-пресеты">
+              {quickGoals.map((goal) => (
+                <button
+                  key={goal.id}
+                  type="button"
+                  className={goal.id === goalId ? "composer-chip active" : "composer-chip"}
+                  onClick={() => setGoalId(goal.id)}
+                >
+                  {goal.label}
+                </button>
+              ))}
+            </div>
           </div>
-          {demos.map((demo) => (
-            <button key={demo.id} type="button" className="demo-row" onClick={() => onOpenDemo(demo.id)}>
-              <span>{demo.name}</span>
-              <small>{scenarioCopy[demo.scenario].label}</small>
+        </section>
+
+        <aside className="home-side">
+          <section className="demo-spotlight">
+            <div>
+              <div className="section-title">
+                <FolderOpen size={17} />
+                <span>Понять продукт за минуту</span>
+              </div>
+              <h2>{recommendedDemo.name}</h2>
+              <p>{scenarioCopy[recommendedDemo.scenario].description}</p>
+            </div>
+            <button className="primary-action" type="button" onClick={() => onOpenDemo(recommendedDemo.id)}>
+              <ArrowRight size={18} />
+              Открыть демо бесплатно
             </button>
-          ))}
-        </div>
-      </aside>
+          </section>
+
+          <div className="launch-stack">
+            {demos
+              .filter((demo) => demo.id !== recommendedDemo.id)
+              .map((demo) => (
+                <button key={demo.id} type="button" className="demo-row" onClick={() => onOpenDemo(demo.id)}>
+                  <span>{demo.name}</span>
+                  <small>{scenarioCopy[demo.scenario].label}</small>
+                </button>
+              ))}
+          </div>
+
+          <AccessModel />
+        </aside>
+      </div>
+
     </section>
   );
 }
 
-function ArchitecturePanel() {
+function AccessModel() {
   return (
-    <section className="architecture-panel" aria-label="Архитектура обработки">
-      <div className="panel-heading">
-        <Workflow size={20} />
-        <div>
-          <h2>Архитектура обработки</h2>
-          <p>В прототипе это моки, но границы уже такие, как в будущем продукте.</p>
-        </div>
-      </div>
-      <div className="architecture-grid">
-        {architectureLayers.map((layer) => (
-          <article key={layer.title} className="architecture-card">
-            <div>
-              <strong>{layer.title}</strong>
-              <span>{layer.status}</span>
-            </div>
-            <p>
-              <b>Берем готовое:</b> {layer.ready}
-            </p>
-            <p>
-              <b>Делаем свое:</b> {layer.own}
-            </p>
-          </article>
-        ))}
-      </div>
+    <section className="access-model" aria-label="Модель доступа">
+      <article className="access-card free">
+        <span>Бесплатно</span>
+        <strong>Попробовать без оплаты</strong>
+        <p>Демо-проекты, базовый разбор, форма песни, аккорды-превью и первые подсказки AI-директора.</p>
+      </article>
+      <article className="access-card trial">
+        <span>Пробно</span>
+        <strong>Один полный Stage Pack</strong>
+        <p>Проверка ценности на своей песне: партии, сомнительные такты, моковый экспорт и сценарий выдачи.</p>
+      </article>
+      <article className="access-card pro">
+        <span>Pro</span>
+        <strong>Подписка для работы</strong>
+        <p>ZIP, PDF, MIDI, WAV, версии после урока или репетиции, ссылки для учеников, группы и школы.</p>
+      </article>
     </section>
   );
 }
@@ -479,6 +486,9 @@ function ArchitecturePanel() {
 interface SetupScreenProps {
   scenario: Scenario;
   selectedGoalLabel: string;
+  goals: ReturnType<typeof getGoalsForScenario>;
+  goalId: ProcessingGoalId;
+  setGoalId: (goalId: ProcessingGoalId) => void;
   bandSettings: Record<string, string>;
   setBandSettings: (settings: Record<string, string>) => void;
   lessonSettings: Record<string, string>;
@@ -490,6 +500,9 @@ interface SetupScreenProps {
 function SetupScreen({
   scenario,
   selectedGoalLabel,
+  goals,
+  goalId,
+  setGoalId,
   bandSettings,
   setBandSettings,
   lessonSettings,
@@ -520,6 +533,10 @@ function SetupScreen({
 
   const values = scenario === "band" ? bandSettings : lessonSettings;
   const setValues = scenario === "band" ? setBandSettings : setLessonSettings;
+  const summaryFields = fields.slice(0, 5).map(([key, label]) => ({
+    label,
+    value: values[key] ?? "",
+  }));
 
   return (
     <section className="setup-view">
@@ -532,18 +549,71 @@ function SetupScreen({
         <p className="eyebrow">{scenarioCopy[scenario].label}</p>
         <h1>Настройка задачи</h1>
         <p>
-          Цель: <strong>{selectedGoalLabel}</strong>. Эти параметры позже станут входом для `ModelRouter`,
-          `SongGraph` и правил аранжировки Vokal.
+          Цель: <strong>{selectedGoalLabel}</strong>. Уточните, кто будет играть или учиться, чтобы AI собрал
+          полезный черновик, а не случайный набор файлов.
         </p>
       </div>
 
-      <div className="form-grid">
-        {fields.map(([key, label]) => (
-          <label key={key} className="field">
-            <span>{label}</span>
-            <input value={values[key] ?? ""} onChange={(event) => setValues({ ...values, [key]: event.target.value })} />
-          </label>
-        ))}
+      <div className="setup-layout">
+        <div className="settings-stack">
+          <section className="settings-card">
+            <div className="section-title">
+              <Sparkles size={17} />
+              <span>Job</span>
+            </div>
+            <div className="settings-goal-grid" aria-label="Что должен сделать AI">
+              {goals.map((goal) => (
+                <button
+                  key={goal.id}
+                  type="button"
+                  className={goal.id === goalId ? "settings-goal selected" : "settings-goal"}
+                  onClick={() => setGoalId(goal.id)}
+                >
+                  <strong>{goal.label}</strong>
+                  <span>{goal.description}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="settings-card">
+            <div className="section-title">
+              <SlidersHorizontal size={17} />
+              <span>{scenario === "band" ? "Состав" : "Урок"}</span>
+            </div>
+            <div className="form-grid">
+              {fields.map(([key, label]) => (
+                <label key={key} className="field">
+                  <span>{label}</span>
+                  <input
+                    value={values[key] ?? ""}
+                    onChange={(event) => setValues({ ...values, [key]: event.target.value })}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <aside className="setup-summary-card">
+          <div className="section-title">
+            <ListChecks size={17} />
+            <span>Бриф обработки</span>
+          </div>
+          <h2>{selectedGoalLabel}</h2>
+          <div className="brief-list">
+            {summaryFields.map((field) => (
+              <span key={field.label}>
+                <b>{field.label}</b>
+                {field.value}
+              </span>
+            ))}
+          </div>
+          <button className="primary-action" type="button" onClick={onStart}>
+            <Activity size={18} />
+            Запустить подготовку
+          </button>
+        </aside>
       </div>
 
       <div className="setup-notes">
@@ -560,11 +630,6 @@ function SetupScreen({
           <span>Автоматический разбор будет показан как черновик с местами для ручной проверки.</span>
         </div>
       </div>
-
-      <button className="primary-action wide" type="button" onClick={onStart}>
-        <Activity size={18} />
-        Запустить подготовку
-      </button>
     </section>
   );
 }
@@ -602,21 +667,23 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
           ))}
         </div>
 
-        <div className="processing-warning">
-          <AlertTriangle size={18} />
-          <span>
-            Качество зависит от исходника. В этом моковом режиме мы показываем будущую механику, а не выполняем
-            настоящую аудиообработку.
-          </span>
-        </div>
-
-        <div className="processing-architecture">
-          {architectureLayers.map((layer) => (
-            <div key={layer.title}>
-              <strong>{layer.title}</strong>
-              <span>{layer.status}</span>
-            </div>
-          ))}
+        <div className="processing-summary">
+          <div>
+            <strong>Разбор песни</strong>
+            <span>форма, тональность, BPM и аккорды</span>
+          </div>
+          <div>
+            <strong>Материалы</strong>
+            <span>партии, MIDI, минус и клик</span>
+          </div>
+          <div>
+            <strong>Проверка</strong>
+            <span>сомнительные такты отдельно</span>
+          </div>
+          <div>
+            <strong>AI-директор</strong>
+            <span>предложит, как усилить или упростить</span>
+          </div>
         </div>
       </div>
     </section>
@@ -659,22 +726,25 @@ const complexityCopy = {
   high: "высокая сложность",
 } as const;
 
+const freeArtifactTypes = new Set(["score", "chords", "lyrics", "teacher", "student"]);
+
+const hasFreePreview = (artifact: Project["stagePack"]["artifacts"][number]) => freeArtifactTypes.has(artifact.type);
+
 function StagePackShell({
   project,
   setProject,
   selectedArtifactId,
   setSelectedArtifactId,
-  mobileTab,
-  setMobileTab,
+  workspaceTab,
+  setWorkspaceTab,
   onBack,
 }: {
   project: Project;
   setProject: Dispatch<SetStateAction<Project | null>>;
   selectedArtifactId: string | null;
   setSelectedArtifactId: (artifactId: string) => void;
-  selectedArtifactName: string;
-  mobileTab: MobileTab;
-  setMobileTab: (tab: MobileTab) => void;
+  workspaceTab: WorkspaceTab;
+  setWorkspaceTab: (tab: WorkspaceTab) => void;
   onBack: () => void;
 }) {
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>(
@@ -689,6 +759,14 @@ function StagePackShell({
   const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
   const selectedArtifact =
     project.stagePack.artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? project.stagePack.artifacts[0];
+  const readyArtifacts = project.stagePack.artifacts.filter((artifact) => artifact.status === "ready").length;
+  const reviewCount = project.reviewIssues.filter(
+    (issue) => issue.status === "needs_review" || issue.status === "uncertain",
+  ).length;
+  const issuedCount = project.shareRecipients.filter(
+    (recipient) => recipient.status === "issued" || recipient.status === "opened",
+  ).length;
+  const hasStaleBundle = project.exportBundles.some((bundle) => bundle.status !== "ready");
   const averageConfidence =
     Object.values(project.analysis.confidenceByPart).reduce((sum, value) => sum + value, 0) /
     Object.values(project.analysis.confidenceByPart).length;
@@ -759,102 +837,292 @@ function StagePackShell({
         <span className="version-pill">{currentVersion?.label ?? "Версия"}</span>
       </div>
 
-      <div className="mobile-tabs" role="tablist" aria-label="Stage Pack">
-        <button type="button" className={mobileTab === "materials" ? "active" : ""} onClick={() => setMobileTab("materials")}>
-          Материалы
-        </button>
-        <button type="button" className={mobileTab === "preview" ? "active" : ""} onClick={() => setMobileTab("preview")}>
-          Просмотр
-        </button>
-        <button type="button" className={mobileTab === "director" ? "active" : ""} onClick={() => setMobileTab("director")}>
-          AI-директор
+      <div className="stage-command-strip" aria-label="Состояние проекта">
+        <div className="command-metric">
+          <Layers3 size={18} />
+          <span>
+            <strong>{readyArtifacts}/{project.stagePack.artifacts.length}</strong>
+            материалов готовы
+          </span>
+        </div>
+        <div className="command-metric">
+          <AlertTriangle size={18} />
+          <span>
+            <strong>{reviewCount}</strong>
+            мест требуют проверки
+          </span>
+        </div>
+        <div className="command-metric">
+          <Share2 size={18} />
+          <span>
+            <strong>{issuedCount}/{project.shareRecipients.length}</strong>
+            получателей с материалами
+          </span>
+        </div>
+        <button className={hasStaleBundle ? "command-action urgent" : "command-action"} type="button" onClick={() => setWorkspaceTab("export")}>
+          <Download size={18} />
+          {hasStaleBundle ? "Экспорт: пересобрать" : "Открыть экспорт"}
         </button>
       </div>
 
-      <div className="stage-grid">
-        <aside className={`stage-panel materials-pane ${mobileTab === "materials" ? "mobile-visible" : ""}`}>
-          <div className="pane-title-row">
-            <h2>Материалы</h2>
-            <span>{project.stagePack.artifacts.length}</span>
-          </div>
-          {project.stagePack.artifacts.map((artifact) => (
-            <button
-              key={artifact.id}
-              type="button"
-              className={artifact.id === selectedArtifact.id ? "artifact-row active" : "artifact-row"}
-              onClick={() => {
-                setSelectedArtifactId(artifact.id);
-                setMobileTab("preview");
-              }}
-            >
-              <span>{artifact.name}</span>
-              <small>
-                {artifact.format} · {formatConfidence(artifact.confidence)} · {artifactStatusCopy[artifact.status]}
-              </small>
-              {artifact.isStale && <em>нужно пересобрать</em>}
-            </button>
-          ))}
+      <div className="workspace-tabs" role="tablist" aria-label="Разделы Stage Pack">
+        {workspaceTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={workspaceTab === tab.id}
+            aria-controls={`workspace-${tab.id}`}
+            className={workspaceTab === tab.id ? "workspace-tab active" : "workspace-tab"}
+            onClick={() => setWorkspaceTab(tab.id)}
+          >
+            <strong>{tab.label}</strong>
+            <span>{tab.hint}</span>
+          </button>
+        ))}
+      </div>
 
-          <div className="bundle-box">
-            <strong>Пакеты</strong>
-            {project.exportBundles.map((bundle) => (
-              <span key={bundle.id}>
-                {bundle.label}: {bundle.filesCount} файлов, {bundle.status === "ready" ? "готово" : "устарело"}
+      {workspaceTab === "overview" && (
+        <section id="workspace-overview" className="stage-panel stage-view overview-view" role="tabpanel">
+          <div className="overview-main">
+            <div className="preview-header">
+              <div>
+                <p className="eyebrow">Готовый черновик</p>
+                <h2>{project.analysis.title}</h2>
+                <p>{project.analysis.summary}</p>
+              </div>
+              <span className="status-badge ready">бесплатный обзор</span>
+            </div>
+
+            <div className="song-facts">
+              <span>{project.analysis.artist}</span>
+              <span>{project.analysis.key}</span>
+              <span>{project.analysis.bpm} BPM</span>
+              <span>{project.analysis.meter}</span>
+              <span>{project.analysis.duration}</span>
+            </div>
+
+            <SectionTimeline project={project} />
+            <TransportBar project={project} />
+            <ConfidenceMixer project={project} />
+          </div>
+
+          <aside className="overview-next">
+            <div className="access-summary">
+              <span>
+                <b>Бесплатно</b>
+                обзор песни, форма, аккорды-превью и AI-подсказки
               </span>
+              <span>
+                <b>Pro</b>
+                полный Stage Pack, экспорт, версии и ссылки
+              </span>
+            </div>
+
+            <section className="subpanel compact">
+              <h3>Что делать дальше</h3>
+              <button className="secondary-action" type="button" onClick={() => setWorkspaceTab("materials")}>
+                Посмотреть материалы
+              </button>
+              <button className="secondary-action" type="button" onClick={() => setWorkspaceTab("review")}>
+                Проверить сомнительные такты
+              </button>
+              <button className="secondary-action" type="button" onClick={() => setWorkspaceTab("director")}>
+                Попросить AI улучшить версию
+              </button>
+            </section>
+
+            <section className="subpanel compact">
+              <h3>AI предлагает</h3>
+              {project.directorSuggestions.slice(0, 2).map((suggestion) => (
+                <button key={suggestion.id} className="suggestion-row" type="button" onClick={() => runAction(suggestion.actionId)}>
+                  <span>{suggestion.title}</span>
+                  <small>{actionLabel[suggestion.actionId]}</small>
+                </button>
+              ))}
+            </section>
+          </aside>
+        </section>
+      )}
+
+      {workspaceTab === "materials" && (
+        <section id="workspace-materials" className="stage-panel stage-view materials-view" role="tabpanel">
+          <aside className="material-list-pane">
+            <div className="pane-title-row">
+              <h2>Материалы</h2>
+              <span>{project.stagePack.artifacts.length}</span>
+            </div>
+            {project.stagePack.artifacts.map((artifact) => (
+              <button
+                key={artifact.id}
+                type="button"
+                className={artifact.id === selectedArtifact.id ? "artifact-row active" : "artifact-row"}
+                onClick={() => setSelectedArtifactId(artifact.id)}
+              >
+                <span>{artifact.name}</span>
+                <small>
+                  {artifact.format} · {formatConfidence(artifact.confidence)} · {artifactStatusCopy[artifact.status]}
+                </small>
+                <span className={hasFreePreview(artifact) ? "access-label free" : "access-label pro"}>
+                  {hasFreePreview(artifact) ? "бесплатно" : "подписка"}
+                </span>
+                {artifact.isStale && <em>нужно пересобрать</em>}
+              </button>
             ))}
-          </div>
-        </aside>
+          </aside>
 
-        <section className={`stage-panel preview-pane ${mobileTab === "preview" ? "mobile-visible" : ""}`}>
-          <div className="preview-header">
-            <div>
-              <p className="eyebrow">Просмотр</p>
-              <h2>{selectedArtifact.name}</h2>
-              <p>{selectedArtifact.description}</p>
+          <div className="material-preview-pane">
+            <div className="preview-header">
+              <div>
+                <p className="eyebrow">Выбранный материал</p>
+                <h2>{selectedArtifact.name}</h2>
+                <p>{selectedArtifact.description}</p>
+              </div>
+              <span className={`status-badge ${selectedArtifact.status}`}>{artifactStatusCopy[selectedArtifact.status]}</span>
             </div>
-            <span className={`status-badge ${selectedArtifact.status}`}>{artifactStatusCopy[selectedArtifact.status]}</span>
-          </div>
 
-          <div className="song-facts">
-            <span>{project.analysis.title}</span>
-            <span>{project.analysis.key}</span>
-            <span>{project.analysis.bpm} BPM</span>
-            <span>{project.analysis.meter}</span>
-            <span>{project.analysis.duration}</span>
-          </div>
+            {!hasFreePreview(selectedArtifact) && (
+              <div className="pro-note">
+                <LockKeyhole size={18} />
+                <span>Просмотр доступен в моках, скачивание и выдача этого материала относятся к подписке.</span>
+              </div>
+            )}
 
-          <div className="model-router-strip">
-            <div>
-              <strong>Оценка обработки</strong>
-              <span>
-                {complexityCopy[project.costEstimate.complexity]} · {project.costEstimate.credits} кредитов ·{" "}
-                {project.costEstimate.runtime}
-              </span>
-            </div>
-            <div>
-              <strong>ModelRouter</strong>
-              <span>
-                Сейчас мок. Позже выберет AudioShake/Demucs, Klangio/Basic Pitch и LLM-адаптер по цели,
-                жанру и цене.
-              </span>
-            </div>
-          </div>
+            <ArtifactPreview project={project} artifact={selectedArtifact} />
 
-          <div className="setup-summary-strip" aria-label="Настройки задачи">
-            <strong>{project.setupSnapshot.title}</strong>
-            <div>
-              {project.setupSnapshot.fields.slice(0, 6).map((field) => (
-                <span key={`${field.label}-${field.value}`}>
-                  {field.label}: {field.value}
+            <div className="bundle-box">
+              <strong>Пакеты экспорта</strong>
+              {project.exportBundles.map((bundle) => (
+                <span key={bundle.id}>
+                  {bundle.label}: {bundle.filesCount} файлов, {bundle.status === "ready" ? "готово" : "устарело"}
                 </span>
               ))}
             </div>
           </div>
+        </section>
+      )}
 
-          <ArtifactPreview project={project} artifact={selectedArtifact} />
+      {workspaceTab === "review" && (
+        <section id="workspace-review" className="stage-panel stage-view review-view" role="tabpanel">
+          <div className="review-main">
+            <div className="preview-header">
+              <div>
+                <p className="eyebrow">Человеческая проверка</p>
+                <h2>Сомнительные такты</h2>
+                <p>AI не притворяется идеальным: спорные места вынесены отдельно, чтобы их быстро принять или исправить.</p>
+              </div>
+              <span className="status-badge needs_review">{reviewCount} в работе</span>
+            </div>
 
-          <div className="workspace-columns">
-            <section className="subpanel">
+            <div className="review-list">
+              {project.reviewIssues.map((issue) => (
+                <div key={issue.id} className="review-item">
+                  <strong>
+                    Такт {issue.bar}: {issue.title}
+                  </strong>
+                  <p>{issue.reason}</p>
+                  <div className="review-actions">
+                    {(["checked", "fixed", "accepted_for_rehearsal"] as const).map((status) => (
+                      <button key={status} type="button" onClick={() => changeReviewStatus(issue.id, status)}>
+                        {reviewStatusCopy[status]}
+                      </button>
+                    ))}
+                  </div>
+                  <small>
+                    {issue.part} · {formatConfidence(issue.confidence)} · {reviewStatusCopy[issue.status]}
+                  </small>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className="review-side">
+            <section className="subpanel compact">
+              <h3>{project.scenario === "education" ? "Учебные настройки" : "Состав и ограничения"}</h3>
+              <div className="constraint-grid">
+                {project.scenario === "education" ? (
+                  <>
+                    <span>Инструмент: {project.studentProfile?.instrument}</span>
+                    <span>Уровень: {project.studentProfile?.level}</span>
+                    <span>Ноты: {project.studentProfile?.notationReading}</span>
+                    <span>Дома: {project.studentProfile?.homeInstrument}</span>
+                    <span>Цель: {project.lesson?.goal}</span>
+                    <span>Выдача: {project.lesson?.homeworkFormat}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Вокал: {project.bandLineup?.vocalRange}</span>
+                    <span>Гитары: {project.bandLineup?.guitars}</span>
+                    <span>Бас: {project.bandLineup?.bass === "5 strings" ? "5 струн" : "4 струны"}</span>
+                    <span>Клавиши: {project.bandLineup?.keys ? "есть" : "нет"}</span>
+                    <span>Барабаны: {project.bandLineup?.drums ? "есть" : "нет"}</span>
+                    <span>Стиль: {project.bandLineup?.targetStyle}</span>
+                  </>
+                )}
+              </div>
+            </section>
+
+            {project.assignments.length > 0 && (
+              <section className="subpanel compact">
+                <h3>Назначения</h3>
+                <div className="assignment-list">
+                  {project.assignments.map((assignment) => (
+                    <span key={assignment.id}>
+                      {assignment.recipient}: {assignment.title}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+          </aside>
+        </section>
+      )}
+
+      {workspaceTab === "director" && (
+        <section id="workspace-director" className="stage-panel stage-view director-view" role="tabpanel">
+          <div className="director-main">
+            <div className="panel-heading">
+              <Sparkles size={20} />
+              <div>
+                <h2>AI-директор</h2>
+                <p>{project.analysis.summary}</p>
+              </div>
+            </div>
+
+            <div className="suggestions-grid">
+              {project.directorSuggestions.slice(0, 4).map((suggestion) => (
+                <div key={suggestion.id} className="suggestion-card">
+                  <strong>{suggestion.title}</strong>
+                  <p>{suggestion.description}</p>
+                  <button type="button" onClick={() => runAction(suggestion.actionId)}>
+                    {actionLabel[suggestion.actionId]}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="chat-box">
+              <label>
+                <span>Команда AI-директору</span>
+                <textarea
+                  value={chatCommand}
+                  onChange={(event) => setChatCommand(event.target.value)}
+                  placeholder={
+                    project.scenario === "education"
+                      ? "Например: усложни партию для сильного ученика"
+                      : "Например: усили припев и сделай концовку сценичнее"
+                  }
+                />
+              </label>
+              <button className="primary-action" type="button" onClick={submitChat} disabled={!chatCommand.trim()}>
+                <Sparkles size={18} />
+                Применить как мок
+              </button>
+            </div>
+          </div>
+
+          <aside className="director-side">
+            <section className="subpanel compact">
               <h3>Версии</h3>
               <div className="version-list">
                 {project.versions.map((version) => (
@@ -878,174 +1146,204 @@ function StagePackShell({
               </ul>
             </section>
 
-            <section className="subpanel">
-              <h3>Сомнительные такты</h3>
-              <div className="review-list">
-                {project.reviewIssues.map((issue) => (
-                  <div key={issue.id} className="review-item">
-                    <strong>
-                      Такт {issue.bar}: {issue.title}
-                    </strong>
-                    <p>{issue.reason}</p>
-                    <div className="review-actions">
-                      {(["checked", "fixed", "accepted_for_rehearsal"] as const).map((status) => (
-                        <button key={status} type="button" onClick={() => changeReviewStatus(issue.id, status)}>
-                          {reviewStatusCopy[status]}
-                        </button>
-                      ))}
-                    </div>
-                    <small>
-                      {issue.part} · {formatConfidence(issue.confidence)} · {reviewStatusCopy[issue.status]}
-                    </small>
-                  </div>
+            <section className="subpanel compact">
+              <h3>{project.scenario === "education" ? "После урока" : "После репетиции"}</h3>
+              <textarea
+                className="session-note"
+                value={sessionNote}
+                onChange={(event) => setSessionNote(event.target.value)}
+              />
+              <button className="secondary-action" type="button" onClick={addNote} disabled={!sessionNote.trim()}>
+                Создать следующую версию
+              </button>
+            </section>
+          </aside>
+        </section>
+      )}
+
+      {workspaceTab === "export" && (
+        <section id="workspace-export" className="stage-panel stage-view export-view" role="tabpanel">
+          <div className="export-main">
+            <div className="plan-banner" aria-label="Бесплатные и платные функции">
+              <div>
+                <Sparkles size={18} />
+                <span>
+                  <strong>Бесплатно:</strong> демо, базовый разбор, форма, аккорды-превью и AI-подсказки.
+                </span>
+              </div>
+              <div>
+                <LockKeyhole size={18} />
+                <span>
+                  <strong>Подписка:</strong> экспорт ZIP/PDF/MIDI/WAV, ссылки, версии и командная выдача.
+                </span>
+              </div>
+            </div>
+
+            <section className="subpanel compact">
+              <h3>Кому выдать материалы</h3>
+              <div className="recipient-list">
+                {project.shareRecipients.map((recipient) => (
+                  <label key={recipient.id} className="recipient-row">
+                    <input
+                      type="checkbox"
+                      checked={selectedRecipients.includes(recipient.id)}
+                      onChange={() => toggleRecipient(recipient.id)}
+                    />
+                    <span>
+                      <strong>{recipient.name}</strong>
+                      <small>
+                        {recipient.material} ·{" "}
+                        {recipient.status === "issued"
+                          ? "выдано"
+                          : recipient.status === "opened"
+                            ? "открыто"
+                            : recipient.status === "needs_fix"
+                              ? "нужна правка"
+                              : "не выдано"}
+                      </small>
+                    </span>
+                  </label>
                 ))}
               </div>
-            </section>
-
-            <section className="subpanel wide">
-              <h3>{project.scenario === "education" ? "Учебные ограничения и задания" : "Ограничения состава"}</h3>
-              <div className="constraint-grid">
-                {project.scenario === "education" ? (
-                  <>
-                    <span>Инструмент: {project.studentProfile?.instrument}</span>
-                    <span>Уровень: {project.studentProfile?.level}</span>
-                    <span>Ноты: {project.studentProfile?.notationReading}</span>
-                    <span>Дома: {project.studentProfile?.homeInstrument}</span>
-                    <span>Цель: {project.lesson?.goal}</span>
-                    <span>Выдача: {project.lesson?.homeworkFormat}</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Вокал: {project.bandLineup?.vocalRange}</span>
-                    <span>Гитары: {project.bandLineup?.guitars}</span>
-                    <span>Бас: {project.bandLineup?.bass === "5 strings" ? "5 струн" : "4 струны"}</span>
-                    <span>Клавиши: {project.bandLineup?.keys ? "есть" : "нет"}</span>
-                    <span>Барабаны: {project.bandLineup?.drums ? "есть" : "нет"}</span>
-                    <span>Стиль: {project.bandLineup?.targetStyle}</span>
-                  </>
-                )}
-              </div>
-              {project.assignments.length > 0 && (
-                <div className="assignment-list">
-                  {project.assignments.map((assignment) => (
-                    <span key={assignment.id}>
-                      {assignment.recipient}: {assignment.title}
-                    </span>
+              <button className="secondary-action pro-action" type="button" onClick={issueLinks} disabled={selectedRecipients.length === 0}>
+                <LockKeyhole size={14} />
+                Создать ссылки по подписке
+              </button>
+              <button className="secondary-action pro-action" type="button" onClick={rebuildBundle}>
+                <LockKeyhole size={14} />
+                Пересобрать ZIP и треки
+              </button>
+              {project.shareLinks.length > 0 && (
+                <div className="mock-links">
+                  {project.shareLinks.map((link) => (
+                    <span key={link.id}>{link.label}</span>
                   ))}
                 </div>
               )}
             </section>
           </div>
-        </section>
 
-        <aside className={`stage-panel director-pane ${mobileTab === "director" ? "mobile-visible" : ""}`}>
-          <div className="panel-heading">
-            <Sparkles size={20} />
-            <div>
-              <h2>AI-директор</h2>
-              <p>{project.analysis.summary}</p>
-            </div>
-          </div>
-          {project.directorSuggestions.slice(0, 4).map((suggestion) => (
-            <div key={suggestion.id} className="suggestion-card">
-              <strong>{suggestion.title}</strong>
-              <p>{suggestion.description}</p>
-              <button type="button" onClick={() => runAction(suggestion.actionId)}>
-                {actionLabel[suggestion.actionId]}
-              </button>
-            </div>
-          ))}
-
-          <div className="chat-box">
-            <label>
-              <span>Команда AI-директору</span>
-              <textarea
-                value={chatCommand}
-                onChange={(event) => setChatCommand(event.target.value)}
-                placeholder={
-                  project.scenario === "education"
-                    ? "Например: усложни партию для сильного ученика"
-                    : "Например: усили припев и сделай концовку сценичнее"
-                }
-              />
-            </label>
-            <button className="primary-action" type="button" onClick={submitChat} disabled={!chatCommand.trim()}>
-              <Sparkles size={18} />
-              Применить как мок
-            </button>
-          </div>
-
-          <div className="subpanel compact">
-            <h3>Выдача материалов</h3>
-            <div className="recipient-list">
-              {project.shareRecipients.map((recipient) => (
-                <label key={recipient.id} className="recipient-row">
-                  <input
-                    type="checkbox"
-                    checked={selectedRecipients.includes(recipient.id)}
-                    onChange={() => toggleRecipient(recipient.id)}
-                  />
-                  <span>
-                    <strong>{recipient.name}</strong>
-                    <small>
-                      {recipient.material} · {recipient.status === "issued" ? "выдано" : recipient.status === "opened" ? "открыто" : recipient.status === "needs_fix" ? "нужна правка" : "не выдано"}
-                    </small>
-                  </span>
-                </label>
+          <aside className="export-side">
+            <div className="bundle-box">
+              <strong>Пакеты</strong>
+              {project.exportBundles.map((bundle) => (
+                <span key={bundle.id}>
+                  {bundle.label}: {bundle.filesCount} файлов, {bundle.status === "ready" ? "готово" : "устарело"}
+                </span>
               ))}
             </div>
-            <button className="secondary-action" type="button" onClick={issueLinks} disabled={selectedRecipients.length === 0}>
-              Создать моковые ссылки
-            </button>
-            <button className="secondary-action" type="button" onClick={rebuildBundle}>
-              Пересобрать ZIP и треки
-            </button>
-            {project.shareLinks.length > 0 && (
-              <div className="mock-links">
-                {project.shareLinks.map((link) => (
-                  <span key={link.id}>{link.label}</span>
-                ))}
+
+            <section className="subpanel compact">
+              <h3>Настройки обработки</h3>
+              <div className="setup-summary-strip compact" aria-label="Настройки задачи">
+                <strong>{project.setupSnapshot.title}</strong>
+                <div>
+                  {project.setupSnapshot.fields.slice(0, 6).map((field) => (
+                    <span key={`${field.label}-${field.value}`}>
+                      {field.label}: {field.value}
+                    </span>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
+            </section>
 
-          <div className="subpanel compact">
-            <h3>{project.scenario === "education" ? "После урока" : "После репетиции"}</h3>
-            <textarea
-              className="session-note"
-              value={sessionNote}
-              onChange={(event) => setSessionNote(event.target.value)}
-            />
-            <button className="secondary-action" type="button" onClick={addNote} disabled={!sessionNote.trim()}>
-              Создать следующую версию
-            </button>
-          </div>
-
-          <div className="subpanel compact">
-            <h3>Приватность</h3>
-            <p className="privacy-note">{project.legalConsent.text}</p>
-            <div className="retention-grid">
-              <span>Исходник: {project.dataRetention.sourceDeleted ? "удален" : "сохранен"}</span>
-              <span>Результаты: {project.dataRetention.resultsDeleted ? "удалены" : "сохранены"}</span>
-            </div>
-            <button className="secondary-action" type="button" onClick={deleteSource} disabled={project.dataRetention.sourceDeleted}>
-              Удалить исходник
-            </button>
-            <button className="secondary-action danger" type="button" onClick={deleteResults} disabled={project.dataRetention.resultsDeleted}>
-              Удалить результаты
-            </button>
-          </div>
-
-          <div className="subpanel compact">
-            <h3>История</h3>
-            {project.changeLog.slice(0, 4).map((entry) => (
-              <div key={entry.id} className="history-row">
-                <strong>{entry.title}</strong>
-                <span>{entry.description}</span>
+            <section className="subpanel compact">
+              <h3>Приватность</h3>
+              <p className="privacy-note">{project.legalConsent.text}</p>
+              <div className="retention-grid">
+                <span>Исходник: {project.dataRetention.sourceDeleted ? "удален" : "сохранен"}</span>
+                <span>Результаты: {project.dataRetention.resultsDeleted ? "удалены" : "сохранены"}</span>
               </div>
-            ))}
+              <button className="secondary-action" type="button" onClick={deleteSource} disabled={project.dataRetention.sourceDeleted}>
+                Удалить исходник
+              </button>
+              <button className="secondary-action danger" type="button" onClick={deleteResults} disabled={project.dataRetention.resultsDeleted}>
+                Удалить результаты
+              </button>
+            </section>
+
+            <section className="subpanel compact">
+              <h3>История</h3>
+              {project.changeLog.slice(0, 4).map((entry) => (
+                <div key={entry.id} className="history-row">
+                  <strong>{entry.title}</strong>
+                  <span>{entry.description}</span>
+                </div>
+              ))}
+            </section>
+          </aside>
+        </section>
+      )}
+    </section>
+  );
+}
+
+function SectionTimeline({ project }: { project: Project }) {
+  const totalBars = Math.max(...project.analysis.sections.map((section) => section.endBar), 1);
+
+  return (
+    <div className="section-timeline" aria-label="Форма песни">
+      {project.analysis.sections.map((section) => {
+        const barsCount = section.endBar - section.startBar + 1;
+
+        return (
+          <div key={section.id} className="section-segment" style={{ flexGrow: barsCount }}>
+            <strong>{section.label}</strong>
+            <span>
+              {section.startBar}-{section.endBar} / {totalBars}
+            </span>
           </div>
-        </aside>
+        );
+      })}
+    </div>
+  );
+}
+
+function TransportBar({ project }: { project: Project }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const loopSection = project.scenario === "education" ? "куплет + припев" : "припев 2";
+
+  return (
+    <div className="transport-bar" aria-label="Прослушивание мока">
+      <button className="transport-button" type="button" onClick={() => setIsPlaying((value) => !value)}>
+        {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+        <span>{isPlaying ? "Пауза" : "Прослушать мок"}</span>
+      </button>
+      <div className="transport-metrics">
+        <span>{project.analysis.bpm} BPM</span>
+        <span>{project.analysis.key}</span>
+        <span>{project.analysis.meter}</span>
+        <span>
+          <Repeat2 size={15} />
+          {loopSection}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ConfidenceMixer({ project }: { project: Project }) {
+  const entries = Object.entries(project.analysis.confidenceByPart);
+
+  return (
+    <section className="confidence-mixer" aria-label="Уверенность по партиям">
+      <div className="mixer-head">
+        <div>
+          <Volume2 size={18} />
+          <strong>Партии и аудиослои</strong>
+        </div>
+        <span>видно, что можно выдавать, а что слушать руками</span>
+      </div>
+      <div className="mixer-grid">
+        {entries.map(([part, value]) => (
+          <div key={part} className="mixer-channel">
+            <span>{part}</span>
+            <i>
+              <b style={{ width: `${Math.round(value * 100)}%` }} />
+            </i>
+            <small>{formatConfidence(value)}</small>
+          </div>
+        ))}
       </div>
     </section>
   );
