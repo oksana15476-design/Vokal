@@ -388,6 +388,8 @@ export default function App() {
           onOpenSettings={() => setScreen("setup")}
           demos={demos}
           onOpenDemo={openDemo}
+          openProject={project}
+          onResume={() => setScreen("stage-pack")}
         />
       )}
 
@@ -507,6 +509,9 @@ interface StartScreenProps {
   onOpenSettings: () => void;
   demos: Project[];
   onOpenDemo: (demoId: string) => void;
+  /** Открытая песня, если она есть: к ней надо чем-то вернуться. */
+  openProject: Project | null;
+  onResume: () => void;
 }
 
 function StartScreen({
@@ -525,6 +530,8 @@ function StartScreen({
   onOpenSettings,
   demos,
   onOpenDemo,
+  openProject,
+  onResume,
 }: StartScreenProps) {
   const recommendedDemo = demos.find((demo) => demo.scenario === scenario) ?? demos[0];
   const activeGoal = processingGoals.find((goal) => goal.id === goalId) ?? getGoalsForScenario(scenario)[0];
@@ -658,6 +665,24 @@ function StartScreen({
 
         <HomeResultPreview activeGoalLabel={activeGoal.label} expectedOutputs={expectedOutputs} scenario={scenario} />
       </div>
+
+      {/*
+        Уход на главный экран не удаляет песню — она остаётся в памяти. Но
+        раньше к ней не вело ничего: работа становилась недостижимой без
+        предупреждения. Возврат стоит первым, до демо и загрузки.
+      */}
+      {openProject && (
+        <section className="resume-row">
+          <div>
+            <p className="eyebrow">Песня открыта</p>
+            <strong>{openProject.name}</strong>
+          </div>
+          <button className="btn btn-outline" type="button" onClick={onResume}>
+            <ArrowRight size={18} />
+            Вернуться к песне
+          </button>
+        </section>
+      )}
 
       <div className="home-support-row">
         <section className="demo-spotlight">

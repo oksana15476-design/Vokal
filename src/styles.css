@@ -3172,3 +3172,27 @@ button:disabled {
   border-color: var(--steel-border-strong);
   color: var(--ink);
 }
+
+/*
+ * Возврат к открытой песне на главном экране. Уход из рабочей области её не
+ * удаляет, но без этой строки к ней нечем вернуться.
+ */
+.resume-row {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--e-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  justify-content: space-between;
+  margin-bottom: var(--s4);
+  padding: var(--s4);
+}
+
+.resume-row strong {
+  display: block;
+  font-size: 17px;
+  margin-top: var(--s1);
+}

@@ -571,6 +571,21 @@ describe("бренд-бук: структура экранов", () => {
     expect(document.querySelectorAll("button.btn-primary").length).toBeLessThanOrEqual(1);
   });
 
+  it("дает вернуться к открытой песне после ухода на главный экран", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+
+    // Песня остается в памяти, но раньше к ней не вело ничего: работа
+    // становилась недостижимой без предупреждения.
+    const resume = await screen.findByRole("button", { name: /Вернуться к песне/ });
+    await user.click(resume);
+    expect(await screen.findByRole("tab", { name: /Материалы/ })).toBeTruthy();
+  });
+
   it("не выполняет нераспознанную команду как чужую", async () => {
     const user = userEvent.setup();
     render(<App />);
