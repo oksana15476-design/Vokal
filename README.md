@@ -1,65 +1,89 @@
-# AI Music Director
+# Vokal Director
 
-AI Music Director turns a finished song into a playable rehearsal pack for a specific band lineup.
+`Vokal Director` - русскоязычный моковый AI-директор для подготовки песни к репетиции группы или уроку музыки.
 
-The first product is not a DAW, not a Suno clone, and not a bag of unrelated audio tools. The first product is a narrow workflow:
+Продуктовая идея: пользователь загружает песню, выбирает сценарий и получает рабочий `Stage Pack` с партиями, аккордами, MIDI, stems, минусом, кликом, репетиционными треками, предупреждениями и предложениями AI-директора.
 
-1. Upload a song.
-2. Choose the band lineup.
-3. Get stems, chords, structure, MIDI, sheet music, rehearsal tracks, and adaptation notes.
-4. Ask the AI Director to transpose, simplify, redistribute, or strengthen the arrangement.
+## Текущий статус
 
-## Positioning
+В репозитории уже есть кликабельный frontend-прототип на моковых данных.
 
-Russian:
+Работает:
 
-> Загрузите песню. Получите готовую аранжировку для вашей группы.
+- сценарии `Для группы` и `Для обучения`;
+- выбор цели обработки;
+- моковая загрузка файла;
+- демо-проекты;
+- настройка состава группы или учебной задачи;
+- имитация многошаговой обработки;
+- экран `Stage Pack`;
+- просмотр материалов;
+- версии аранжировки;
+- сомнительные такты и статусы проверки;
+- AI-действия, которые меняют моковое состояние;
+- моковая выдача материалов музыкантам или ученикам;
+- оценка сложности обработки;
+- блок приватности и согласия.
 
-English:
+Пока не работает реально:
 
-> Turn any song into a playable arrangement for your band.
+- обработка аудио;
+- source separation;
+- транскрипция в MIDI;
+- MusicXML/PDF rendering;
+- настоящие загрузки и скачивания;
+- backend API;
+- авторизация;
+- платежи;
+- реальные AI-вызовы;
+- реальные ссылки общего доступа.
 
-## First Customer
+## Запуск
 
-Start with working musicians, not casual listeners:
+```bash
+npm install
+npm run dev
+```
 
-- cover bands;
-- musical directors;
-- arrangers;
-- music schools;
-- vocal teachers and instrumental teachers;
-- session musicians.
+Локальный адрес обычно:
 
-Their urgent job-to-be-done:
+```text
+http://127.0.0.1:5173/
+```
 
-> We need to perform this song soon, and the whole band needs playable parts.
+## Проверки
 
-## MVP Output
+```bash
+npm run typecheck
+npm run test -- --run
+npm run build
+git diff --check
+```
 
-The first paid result is a Stage Pack:
+`npm run test` ограничен продуктовыми тестами в `src`, чтобы не запускать перенесенные служебные тесты из `.claude/skills`.
 
-- full score;
-- chord chart;
-- lyrics with chords;
-- vocal part;
-- guitar part and TAB;
-- bass part;
-- keys part;
-- drums part;
-- MIDI files;
-- stems;
-- minus track;
-- click track;
-- instrument-specific rehearsal tracks.
+## Документы
 
-## Product Docs
-
-- [MVP spec](docs/mvp.md)
-- [Architecture](docs/architecture.md)
-- [SongGraph data model](docs/songgraph.md)
+- [MVP](docs/mvp.md)
+- [Архитектура](docs/architecture.md)
+- [SongGraph](docs/songgraph.md)
 - [Roadmap](docs/roadmap.md)
 - [Research notes](docs/research-notes.md)
+- [Спецификация полного мокового продукта](docs/superpowers/specs/2026-09-09-full-mock-product-design.md)
+- [План реализации](docs/superpowers/plans/2026-09-09-vokal-director-mock-app.md)
 
-## Current Status
+## Архитектурная позиция
 
-This repository starts as a product and architecture seed. The next step is to build a clickable product prototype or a thin technical proof of concept around one uploaded song and one standard band lineup.
+Готовые модели и сервисы используем там, где они уже сильны: stems, transcription, beat tracking, MusicXML preview и LLM reasoning.
+
+Своим продуктовым ядром делаем:
+
+- `SongGraph`;
+- `Arrangement Engine`;
+- `Pedagogy Engine`;
+- `Confidence and Review Engine`;
+- `Version Engine`;
+- `Export and Distribution Rules`;
+- `DirectorAction` DSL.
+
+Если готового API или модели не хватает по качеству, правам или музыкальной логике, слой остается за Vokal и строится как собственный модуль.
