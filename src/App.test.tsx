@@ -227,6 +227,62 @@ describe("доменные поля на экране", () => {
 // он определен только по ASCII, и три запрета не могли совпасть НИКОГДА.
 const forbidden = forbiddenClaims.map((claim) => claim.pattern);
 
+describe("слой проверки полон (B8)", () => {
+  const openReview = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Проверка/ }));
+  };
+
+  it("дает сказать «все еще не уверен», а не только «проверено»", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openReview(user);
+
+    const item = document.querySelector(".review-item") as HTMLElement;
+    const actions = within(item).getAllByRole("button").map((node) => node.textContent?.trim());
+
+    // Раньше предлагались только «проверено», «исправлено» и «принято для
+    // репетиции». Все три заявляют, что вопрос закрыт. Музыкант, который
+    // посмотрел такт и остался в сомнении, сказать это не мог.
+    expect(actions).toContain("сомнительно");
+    // Текущий статус в списке не предлагается: ставить то, что уже стоит,
+    // нечего. У свежего места это «нужно проверить».
+    expect(actions).not.toContain("нужно проверить");
+    expect(item.textContent).toMatch(/нужно проверить/);
+  });
+
+  it("возвращает место в работу после ошибочной отметки", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openReview(user);
+
+    const item = () => document.querySelector(".review-item") as HTMLElement;
+    await user.click(within(item()).getByRole("button", { name: "проверено" }));
+    await waitFor(() => expect(item().textContent).toMatch(/проверено/));
+
+    await user.click(within(item()).getByRole("button", { name: "нужно проверить" }));
+    await waitFor(() => expect(item().textContent).toMatch(/нужно проверить/));
+  });
+
+  it("дает написать свой комментарий к месту", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openReview(user);
+
+    const item = document.querySelector(".review-item") as HTMLElement;
+    const field = within(item).getByRole("textbox", { name: /Комментарий/ });
+    await user.type(field, "Тут гитарист играет по-другому, оставили как есть");
+    await user.click(within(item).getByRole("button", { name: /Записать/ }));
+
+    await waitFor(() =>
+      expect(document.querySelector(".review-item")!.textContent).toContain(
+        "Тут гитарист играет по-другому, оставили как есть",
+      ),
+    );
+  });
+});
+
 describe("счетчики склоняются (B7)", () => {
   it("не пишет «1 материалов» в пакетах выдачи", async () => {
     const user = userEvent.setup();

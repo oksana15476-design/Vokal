@@ -33,6 +33,7 @@ import type {
 } from "./domain/types";
 import { type AudioFacts, browserDecoder, formatDuration, readAudioFacts } from "./services/audioFile";
 import {
+  addReviewComment,
   addSessionNote,
   addUnderstoodNothingReply,
   applyDirectorAction,
@@ -1329,6 +1330,10 @@ function StagePackShell({
     });
   };
 
+  const submitReviewComment = (issueId: string, text: string) => {
+    setProject((current) => (current ? addReviewComment(current, issueId, text) : current));
+  };
+
   const changeReviewStatus = (issueId: string, status: ReviewStatus) => {
     setProject((current) => (current ? updateReviewIssue(current, issueId, status) : current));
   };
@@ -1838,13 +1843,28 @@ function StagePackShell({
                     Такт {issue.bar}: {issue.title}
                   </strong>
                   <p>{issue.reason}</p>
+                  {/*
+                    Все пять статусов, а не три. «Проверено», «исправлено» и
+                    «принято» одинаково заявляют, что вопрос закрыт: музыкант,
+                    который посмотрел такт и остался в сомнении, сказать это
+                    не мог, а ошибочную отметку не мог отменить.
+                  */}
                   <div className="review-actions">
-                    {(["checked", "fixed", "accepted_for_rehearsal"] as const).map((status) => (
-                      <button key={status} type="button" onClick={() => changeReviewStatus(issue.id, status)}>
-                        {reviewStatusCopy[status]}
-                      </button>
-                    ))}
+                    {(["checked", "fixed", "accepted_for_rehearsal", "uncertain", "needs_review"] as const)
+                      .filter((status) => status !== issue.status)
+                      .map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          className="btn btn-outline btn-xs"
+                          onClick={() => changeReviewStatus(issue.id, status)}
+                        >
+                          {reviewStatusCopy[status]}
+                        </button>
+                      ))}
                   </div>
+
+                  <ReviewNote issueId={issue.id} onSubmit={submitReviewComment} />
                   <small>
                     {issue.part} · {formatConfidence(issue.confidence)} · {reviewStatusCopy[issue.status]}
                   </small>
@@ -2358,6 +2378,47 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: st
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Свой комментарий к сомнительному месту. Раньше в переписке по месту были
+ * только автоматические записи о смене статуса: почему решили именно так,
+ * записать было негде, и на репетиции это выяснялось заново.
+ */
+function ReviewNote({
+  issueId,
+  onSubmit,
+}: {
+  issueId: string;
+  onSubmit: (issueId: string, text: string) => void;
+}) {
+  const [text, setText] = useState("");
+
+  return (
+    <div className="review-note">
+      <label>
+        <span className="visually-hidden">Комментарий к месту</span>
+        <input
+          type="text"
+          value={text}
+          aria-label="Комментарий к месту"
+          placeholder="Почему решили так"
+          onChange={(event) => setText(event.target.value)}
+        />
+      </label>
+      <button
+        className="btn btn-outline btn-xs"
+        type="button"
+        disabled={!text.trim()}
+        onClick={() => {
+          onSubmit(issueId, text);
+          setText("");
+        }}
+      >
+        Записать
+      </button>
     </div>
   );
 }

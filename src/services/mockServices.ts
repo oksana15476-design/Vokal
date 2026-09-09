@@ -531,6 +531,32 @@ export const updateReviewIssue = (project: Project, issueId: string, status: Rev
   ],
 });
 
+/**
+ * Свой комментарий к сомнительному месту. До этого в переписку по месту
+ * попадали только автоматические записи о смене статуса: почему решили
+ * именно так, записать было негде, и на репетиции это выяснялось заново.
+ */
+export const addReviewComment = (project: Project, issueId: string, text: string): Project => {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return project;
+  }
+
+  return {
+    ...project,
+    reviewComments: [
+      ...project.reviewComments,
+      {
+        id: `comment-own-${issueId}-${Date.now()}`,
+        issueId,
+        author: "Пользователь",
+        text: trimmed,
+        createdAt: now(),
+      },
+    ],
+  };
+};
+
 export const createShareLinks = (project: Project, recipientIds: string[]): Project => {
   const newLinks = recipientIds.map((recipientId) => {
     const recipient = project.shareRecipients.find((item) => item.id === recipientId);
