@@ -30,8 +30,9 @@ import type {
 } from "./domain/types";
 import { type AudioFacts, browserDecoder, formatDuration, readAudioFacts } from "./services/audioFile";
 import {
-  applyDirectorAction,
   addSessionNote,
+  addUnderstoodNothingReply,
+  applyDirectorAction,
   createProjectFromDemo,
   createProjectFromUpload,
   createShareLinks,
@@ -1223,17 +1224,42 @@ function StagePackShell({
     setProject((current) => (current && sessionNote.trim() ? addSessionNote(current, sessionNote.trim()) : current));
   };
 
+  /**
+   * Разбирает команду пользователя. Возвращает `null`, если ничего не узнал.
+   *
+   * Раньше здесь стоял `: "boost-chorus"` в конце цепочки, и любая
+   * нераспознанная команда молча выполнялась как «усилить припев»: на
+   * «убери барабаны» продукт создавал версию с чужими правками и рапортовал
+   * об успехе. Настоящего разбора языка нет, поэтому непонятое честнее
+   * назвать непонятым.
+   */
+  const matchCommand = (text: string): DirectorActionId | null => {
+    const command = text.toLowerCase();
+
+    if (project.scenario === "education") {
+      if (command.includes("слож")) return "advanced-student-part";
+      if (command.includes("ансамб")) return "student-ensemble";
+      if (command.includes("урок")) return "lesson-analysis";
+    }
+    if (command.includes("трансп") || command.includes("тональн")) return "transpose-down-2";
+    if (command.includes("припев")) return "boost-chorus";
+    if (command.includes("гитар")) return "merge-guitars";
+    if (command.includes("бас")) return "practice-without-bass";
+    if (command.includes("бараб")) return "simplify-drums";
+    if (command.includes("струнн") || command.includes("клавиш")) return "move-strings-to-keys";
+    return null;
+  };
+
   const submitChat = () => {
-    const command = chatCommand.toLowerCase();
-    const action: DirectorActionId =
-      project.scenario === "education" && (command.includes("слож") || command.includes("advanced"))
-        ? "advanced-student-part"
-        : project.scenario === "education" && command.includes("ансамб")
-          ? "student-ensemble"
-          : command.includes("трансп")
-            ? "transpose-down-2"
-            : "boost-chorus";
-    runAction(action);
+    const text = chatCommand.trim();
+    if (!text) return;
+
+    const action = matchCommand(text);
+    if (action) {
+      runAction(action, text);
+    } else {
+      setProject((current) => (current ? addUnderstoodNothingReply(current, text) : current));
+    }
     setChatCommand("");
   };
 
@@ -2106,10 +2132,15 @@ function ConsolePanel({
                 {percent}%
               </span>
               <div className="track-controls">
-                <button type="button" title={`Mute: ${part}`} aria-label={`Mute: ${part}`}>
+                {/*
+                  Выключены по той же причине, что и воспроизведение: звука
+                  нет, заглушать и солировать нечего. Нажатие, которое ничего
+                  не меняет, — обещание микшера, а не микшер.
+                */}
+                <button type="button" disabled title="Звука нет: заглушать нечего" aria-label={`Заглушить ${part} — звука в прототипе нет`}>
                   M
                 </button>
-                <button type="button" title={`Solo: ${part}`} aria-label={`Solo: ${part}`}>
+                <button type="button" disabled title="Звука нет: солировать нечего" aria-label={`Солировать ${part} — звука в прототипе нет`}>
                   S
                 </button>
                 <button type="button" className="track-command" onClick={() => onAction(command.actionId)}>

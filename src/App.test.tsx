@@ -571,6 +571,59 @@ describe("бренд-бук: структура экранов", () => {
     expect(document.querySelectorAll("button.btn-primary").length).toBeLessThanOrEqual(1);
   });
 
+  it("не выполняет нераспознанную команду как чужую", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+
+    const versionsBefore = document.querySelectorAll(".version-row").length;
+    await user.type(screen.getByRole("textbox", { name: /Команда AI-директору/ }), "сделай красиво и по-своему");
+    await user.click(screen.getByRole("button", { name: /Применить в демо/ }));
+
+    const thread = screen.getByLabelText("Разговор с AI-директором");
+    // Текст пользователя остается в переписке дословно, а не подменяется
+    // названием действия, которое он не просил.
+    await waitFor(() => expect(thread.textContent).toContain("сделай красиво и по-своему"));
+    // Раньше любая нераспознанная команда молча выполнялась как «усилить
+    // припев» и создавала версию с чужими правками.
+    expect(thread.textContent).not.toContain("Усилить припев");
+    expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore);
+  });
+
+  it("выполняет распознанную команду и пишет ее в переписку", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+
+    const versionsBefore = document.querySelectorAll(".version-row").length;
+    await user.type(screen.getByRole("textbox", { name: /Команда AI-директору/ }), "транспонируй ниже");
+    await user.click(screen.getByRole("button", { name: /Применить в демо/ }));
+
+    await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore + 1));
+    expect(screen.getByLabelText("Разговор с AI-директором").textContent).toContain("транспонируй ниже");
+  });
+
+  it("не выдает за рабочие кнопки Solo и Mute", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    // Звука нет, солировать и заглушать нечего. Кнопка, которая нажимается
+    // и ничего не делает, — обещание, как и кнопка воспроизведения.
+    const controls = [...document.querySelectorAll(".track-controls button")].filter(
+      (node) => node.textContent === "M" || node.textContent === "S",
+    ) as HTMLButtonElement[];
+    expect(controls.length).toBeGreaterThan(0);
+    for (const button of controls) {
+      expect(button.disabled, `кнопка ${button.textContent} нажимается вхолостую`).toBe(true);
+    }
+  });
+
   it("дает каждой партии урока свою команду, а не одну на всех", async () => {
     const user = userEvent.setup();
     render(<App />);

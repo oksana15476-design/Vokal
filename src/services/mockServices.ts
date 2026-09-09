@@ -349,6 +349,33 @@ export const applyDirectorAction = (
   };
 };
 
+/**
+ * Ответ директора на команду, которую он не разобрал. Пишет в переписку и
+ * саму команду, и честный ответ: разбора языка в продукте нет, поэтому
+ * выполнять непонятое как что-то похожее — значит врать о результате.
+ */
+export const addUnderstoodNothingReply = (project: Project, userCommand: string): Project => ({
+  ...project,
+  chat: [
+    ...project.chat,
+    {
+      id: `chat-unmatched-${Date.now()}-user`,
+      author: "user" as const,
+      text: userCommand,
+      createdAt: now(),
+    },
+    {
+      id: `chat-unmatched-${Date.now()}-director`,
+      author: "director" as const,
+      text:
+        "Не разобрал команду. Пока понимаю только простые формулировки: транспонировать, " +
+        "усилить припев, объединить гитары, упростить барабаны, собрать трек без баса, " +
+        "перенести струнные на клавиши. Или выберите предложение карточкой выше.",
+      createdAt: now(),
+    },
+  ],
+});
+
 export const rollbackToVersion = (project: Project, versionId: string): Project => {
   const target = project.versions.find((version) => version.id === versionId);
   if (!target || versionId === project.currentVersionId) {
