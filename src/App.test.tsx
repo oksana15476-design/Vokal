@@ -9,7 +9,7 @@ afterEach(cleanup);
 const PROCESSING_MS = 8000;
 
 const openBandDemo = async (user: ReturnType<typeof userEvent.setup>) => {
-  await user.click(screen.getByRole("button", { name: /Открыть готовый разбор/ }));
+  await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
 };
 
 const waitForStagePack = async () =>
@@ -45,7 +45,7 @@ describe("экран обработки", () => {
     await openBandDemo(user);
 
     const estimate = await screen.findByLabelText("Оценка сложности обработки");
-    expect(within(estimate).getByText(/кредит/)).toBeTruthy();
+    expect(within(estimate).getByText(/единиц сложности/)).toBeTruthy();
     expect(within(estimate).getByText(/средняя сложность/)).toBeTruthy();
   });
 });
@@ -66,7 +66,7 @@ describe("загрузка файла", () => {
   it("объясняет, почему кнопка запуска недоступна", async () => {
     render(<App />);
 
-    expect(screen.getByText("Чтобы продолжить, добавьте файл песни.")).toBeTruthy();
+    expect(screen.getByText("Чтобы продолжить, выберите файл песни.")).toBeTruthy();
   });
 
   it("принимает поддерживаемый формат", async () => {
@@ -148,7 +148,7 @@ describe("доменные поля на экране", () => {
   it("показывает жанр, аудиторию материала и данные исходника", async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole("button", { name: /Открыть готовый разбор/ }));
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
     await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
       timeout: PROCESSING_MS,
     });
@@ -162,5 +162,48 @@ describe("доменные поля на экране", () => {
     await user.click(screen.getByRole("tab", { name: /Экспорт/ }));
     expect(screen.getByText(/Формат: DEMO/)).toBeTruthy();
     expect(screen.getByText(/Качество: среднее/)).toBeTruthy();
+  });
+});
+
+describe("честность текста", () => {
+  // Регресс: интерфейс обещал бесплатный тариф, подписку Pro и сроки обработки,
+  // которых в прототипе нет. Ось заменена на «собрано / имитация / нужна обработка».
+  const forbidden = [
+    /бесплатн/i,
+    /подписк/i,
+    /\bPro\b/,
+    /\bFree\b/,
+    /без оплаты/i,
+    /60 секунд/i,
+    /за несколько минут/i,
+    /\bмок/i,
+    /ё/,
+  ];
+
+  it("не обещает тарифов, сроков и не содержит жаргона на первом экране", () => {
+    render(<App />);
+    const text = document.body.textContent ?? "";
+
+    for (const pattern of forbidden) {
+      expect(text, `первый экран: ${pattern}`).not.toMatch(pattern);
+    }
+  });
+
+  it("не обещает тарифов, сроков и не содержит жаргона в Stage Pack", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Экспорт/]) {
+      await user.click(screen.getByRole("tab", { name: tab }));
+      const text = document.body.textContent ?? "";
+
+      for (const pattern of forbidden) {
+        expect(text, `вкладка ${tab}: ${pattern}`).not.toMatch(pattern);
+      }
+    }
   });
 });

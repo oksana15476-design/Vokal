@@ -267,7 +267,7 @@ const baseSteps: ProcessingStep[] = [
   { id: "structure", label: "Структура песни", status: "queued", detail: "Собираем intro, куплеты, припевы, bridge и coda." },
   { id: "chords", label: "Аккорды", status: "queued", detail: "Строим черновую аккордовую сетку." },
   { id: "midi", label: "MIDI-черновики", status: "queued", detail: "Переводим важные аудиослои в MIDI-партии." },
-  { id: "notation", label: "MusicXML и PDF", status: "queued", detail: "Готовим моковые ноты и карточки страниц." },
+  { id: "notation", label: "MusicXML и PDF", status: "queued", detail: "Готовим ноты и карточки страниц." },
   { id: "director", label: "Ревью AI-директора", status: "queued", detail: "Ищем проблемы состава, уровня и выдачи материалов." },
 ];
 
@@ -578,7 +578,10 @@ const cost = (complexity: CostEstimate["complexity"], credits: number): CostEsti
   complexity,
   credits,
   runtime: complexity === "high" ? "8-12 минут" : "3-5 минут",
-  notes: ["Расчет моковый.", "В будущем цена зависит от длительности, аудиослоев, партий и повторной обработки."],
+  notes: [
+    "Оценка демонстрационная.",
+    "Сложность зависит от длительности, аудиослоев, партий и повторной обработки.",
+  ],
 });
 
 export const demoProjects: Project[] = [

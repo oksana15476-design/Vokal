@@ -12,7 +12,6 @@ import {
   Gauge,
   Layers3,
   ListChecks,
-  LockKeyhole,
   Music2,
   Pause,
   Play,
@@ -115,7 +114,7 @@ const scenarioCopy: Record<Scenario, { label: string; description: string }> = {
 
 const workspaceTabs: Array<{ id: WorkspaceTab; label: string; hint: string }> = [
   { id: "overview", label: "Обзор", hint: "результат" },
-  { id: "materials", label: "Материалы", hint: "что готово" },
+  { id: "materials", label: "Материалы", hint: "что собрано" },
   { id: "review", label: "Проверка", hint: "что проверить" },
   { id: "director", label: "AI-директор", hint: "изменить" },
   { id: "export", label: "Экспорт", hint: "выдать" },
@@ -342,12 +341,12 @@ export default function App() {
           </span>
           <span>
             <strong>Vokal Director</strong>
-            <small>моковый AI-директор</small>
+            <small>прототип AI-директора</small>
           </span>
         </button>
-        <div className="topbar-plan" aria-label="Доступ">
-          <span>Free тест</span>
-          <span>Pro экспорт</span>
+        <div className="topbar-plan" aria-label="Статус прототипа">
+          <span>прототип</span>
+          <span>демо-данные</span>
         </div>
       </header>
 
@@ -450,8 +449,8 @@ function StartScreen({
     homeJobOptions[0];
   const jobText =
     scenario === "band"
-      ? `Завтра репетиция: сделай ${activeGoal.label.toLowerCase()}, отметь слабые места и подготовь материалы музыкантам.`
-      : `Подготовь урок: сделай ${activeGoal.label.toLowerCase()}, учти уровень ученика и собери домашку.`;
+      ? `Пример команды: сделай ${activeGoal.label.toLowerCase()}, отметь слабые места и собери материалы музыкантам.`
+      : `Пример команды: сделай ${activeGoal.label.toLowerCase()}, учти уровень ученика и собери домашнее задание.`;
   const chooseHomeJob = (job: (typeof homeJobOptions)[number]) => {
     setScenario(job.scenario);
     setGoalId(job.goalId);
@@ -462,26 +461,27 @@ function StartScreen({
       <div className="home-hero">
         <section className="home-lead">
           <div>
-            <p className="eyebrow">AI Stage Pack</p>
-            <h1>Разберите песню на партии за несколько минут</h1>
+            <p className="eyebrow">Stage Pack · прототип</p>
+            <h1>От выбора песни до выдачи материалов</h1>
             <p className="intro-copy">
-              Загрузите трек: Vokal сделает форму, аккорды, партии, аудиослои, клик и список мест для проверки.
+              Прототип проходит весь путь: цель, разбор, Stage Pack, выдача. Звук не обрабатывается — форма, аккорды
+              и партии взяты из демо-данных.
             </p>
           </div>
-          <div className="hero-proof-row" aria-label="Что бесплатно видно сразу">
-            <span>60 секунд бесплатно</span>
-            <span>BPM и тональность</span>
+          <div className="hero-proof-row" aria-label="Что собрано в прототипе">
             <span>форма и аккорды</span>
-            <span>2 AI-подсказки</span>
+            <span>партии и материалы</span>
+            <span>сомнительные такты</span>
+            <span>версии и выдача</span>
           </div>
         </section>
 
-        <section className="job-card hero-job-card" aria-label="Создать AI-задание">
+        <section className="job-card hero-job-card" aria-label="Задание AI-директору">
           <div className="job-card-head">
             <span>1</span>
             <div>
-              <h2>Загрузите песню</h2>
-              <p>Выберите результат. Vokal сразу сделает черновик, а детали можно уточнить отдельно.</p>
+              <h2>Соберите задание</h2>
+              <p>Выберите, что нужно получить. Уточнения можно добавить отдельным шагом.</p>
             </div>
           </div>
 
@@ -510,7 +510,7 @@ function StartScreen({
 
           <label className={uploadError ? "drop-zone job-drop-zone invalid" : "drop-zone job-drop-zone"}>
             <FileAudio size={30} />
-            <span>{fileName || "Добавьте MP3, WAV, FLAC или M4A"}</span>
+            <span>{fileName || "Выберите MP3, WAV, FLAC или M4A. Файл останется на устройстве"}</span>
             <input
               type="file"
               accept=".mp3,.wav,.flac,.m4a,audio/*"
@@ -534,7 +534,7 @@ function StartScreen({
             <span>Я вправе обработать этот материал для приватной репетиции, урока или внутренней подготовки.</span>
           </label>
 
-          <div className="job-result-row" aria-label="Что получится">
+          <div className="job-result-row" aria-label="Что покажем в разборе">
             {expectedOutputs.map((output) => (
               <span key={output}>{output}</span>
             ))}
@@ -542,25 +542,25 @@ function StartScreen({
 
           <button className="primary-action job-action" type="button" disabled={!canStartJob} onClick={onStart}>
             <Sparkles size={18} />
-            Разобрать песню бесплатно
+            Запустить демо-разбор
           </button>
 
           {!canStartJob && (
             <p className="action-hint">
               {!fileName
-                ? "Чтобы продолжить, добавьте файл песни."
+                ? "Чтобы продолжить, выберите файл песни."
                 : "Чтобы продолжить, подтвердите право обработать этот материал."}
             </p>
           )}
 
           <button className="settings-link" type="button" disabled={!canStartJob} onClick={onOpenSettings}>
             <SlidersHorizontal size={16} />
-            Уточнить состав, уровень или выдачу перед запуском
+            Уточнить состав и уровень
           </button>
 
           <div className="free-preview-note">
             <CheckCircle2 size={16} />
-            <span>Без оплаты покажем черновой разбор. Полная песня, PDF/MIDI/WAV/ZIP и ссылки откроются в Pro.</span>
+            <span>Дальше — Stage Pack на демо-данных: PDF, MIDI и треки показаны схематично, файлы не создаются.</span>
           </div>
         </section>
 
@@ -579,7 +579,7 @@ function StartScreen({
           </div>
           <button className="primary-action" type="button" onClick={() => onOpenDemo(recommendedDemo.id)}>
             <ArrowRight size={18} />
-            Открыть готовый разбор
+            Открыть демо-разбор
           </button>
         </section>
 
@@ -618,8 +618,8 @@ function HomeResultPreview({
   return (
     <aside className="home-result-preview" aria-label="Превью результата">
       <div className="result-preview-top">
-        <span>После загрузки</span>
-        <b>Free preview</b>
+        <span>После запуска</span>
+        <b>демо-данные</b>
       </div>
       <div className="result-preview-title">
         <strong>{activeGoalLabel}</strong>
@@ -648,8 +648,8 @@ function HomeResultPreview({
       <div className="preview-ai-note">
         <Sparkles size={16} />
         <span>
-          AI нашел 2 места для проверки и предложил{" "}
-          {scenario === "education" ? "версию сильнее для ученика" : "усилить припев"}.
+          В демо-разборе отмечены сомнительные такты и предложение AI-директора:{" "}
+          {scenario === "education" ? "партия сложнее для ученика" : "усилить припев"}.
         </span>
       </div>
     </aside>
@@ -658,21 +658,21 @@ function HomeResultPreview({
 
 function AccessModel() {
   return (
-    <section className="access-model" aria-label="Модель доступа">
+    <section className="access-model" aria-label="Что внутри прототипа">
       <article className="access-card free">
-        <span>Бесплатно</span>
-        <strong>Попробовать без оплаты</strong>
-        <p>Демо-проекты, базовый разбор, форма песни, аккорды-превью и первые подсказки AI-директора.</p>
+        <span>собрано</span>
+        <strong>Демо-проекты и разборы</strong>
+        <p>Оба сценария, цели, форма, аккорды, партии и материалы Stage Pack — на заранее собранных данных.</p>
       </article>
       <article className="access-card trial">
-        <span>Пробно</span>
-        <strong>Один полный Stage Pack</strong>
-        <p>Проверка ценности на своей песне: партии, сомнительные такты, моковый экспорт и сценарий выдачи.</p>
+        <span>имитация</span>
+        <strong>Шаги и действия</strong>
+        <p>Обработка идет по таймеру. Действия AI-директора меняют версию, статусы и историю правок внутри прототипа.</p>
       </article>
       <article className="access-card pro">
-        <span>Pro</span>
-        <strong>Подписка для работы</strong>
-        <p>ZIP, PDF, MIDI, WAV, версии после урока или репетиции, ссылки для учеников, группы и школы.</p>
+        <span>нужна обработка</span>
+        <strong>Файлы и ссылки</strong>
+        <p>PDF, MIDI, аудиослои, ZIP и ссылки для музыкантов в прототипе не создаются — для них нужна настоящая обработка звука.</p>
       </article>
     </section>
   );
@@ -722,21 +722,29 @@ function SetupScreen({
   }));
   const promiseList =
     scenario === "band"
-      ? ["адаптируем партии под реальный состав", "покажем слабые места перед репетицией", "экспорт и ссылки оставим в Pro"]
-      : ["подстроим сложность под ученика", "разложим материал на роли и домашку", "экспорт и ссылки оставим в Pro"];
+      ? [
+          "состав сохранится в карточке проекта",
+          "сомнительные такты покажем отдельно",
+          "файлы и ссылки пока не создаются",
+        ]
+      : [
+          "уровень ученика сохранится в проекте",
+          "роли и домашнее задание покажем отдельно",
+          "файлы и ссылки пока не создаются",
+        ];
 
   return (
     <section className="setup-view">
       <button className="text-button" type="button" onClick={onBack}>
         <ArrowLeft size={17} />
-        Назад к загрузке
+        Назад к заданию
       </button>
 
       <div className="setup-header">
         <p className="eyebrow">{scenarioCopy[scenario].label}</p>
         <h1>Уточнить перед запуском</h1>
         <p>
-          Это необязательный шаг. Если хочется быстрее, запускайте сразу: Vokal уже знает выбранную задачу.
+          Шаг необязательный. Уточнения сохранятся в карточке проекта, на демо-разбор они не влияют.
         </p>
       </div>
 
@@ -748,7 +756,7 @@ function SetupScreen({
               <span>Выбранная задача</span>
             </div>
             <h2>{selectedGoalLabel}</h2>
-            <p>Задачу можно поменять на главной. Здесь только короткие уточнения, чтобы черновик был ближе к реальности.</p>
+            <p>Задачу можно поменять на главной. Здесь — короткие уточнения о составе или об ученике.</p>
           </section>
 
           <section className="settings-card">
@@ -773,7 +781,7 @@ function SetupScreen({
         <aside className="setup-summary-card">
           <div className="section-title">
             <ListChecks size={17} />
-            <span>Что изменится</span>
+            <span>Что попадет в проект</span>
           </div>
           <h2>Можно запускать</h2>
           <div className="setup-promise-list">
@@ -794,7 +802,7 @@ function SetupScreen({
           </div>
           <button className="primary-action" type="button" onClick={onStart}>
             <Activity size={18} />
-            Запустить черновик
+            Запустить демо-разбор
           </button>
         </aside>
       </div>
@@ -802,11 +810,11 @@ function SetupScreen({
       <div className="setup-notes">
         <div>
           <Sparkles size={18} />
-          <span>После обработки сначала покажем понятный обзор, а не все файлы сразу.</span>
+          <span>Сначала откроется обзор, а не список файлов.</span>
         </div>
         <div>
           <AlertTriangle size={18} />
-          <span>Сомнительные места будут отдельно: их можно принять, исправить или оставить для репетиции.</span>
+          <span>Сомнительные такты — отдельно: принять, исправить или оставить на репетицию.</span>
         </div>
       </div>
     </section>
@@ -861,7 +869,7 @@ function ProcessingScreen({
         <div className="panel-heading">
           <Activity size={24} />
           <div>
-            <h1>Готовим черновой разбор</h1>
+            <h1>Собираем демо-разбор</h1>
             <p>{project.name}</p>
           </div>
         </div>
@@ -870,11 +878,13 @@ function ProcessingScreen({
           <span style={{ width: `${progress}%` }} />
         </div>
 
+        <p className="processing-disclaimer">Шаги идут по таймеру, звук не обрабатывается.</p>
+
         <div className={failedStep ? "processing-focus failed" : "processing-focus"}>
           <span>{progress}%</span>
           <div>
             <strong>{currentStep?.label ?? "Запуск"}</strong>
-            <p>{currentStep?.detail ?? "Готовим первый полезный результат."}</p>
+            <p>{currentStep?.detail ?? "Первый шаг демо-разбора."}</p>
           </div>
         </div>
 
@@ -883,7 +893,7 @@ function ProcessingScreen({
             <AlertTriangle size={18} />
             <div>
               <strong>Шаг «{failedStep.label}» не прошел</strong>
-              <p>Исходник записан плотно и тихо, моковому разделению не хватило качества. Шаг можно повторить.</p>
+              <p>Так в продукте будет выглядеть сбой на исходнике низкого качества. Шаг можно повторить.</p>
             </div>
             <button className="secondary-action" type="button" onClick={() => onRetry(failedStep.id)}>
               <Repeat2 size={16} />
@@ -937,17 +947,17 @@ function CostEstimateBox({ estimate, compact = false }: { estimate: CostEstimate
     <div className={compact ? "cost-estimate compact" : "cost-estimate"} aria-label="Оценка сложности обработки">
       <div className="cost-estimate-head">
         <Gauge size={16} />
-        <strong>Оценка обработки</strong>
+        <strong>Оценка сложности</strong>
         <span className={`cost-chip ${estimate.complexity}`}>{complexityCopy[estimate.complexity]}</span>
       </div>
       <div className="cost-estimate-metrics">
         <span>
           <b>{estimate.credits}</b>
-          условных кредитов
+          условных единиц сложности
         </span>
         <span>
           <b>{estimate.runtime}</b>
-          ожидаемое время
+          ориентир по времени
         </span>
         <span>
           <b>{tierCopy[estimate.tier]}</b>
@@ -970,7 +980,7 @@ const artifactStatusCopy = {
   draft: "черновик",
   needs_review: "проверить",
   rebuild_required: "пересобрать",
-  pending: "готовится",
+  pending: "нет в демо",
 } as const;
 
 const audienceCopy: Record<Project["stagePack"]["artifacts"][number]["audience"], string> = {
@@ -1028,9 +1038,10 @@ const tierCopy = {
   multi_version: "несколько версий",
 } as const;
 
-const freeArtifactTypes = new Set(["score", "chords", "lyrics", "teacher", "student"]);
+const assembledArtifactTypes = new Set(["score", "chords", "lyrics", "teacher", "student"]);
 
-const hasFreePreview = (artifact: Project["stagePack"]["artifacts"][number]) => freeArtifactTypes.has(artifact.type);
+const hasAssembledContent = (artifact: Project["stagePack"]["artifacts"][number]) =>
+  assembledArtifactTypes.has(artifact.type);
 
 function StagePackShell({
   project,
@@ -1136,7 +1147,7 @@ function StagePackShell({
         <div>
           <h1>{project.name}</h1>
           <p>
-            {project.analysis.key}, {project.analysis.bpm} BPM, {project.analysis.meter}, точность{" "}
+            {project.analysis.key}, {project.analysis.bpm} BPM, {project.analysis.meter}, точность разбора{" "}
             {formatConfidence(averageConfidence)}
           </p>
         </div>
@@ -1148,14 +1159,14 @@ function StagePackShell({
           <Layers3 size={18} />
           <span>
             <strong>{readyArtifacts}/{project.stagePack.artifacts.length}</strong>
-            материалов готовы
+            материалов готово
           </span>
         </div>
         <div className="command-metric">
           <AlertTriangle size={18} />
           <span>
             <strong>{reviewCount}</strong>
-            мест требуют проверки
+            на проверку
           </span>
         </div>
         <div className="command-metric">
@@ -1193,11 +1204,11 @@ function StagePackShell({
           <div className="overview-main">
             <div className="preview-header">
               <div>
-                <p className="eyebrow">Готовый черновик</p>
+                <p className="eyebrow">Демо-разбор</p>
                 <h2>{project.analysis.title}</h2>
                 <p>{project.analysis.summary}</p>
               </div>
-              <span className="status-badge ready">бесплатный обзор</span>
+              <span className="status-badge ready">демо-данные</span>
             </div>
 
             <div className="song-facts">
@@ -1213,8 +1224,8 @@ function StagePackShell({
               <div className="inline-warning" role="status">
                 <AlertTriangle size={17} />
                 <span>
-                  Средняя точность разбора {formatConfidence(averageConfidence)}. Это черновик: перед репетицией пройдите
-                  раздел «Проверка».
+                  Средняя точность разбора {formatConfidence(averageConfidence)}. Это черновик: перед репетицией
+                  пройдите проверку.
                 </span>
               </div>
             )}
@@ -1222,7 +1233,7 @@ function StagePackShell({
             {project.upload.quality === "low" && (
               <div className="inline-warning" role="status">
                 <AlertTriangle size={17} />
-                <span>{project.upload.sourceNote} Качество исходника оценено как низкое, партии будут грубее.</span>
+                <span>{project.upload.sourceNote} Качество исходника низкое — партии в разборе грубее.</span>
               </div>
             )}
 
@@ -1234,12 +1245,12 @@ function StagePackShell({
           <aside className="overview-next">
             <div className="access-summary">
               <span>
-                <b>Бесплатно</b>
-                обзор песни, форма, аккорды-превью и AI-подсказки
+                <b>Собрано</b>
+                форма, аккорды, партии, материалы и предложения AI-директора
               </span>
               <span>
-                <b>Pro</b>
-                полный Stage Pack, экспорт, версии и ссылки
+                <b>Нужна обработка</b>
+                PDF, MIDI, аудио и ссылки пока не создаются
               </span>
             </div>
 
@@ -1252,12 +1263,12 @@ function StagePackShell({
                 Проверить сомнительные такты
               </button>
               <button className="secondary-action" type="button" onClick={() => setWorkspaceTab("director")}>
-                Попросить AI улучшить версию
+                Открыть AI-директора
               </button>
             </section>
 
             <section className="subpanel compact">
-              <h3>AI предлагает</h3>
+              <h3>AI-директор предлагает</h3>
               {project.directorSuggestions.slice(0, 2).map((suggestion) => (
                 <button key={suggestion.id} className="suggestion-row" type="button" onClick={() => runAction(suggestion.actionId)}>
                   <span>{suggestion.title}</span>
@@ -1289,8 +1300,8 @@ function StagePackShell({
                   {" · "}
                   {audienceCopy[artifact.audience]}
                 </small>
-                <span className={hasFreePreview(artifact) ? "access-label free" : "access-label pro"}>
-                  {hasFreePreview(artifact) ? "бесплатно" : "подписка"}
+                <span className={hasAssembledContent(artifact) ? "access-label assembled" : "access-label processing"}>
+                  {hasAssembledContent(artifact) ? "собрано" : "нужна обработка"}
                 </span>
                 {artifact.isStale && <em>нужно пересобрать</em>}
               </button>
@@ -1307,10 +1318,10 @@ function StagePackShell({
               <span className={`status-badge ${selectedArtifact.status}`}>{artifactStatusCopy[selectedArtifact.status]}</span>
             </div>
 
-            {!hasFreePreview(selectedArtifact) && (
+            {!hasAssembledContent(selectedArtifact) && (
               <div className="pro-note">
-                <LockKeyhole size={18} />
-                <span>Просмотр доступен в моках, скачивание и выдача этого материала относятся к подписке.</span>
+                <Layers3 size={18} />
+                <span>Здесь пока только карточка материала. Содержимое появится с настоящей обработкой звука.</span>
               </div>
             )}
 
@@ -1320,7 +1331,7 @@ function StagePackShell({
               <strong>Пакеты экспорта</strong>
               {project.exportBundles.map((bundle) => (
                 <span key={bundle.id}>
-                  {bundle.label}: {bundle.filesCount} файлов, {bundle.status === "ready" ? "готово" : "устарело"}
+                  {bundle.label}: {bundle.filesCount} материалов, {bundle.status === "ready" ? "актуален" : "устарел"}
                 </span>
               ))}
             </div>
@@ -1333,9 +1344,9 @@ function StagePackShell({
           <div className="review-main">
             <div className="preview-header">
               <div>
-                <p className="eyebrow">Человеческая проверка</p>
+                <p className="eyebrow">Ручная проверка</p>
                 <h2>Сомнительные такты</h2>
-                <p>AI не притворяется идеальным: спорные места вынесены отдельно, чтобы их быстро принять или исправить.</p>
+                <p>AI не притворяется идеальным: сомнительные такты вынесены отдельно — их можно принять, исправить или оставить на репетицию.</p>
               </div>
               <span className="status-badge needs_review">{reviewCount} в работе</span>
             </div>
@@ -1464,7 +1475,7 @@ function StagePackShell({
               </label>
               <button className="primary-action" type="button" onClick={submitChat} disabled={!chatCommand.trim()}>
                 <Sparkles size={18} />
-                Применить как мок
+                Применить в демо
               </button>
             </div>
           </div>
@@ -1510,17 +1521,17 @@ function StagePackShell({
       {workspaceTab === "export" && (
         <section id="workspace-export" className="stage-panel stage-view export-view" role="tabpanel">
           <div className="export-main">
-            <div className="plan-banner" aria-label="Бесплатные и платные функции">
+            <div className="plan-banner" aria-label="Что собрано и что появится после обработки">
               <div>
                 <Sparkles size={18} />
                 <span>
-                  <strong>Бесплатно:</strong> демо, базовый разбор, форма, аккорды-превью и AI-подсказки.
+                  <strong>Собрано:</strong> демо-проекты, разбор, материалы, версии и статусы выдачи.
                 </span>
               </div>
               <div>
-                <LockKeyhole size={18} />
+                <Clock3 size={18} />
                 <span>
-                  <strong>Подписка:</strong> экспорт ZIP/PDF/MIDI/WAV, ссылки, версии и командная выдача.
+                  <strong>Нужна обработка:</strong> настоящие PDF, MIDI, аудио, ZIP и ссылки для музыкантов.
                 </span>
               </div>
             </div>
@@ -1557,8 +1568,8 @@ function StagePackShell({
                 onClick={issueLinks}
                 disabled={selectedRecipients.length === 0 || project.dataRetention.resultsDeleted}
               >
-                <LockKeyhole size={14} />
-                Создать ссылки по подписке
+                <Share2 size={14} />
+                Создать демо-ссылки
               </button>
               <button
                 className="secondary-action pro-action"
@@ -1566,14 +1577,15 @@ function StagePackShell({
                 onClick={rebuildBundle}
                 disabled={project.dataRetention.resultsDeleted}
               >
-                <LockKeyhole size={14} />
-                Пересобрать ZIP и треки
+                <Repeat2 size={14} />
+                Пересобрать пакет
               </button>
               {project.dataRetention.resultsDeleted && (
                 <p className="action-hint">Результаты удалены, выдача и пересборка недоступны.</p>
               )}
               {project.shareLinks.length > 0 && (
                 <div className="mock-links">
+                  <em className="mock-links-caption">Демо-ссылки: не открываются</em>
                   {project.shareLinks.map((link) => (
                     <span key={link.id} className={link.status === "stale" ? "stale" : undefined}>
                       {link.label}
@@ -1590,13 +1602,13 @@ function StagePackShell({
               <strong>Пакеты</strong>
               {project.exportBundles.map((bundle) => (
                 <span key={bundle.id}>
-                  {bundle.label}: {bundle.filesCount} файлов, {bundle.status === "ready" ? "готово" : "устарело"}
+                  {bundle.label}: {bundle.filesCount} материалов, {bundle.status === "ready" ? "актуален" : "устарел"}
                 </span>
               ))}
             </div>
 
             <section className="subpanel compact">
-              <h3>Настройки обработки</h3>
+              <h3>Настройки задачи</h3>
               <CostEstimateBox estimate={project.costEstimate} compact />
               <div className="setup-summary-strip compact" aria-label="Настройки задачи">
                 <strong>{project.setupSnapshot.title}</strong>
@@ -1681,10 +1693,10 @@ function TransportBar({ project }: { project: Project }) {
   const loopSection = project.scenario === "education" ? "куплет + припев" : "припев 2";
 
   return (
-    <div className="transport-bar" aria-label="Прослушивание мока">
+    <div className="transport-bar" aria-label="Транспорт, звука нет">
       <button className="transport-button" type="button" onClick={() => setIsPlaying((value) => !value)}>
         {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-        <span>{isPlaying ? "Пауза" : "Прослушать мок"}</span>
+        <span>{isPlaying ? "Пауза" : "Проиграть без звука"}</span>
       </button>
       <div className="transport-metrics">
         <span>{project.analysis.bpm} BPM</span>
@@ -1785,7 +1797,7 @@ function ArtifactPreview({ project, artifact }: { project: Project; artifact: Pr
     return (
       <div className="empty-preview">
         <Clock3 size={22} />
-        <span>Материал еще готовится. После обработки он появится в Stage Pack.</span>
+        <span>Этого материала нет в демо-данных. В продукте он появится после обработки.</span>
       </div>
     );
   }
