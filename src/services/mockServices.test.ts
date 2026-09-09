@@ -43,6 +43,14 @@ describe("mock services", () => {
     expect(updated.changeLog[0].title).toContain("припев");
   });
 
+  it("marks affected artifacts as stale after director action", () => {
+    const project = createProjectFromDemo("band-demo");
+    const updated = applyDirectorAction(project, "boost-chorus");
+
+    expect(updated.stagePack.artifacts.find((artifact) => artifact.type === "score")?.isStale).toBe(true);
+    expect(updated.stagePack.artifacts.find((artifact) => artifact.type === "zip")?.status).toBe("rebuild_required");
+  });
+
   it("updates review issue status", () => {
     const project = createProjectFromDemo("band-demo");
     const issue = project.reviewIssues[0];
@@ -57,5 +65,6 @@ describe("mock services", () => {
 
     expect(updated.shareLinks).toHaveLength(2);
     expect(updated.shareRecipients.filter((recipient) => recipient.status === "issued")).toHaveLength(2);
+    expect(updated.changeLog[0].title).toBe("Материалы выданы");
   });
 });

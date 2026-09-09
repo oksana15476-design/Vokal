@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -17,8 +17,16 @@ import {
   Users,
 } from "lucide-react";
 import { processingGoals } from "./domain/mockData";
-import type { ProcessingGoalId, ProcessingStep, Project, Scenario } from "./domain/types";
-import { createProjectFromDemo, createProjectFromUpload, getGoalsForScenario, listDemoProjects } from "./services/mockServices";
+import type { DirectorActionId, ProcessingGoalId, ProcessingStep, Project, ReviewStatus, Scenario } from "./domain/types";
+import {
+  applyDirectorAction,
+  createProjectFromDemo,
+  createProjectFromUpload,
+  createShareLinks,
+  getGoalsForScenario,
+  listDemoProjects,
+  updateReviewIssue,
+} from "./services/mockServices";
 
 type Screen = "start" | "setup" | "processing" | "stage-pack";
 type MobileTab = "materials" | "preview" | "director";
@@ -233,7 +241,9 @@ export default function App() {
       {screen === "stage-pack" && project && (
         <StagePackShell
           project={project}
+          setProject={setProject}
           selectedArtifactId={selectedArtifactId}
+          setSelectedArtifactId={setSelectedArtifactId}
           selectedArtifactName={selectedArtifact?.name ?? "Материал"}
           mobileTab={mobileTab}
           setMobileTab={setMobileTab}
@@ -515,24 +525,97 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
   );
 }
 
+const artifactStatusCopy = {
+  ready: "готово",
+  draft: "черновик",
+  needs_review: "проверить",
+  rebuild_required: "пересобрать",
+  pending: "готовится",
+} as const;
+
+const reviewStatusCopy: Record<ReviewStatus, string> = {
+  needs_review: "нужно проверить",
+  checked: "проверено",
+  fixed: "исправлено",
+  uncertain: "сомнительно",
+  accepted_for_rehearsal: "принято для репетиции",
+};
+
+const actionLabel: Record<DirectorActionId, string> = {
+  "transpose-down-2": "Транспонировать",
+  "merge-guitars": "Объединить гитары",
+  "move-strings-to-keys": "На клавиши",
+  "simplify-drums": "Упростить",
+  "beginner-bass": "Бас easy",
+  "boost-chorus": "Усилить",
+  "practice-without-bass": "Трек без баса",
+  "education-version": "Учебная версия",
+  "advanced-student-part": "Advanced",
+  "student-ensemble": "Ансамбль",
+  "lesson-analysis": "Разбор урока",
+};
+
 function StagePackShell({
   project,
-  selectedArtifactName,
+  setProject,
+  selectedArtifactId,
+  setSelectedArtifactId,
   mobileTab,
   setMobileTab,
   onBack,
 }: {
   project: Project;
+  setProject: Dispatch<SetStateAction<Project | null>>;
   selectedArtifactId: string | null;
+  setSelectedArtifactId: (artifactId: string) => void;
   selectedArtifactName: string;
   mobileTab: MobileTab;
   setMobileTab: (tab: MobileTab) => void;
   onBack: () => void;
 }) {
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>(
+    project.shareRecipients.filter((recipient) => recipient.status !== "opened").slice(0, 2).map((recipient) => recipient.id),
+  );
+  const [chatCommand, setChatCommand] = useState("");
   const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
+  const selectedArtifact =
+    project.stagePack.artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? project.stagePack.artifacts[0];
   const averageConfidence =
     Object.values(project.analysis.confidenceByPart).reduce((sum, value) => sum + value, 0) /
     Object.values(project.analysis.confidenceByPart).length;
+  const selectedVersionChanges = currentVersion?.changes ?? [];
+
+  const runAction = (actionId: DirectorActionId) => {
+    setProject((current) => (current ? applyDirectorAction(current, actionId) : current));
+  };
+
+  const changeReviewStatus = (issueId: string, status: ReviewStatus) => {
+    setProject((current) => (current ? updateReviewIssue(current, issueId, status) : current));
+  };
+
+  const toggleRecipient = (recipientId: string) => {
+    setSelectedRecipients((current) =>
+      current.includes(recipientId) ? current.filter((id) => id !== recipientId) : [...current, recipientId],
+    );
+  };
+
+  const issueLinks = () => {
+    setProject((current) => (current ? createShareLinks(current, selectedRecipients) : current));
+  };
+
+  const submitChat = () => {
+    const command = chatCommand.toLowerCase();
+    const action: DirectorActionId =
+      project.scenario === "education" && (command.includes("слож") || command.includes("advanced"))
+        ? "advanced-student-part"
+        : project.scenario === "education" && command.includes("ансамб")
+          ? "student-ensemble"
+          : command.includes("трансп")
+            ? "transpose-down-2"
+            : "boost-chorus";
+    runAction(action);
+    setChatCommand("");
+  };
 
   return (
     <section className="stage-shell">
@@ -565,29 +648,106 @@ function StagePackShell({
 
       <div className="stage-grid">
         <aside className={`stage-panel materials-pane ${mobileTab === "materials" ? "mobile-visible" : ""}`}>
-          <h2>Материалы</h2>
+          <div className="pane-title-row">
+            <h2>Материалы</h2>
+            <span>{project.stagePack.artifacts.length}</span>
+          </div>
           {project.stagePack.artifacts.map((artifact) => (
-            <button key={artifact.id} type="button" className="artifact-row">
+            <button
+              key={artifact.id}
+              type="button"
+              className={artifact.id === selectedArtifact.id ? "artifact-row active" : "artifact-row"}
+              onClick={() => {
+                setSelectedArtifactId(artifact.id);
+                setMobileTab("preview");
+              }}
+            >
               <span>{artifact.name}</span>
               <small>
-                {artifact.format} · {formatConfidence(artifact.confidence)}
+                {artifact.format} · {formatConfidence(artifact.confidence)} · {artifactStatusCopy[artifact.status]}
               </small>
+              {artifact.isStale && <em>нужно пересобрать</em>}
             </button>
           ))}
+
+          <div className="bundle-box">
+            <strong>Пакеты</strong>
+            {project.exportBundles.map((bundle) => (
+              <span key={bundle.id}>
+                {bundle.label}: {bundle.filesCount} файлов, {bundle.status === "ready" ? "готово" : "устарело"}
+              </span>
+            ))}
+          </div>
         </aside>
 
         <section className={`stage-panel preview-pane ${mobileTab === "preview" ? "mobile-visible" : ""}`}>
-          <p className="eyebrow">Просмотр</p>
-          <h2>{selectedArtifactName}</h2>
-          <div className="mock-score">
-            {project.analysis.sections.map((section) => (
-              <div key={section.id} className="score-line">
-                <strong>
-                  {section.label} · такты {section.startBar}-{section.endBar}
-                </strong>
-                <span>{section.note}</span>
+          <div className="preview-header">
+            <div>
+              <p className="eyebrow">Просмотр</p>
+              <h2>{selectedArtifact.name}</h2>
+              <p>{selectedArtifact.description}</p>
+            </div>
+            <span className={`status-badge ${selectedArtifact.status}`}>{artifactStatusCopy[selectedArtifact.status]}</span>
+          </div>
+
+          <div className="song-facts">
+            <span>{project.analysis.title}</span>
+            <span>{project.analysis.key}</span>
+            <span>{project.analysis.bpm} BPM</span>
+            <span>{project.analysis.meter}</span>
+            <span>{project.analysis.duration}</span>
+          </div>
+
+          <ArtifactPreview project={project} artifact={selectedArtifact} />
+
+          <div className="workspace-columns">
+            <section className="subpanel">
+              <h3>Версии</h3>
+              <div className="version-list">
+                {project.versions.map((version) => (
+                  <button
+                    key={version.id}
+                    type="button"
+                    className={version.id === project.currentVersionId ? "version-row active" : "version-row"}
+                    onClick={() =>
+                      setProject((current) => (current ? { ...current, currentVersionId: version.id } : current))
+                    }
+                  >
+                    <span>{version.label}</span>
+                    <small>{version.status === "needs_review" ? "нужна проверка" : "черновик"}</small>
+                  </button>
+                ))}
               </div>
-            ))}
+              <ul className="change-list">
+                {selectedVersionChanges.map((change) => (
+                  <li key={change}>{change}</li>
+                ))}
+              </ul>
+            </section>
+
+            <section className="subpanel">
+              <h3>Сомнительные такты</h3>
+              <div className="review-list">
+                {project.reviewIssues.map((issue) => (
+                  <div key={issue.id} className="review-item">
+                    <strong>
+                      Такт {issue.bar}: {issue.title}
+                    </strong>
+                    <p>{issue.reason}</p>
+                    <div className="review-actions">
+                      {(["checked", "fixed", "accepted_for_rehearsal"] as const).map((status) => (
+                        <button key={status} type="button" onClick={() => changeReviewStatus(issue.id, status)}>
+                          {reviewStatusCopy[status]}
+                        </button>
+                      ))}
+                    </div>
+                    <small>
+                      {issue.part} · {formatConfidence(issue.confidence)} · {reviewStatusCopy[issue.status]}
+                    </small>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         </section>
 
@@ -603,10 +763,140 @@ function StagePackShell({
             <div key={suggestion.id} className="suggestion-card">
               <strong>{suggestion.title}</strong>
               <p>{suggestion.description}</p>
+              <button type="button" onClick={() => runAction(suggestion.actionId)}>
+                {actionLabel[suggestion.actionId]}
+              </button>
             </div>
           ))}
+
+          <div className="chat-box">
+            <label>
+              <span>Команда AI-директору</span>
+              <textarea
+                value={chatCommand}
+                onChange={(event) => setChatCommand(event.target.value)}
+                placeholder={
+                  project.scenario === "education"
+                    ? "Например: усложни партию для сильного ученика"
+                    : "Например: усили припев и сделай концовку сценичнее"
+                }
+              />
+            </label>
+            <button className="primary-action" type="button" onClick={submitChat} disabled={!chatCommand.trim()}>
+              <Sparkles size={18} />
+              Применить как мок
+            </button>
+          </div>
+
+          <div className="subpanel compact">
+            <h3>Выдача материалов</h3>
+            <div className="recipient-list">
+              {project.shareRecipients.map((recipient) => (
+                <label key={recipient.id} className="recipient-row">
+                  <input
+                    type="checkbox"
+                    checked={selectedRecipients.includes(recipient.id)}
+                    onChange={() => toggleRecipient(recipient.id)}
+                  />
+                  <span>
+                    <strong>{recipient.name}</strong>
+                    <small>
+                      {recipient.material} · {recipient.status === "issued" ? "выдано" : recipient.status === "opened" ? "открыто" : recipient.status === "needs_fix" ? "нужна правка" : "не выдано"}
+                    </small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <button className="secondary-action" type="button" onClick={issueLinks} disabled={selectedRecipients.length === 0}>
+              Создать моковые ссылки
+            </button>
+            {project.shareLinks.length > 0 && (
+              <div className="mock-links">
+                {project.shareLinks.map((link) => (
+                  <span key={link.id}>{link.label}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="subpanel compact">
+            <h3>История</h3>
+            {project.changeLog.slice(0, 4).map((entry) => (
+              <div key={entry.id} className="history-row">
+                <strong>{entry.title}</strong>
+                <span>{entry.description}</span>
+              </div>
+            ))}
+          </div>
         </aside>
       </div>
     </section>
+  );
+}
+
+function ArtifactPreview({ project, artifact }: { project: Project; artifact: Project["stagePack"]["artifacts"][number] }) {
+  if (artifact.status === "pending") {
+    return (
+      <div className="empty-preview">
+        <Clock3 size={22} />
+        <span>Материал еще готовится. После обработки он появится в Stage Pack.</span>
+      </div>
+    );
+  }
+
+  if (artifact.preview.kind === "waveform") {
+    return (
+      <div className="waveform-preview">
+        {artifact.preview.lines.map((line, index) => (
+          <div key={line} className="wave-row">
+            <span>{line}</span>
+            <i style={{ width: `${64 + ((index * 13) % 30)}%` }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (artifact.preview.kind === "midi") {
+    return (
+      <div className="piano-roll">
+        {artifact.preview.lines.map((line, index) => (
+          <div key={line} className="midi-row">
+            <span>{line}</span>
+            <i style={{ left: `${8 + index * 9}%`, width: `${24 + index * 4}%` }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (artifact.preview.kind === "bundle") {
+    return (
+      <div className="bundle-preview">
+        {artifact.preview.lines.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mock-score">
+      {project.analysis.sections.map((section) => (
+        <div key={section.id} className="score-line">
+          <strong>
+            {section.label} · такты {section.startBar}-{section.endBar}
+          </strong>
+          <span>{section.note}</span>
+        </div>
+      ))}
+      <div className="chord-strip" aria-label="Аккорды">
+        {project.analysis.chords.map((chord) => (
+          <span key={`${chord.bar}-${chord.chord}`}>
+            {chord.bar}: {chord.chord}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
