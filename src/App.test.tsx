@@ -569,6 +569,14 @@ describe("честность текста", () => {
     await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
     await screen.findByRole("dialog");
     assertClean("подтверждение удаления");
+    await user.keyboard("{Escape}");
+
+    // Список песен и подтверждение удаления песни (B94).
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+    assertClean("список песен");
+    await user.click(within(document.querySelector(".song-row") as HTMLElement).getByRole("button", { name: /Удалить/ }));
+    await screen.findByRole("dialog");
+    assertClean("подтверждение удаления песни");
   });
 
   it("не обещает тарифов, сроков и не содержит жаргона в Stage Pack", async () => {
