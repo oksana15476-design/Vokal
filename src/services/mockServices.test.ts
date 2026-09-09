@@ -291,3 +291,31 @@ describe("загруженный проект не наследует чужой
     expect(demo.analysis.key).toBe("Gm");
   });
 });
+
+describe("откат на глубину, а не на шаг (B74)", () => {
+  it("возвращает материалы любой версии, а не только предыдущей", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const firstVersionId = demo.currentVersionId;
+    const namesAtStart = demo.stagePack.artifacts.map((artifact) => `${artifact.id}:${artifact.status}`);
+
+    const v2 = applyDirectorAction(demo, "merge-guitars");
+    const v3 = applyDirectorAction(v2, "boost-chorus");
+    const v4 = applyDirectorAction(v3, "simplify-drums");
+    expect(v4.versions.length).toBe(demo.versions.length + 3);
+
+    // Откат через две версии назад, а не на шаг.
+    const back = rollbackToVersion(v4, firstVersionId);
+    expect(back.currentVersionId).toBe(firstVersionId);
+    expect(back.stagePack.artifacts.map((artifact) => `${artifact.id}:${artifact.status}`)).toEqual(namesAtStart);
+  });
+
+  it("не теряет промежуточные версии после отката", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const v2 = applyDirectorAction(demo, "merge-guitars");
+    const v3 = applyDirectorAction(v2, "boost-chorus");
+
+    const back = rollbackToVersion(v3, demo.currentVersionId);
+    // Ветка вперед должна остаться доступной: иначе откат — это удаление.
+    expect(back.versions.map((version) => version.id)).toEqual(v3.versions.map((version) => version.id));
+  });
+});

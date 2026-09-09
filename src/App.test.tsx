@@ -567,6 +567,30 @@ describe("шаги обработки не рапортуют о несдела�
   });
 });
 
+describe("демо не перетирает задание пользователя (B77)", () => {
+  const jobOption = (title: string) =>
+    screen.getByRole("radio", { name: new RegExp(title) });
+
+  it("сохраняет выбранное задание после просмотра демо", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Пользователь собрал свое задание: школьный ансамбль.
+    await user.click(jobOption("Школьный ансамбль"));
+    expect(jobOption("Школьный ансамбль").getAttribute("aria-checked")).toBe("true");
+
+    // Заглянул в демо и вернулся.
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+
+    // Раньше openDemo вызывал setScenario и setGoalId и подменял выбор
+    // пользователя своим: задание исчезало, подсветка показывала чужое.
+    expect(jobOption("Школьный ансамбль").getAttribute("aria-checked")).toBe("true");
+    expect(jobOption("Подготовить к репетиции").getAttribute("aria-checked")).toBe("false");
+  });
+});
+
 describe("бренд-бук: структура экранов", () => {
   it("показывает шапку продукта со знаком и навигацией", async () => {
     render(<App />);

@@ -325,10 +325,11 @@ export default function App() {
   };
 
   const openDemo = (demoId: string) => {
-    const nextProject = createProjectFromDemo(demoId);
-    setScenario(nextProject.scenario);
-    setGoalId(nextProject.processingGoal.id);
-    startProcessing(nextProject);
+    // Сценарий и цель здесь намеренно не трогаются. Это выбор пользователя
+    // на стартовом экране, а не свойство демо: раньше просмотр демо подменял
+    // задание своим, и после возврата подсветка карточки показывала чужое.
+    // Открытый проект несет собственные сценарий и цель внутри себя.
+    startProcessing(createProjectFromDemo(demoId));
   };
 
   const selectFile = async (file: File | null) => {
