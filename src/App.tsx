@@ -9,7 +9,6 @@ import {
   Download,
   FileAudio,
   FolderOpen,
-  GraduationCap,
   Layers3,
   ListChecks,
   LockKeyhole,
@@ -20,7 +19,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   Share2,
-  Users,
   Volume2,
 } from "lucide-react";
 import { processingGoals } from "./domain/mockData";
@@ -41,6 +39,57 @@ import {
 
 type Screen = "start" | "setup" | "processing" | "stage-pack";
 type WorkspaceTab = "overview" | "materials" | "review" | "director" | "export";
+
+const homeJobOptions: Array<{
+  goalId: ProcessingGoalId;
+  scenario: Scenario;
+  title: string;
+  detail: string;
+  outcome: string;
+}> = [
+  {
+    goalId: "band-rehearsal",
+    scenario: "band",
+    title: "Подготовить к репетиции",
+    detail: "партии, клик, минус, выдача",
+    outcome: "Группа получает рабочий план до следующей репетиции.",
+  },
+  {
+    goalId: "band-parts",
+    scenario: "band",
+    title: "Разложить на партии",
+    detail: "ноты, TAB, MIDI, PDF",
+    outcome: "Каждый музыкант видит свою партию и спорные места.",
+  },
+  {
+    goalId: "band-minus",
+    scenario: "band",
+    title: "Минус, клик, аудиослои",
+    detail: "репетиционные треки",
+    outcome: "Можно заниматься без вокала, баса или другого слоя.",
+  },
+  {
+    goalId: "band-boost",
+    scenario: "band",
+    title: "Усилить припев",
+    detail: "энергия, акценты, концовка",
+    outcome: "AI предложит, что добавить, чтобы песня звучала сильнее.",
+  },
+  {
+    goalId: "lesson-advanced",
+    scenario: "education",
+    title: "Ученик может лучше",
+    detail: "усложнить партию и домашку",
+    outcome: "Сильный ученик получает версию выше базового уровня.",
+  },
+  {
+    goalId: "lesson-ensemble",
+    scenario: "education",
+    title: "Школьный ансамбль",
+    detail: "раздать роли по уровню",
+    outcome: "Песня раскладывается на несколько учеников и партий.",
+  },
+];
 
 const scenarioCopy: Record<Scenario, { label: string; description: string }> = {
   band: {
@@ -337,44 +386,73 @@ function StartScreen({
   const recommendedDemo = demos.find((demo) => demo.scenario === scenario) ?? demos[0];
   const activeGoal = goals.find((goal) => goal.id === goalId) ?? goals[0];
   const expectedOutputs = activeGoal.expectedOutputs.slice(0, 4);
-  const quickGoals = goals.slice(0, 5);
+  const activeHomeJob =
+    homeJobOptions.find((job) => job.goalId === goalId) ??
+    homeJobOptions.find((job) => job.scenario === scenario) ??
+    homeJobOptions[0];
   const jobText =
     scenario === "band"
-      ? `Подготовь песню для репетиции: ${activeGoal.label.toLowerCase()}, партии, аудиослои, клик и выдачу музыкантам.`
-      : `Подготовь песню для урока: ${activeGoal.label.toLowerCase()}, уровень ученика, домашку и несколько партий.`;
+      ? `Завтра репетиция: сделай ${activeGoal.label.toLowerCase()}, отметь слабые места и подготовь материалы музыкантам.`
+      : `Подготовь урок: сделай ${activeGoal.label.toLowerCase()}, учти уровень ученика и собери домашку.`;
+  const chooseHomeJob = (job: (typeof homeJobOptions)[number]) => {
+    setScenario(job.scenario);
+    setGoalId(job.goalId);
+  };
 
   return (
     <section className="home-screen">
-      <div className="home-lead">
-        <div>
-          <p className="eyebrow">AI-задание</p>
-          <h1>Что сделать с песней?</h1>
-          <p className="intro-copy">
-            Загрузите трек, выберите задачу и получите бесплатный черновой разбор. Полный Stage Pack и экспорт
-            открываются в подписке.
-          </p>
-        </div>
-      </div>
+      <div className="home-hero">
+        <section className="home-lead">
+          <div>
+            <p className="eyebrow">AI Stage Pack</p>
+            <h1>Разберите песню на партии за несколько минут</h1>
+            <p className="intro-copy">
+              Загрузите трек: Vokal сделает форму, аккорды, партии, аудиослои, клик и список мест для проверки.
+            </p>
+          </div>
+          <div className="hero-proof-row" aria-label="Что бесплатно видно сразу">
+            <span>60 секунд бесплатно</span>
+            <span>BPM и тональность</span>
+            <span>форма и аккорды</span>
+            <span>2 AI-подсказки</span>
+          </div>
+        </section>
 
-      <div className="job-layout">
-        <section className="job-card" aria-label="Создать AI-задание">
-          <div className="scenario-switch" role="tablist" aria-label="Сценарий">
-            {(["band", "education"] as const).map((item) => (
+        <section className="job-card hero-job-card" aria-label="Создать AI-задание">
+          <div className="job-card-head">
+            <span>1</span>
+            <div>
+              <h2>Загрузите песню</h2>
+              <p>Выберите, что нужно получить. Детали состава, уровня ученика и экспорта уточним на следующем шаге.</p>
+            </div>
+          </div>
+
+          <div className="home-job-grid" role="radiogroup" aria-label="Что сделать с песней">
+            {homeJobOptions.map((job) => (
               <button
-                key={item}
+                key={job.goalId}
                 type="button"
-                className={item === scenario ? "segment active" : "segment"}
-                onClick={() => setScenario(item)}
+                role="radio"
+                aria-checked={job.goalId === activeHomeJob.goalId}
+                className={job.goalId === activeHomeJob.goalId ? "home-job-option selected" : "home-job-option"}
+                onClick={() => chooseHomeJob(job)}
               >
-                {item === "band" ? <Users size={18} /> : <GraduationCap size={18} />}
-                <span>{scenarioCopy[item].label}</span>
+                <strong>{job.title}</strong>
+                <span>{job.detail}</span>
               </button>
             ))}
           </div>
 
+          <div className="job-director-command" aria-label="Команда AI-директору">
+            <Sparkles size={18} />
+            <span>
+              <b>{activeHomeJob.outcome}</b> {jobText}
+            </span>
+          </div>
+
           <label className="drop-zone job-drop-zone">
             <FileAudio size={30} />
-            <span>{fileName || "Добавьте песню для бесплатного черновика"}</span>
+            <span>{fileName || "Добавьте MP3/WAV для бесплатного черновика"}</span>
             <input
               type="file"
               accept=".mp3,.wav,.flac,.m4a,audio/*"
@@ -399,65 +477,104 @@ function StartScreen({
 
           <button className="primary-action job-action" type="button" disabled={!canContinueToSetup} onClick={onContinue}>
             <SlidersHorizontal size={18} />
-            Настроить и запустить бесплатно
+            Разобрать песню бесплатно
           </button>
 
-          <div className="ai-composer" aria-label="AI-команда">
-            <div className="composer-top">
-              <span>
-                <Sparkles size={18} />
-                Задание AI-директору
-              </span>
-              <small>можно изменить в настройках</small>
-            </div>
-            <p>{jobText}</p>
-            <div className="composer-actions" aria-label="Быстрые AI-пресеты">
-              {quickGoals.map((goal) => (
-                <button
-                  key={goal.id}
-                  type="button"
-                  className={goal.id === goalId ? "composer-chip active" : "composer-chip"}
-                  onClick={() => setGoalId(goal.id)}
-                >
-                  {goal.label}
-                </button>
-              ))}
-            </div>
+          <div className="free-preview-note">
+            <CheckCircle2 size={16} />
+            <span>Без оплаты покажем черновой разбор. Полная песня, PDF/MIDI/WAV/ZIP и ссылки откроются в Pro.</span>
           </div>
         </section>
 
-        <aside className="home-side">
-          <section className="demo-spotlight">
-            <div>
-              <div className="section-title">
-                <FolderOpen size={17} />
-                <span>Понять продукт за минуту</span>
-              </div>
-              <h2>{recommendedDemo.name}</h2>
-              <p>{scenarioCopy[recommendedDemo.scenario].description}</p>
+        <HomeResultPreview activeGoalLabel={activeGoal.label} expectedOutputs={expectedOutputs} scenario={scenario} />
+      </div>
+
+      <div className="home-support-row">
+        <section className="demo-spotlight">
+          <div>
+            <div className="section-title">
+              <FolderOpen size={17} />
+              <span>Демо без загрузки</span>
             </div>
-            <button className="primary-action" type="button" onClick={() => onOpenDemo(recommendedDemo.id)}>
-              <ArrowRight size={18} />
-              Открыть демо бесплатно
-            </button>
-          </section>
-
-          <div className="launch-stack">
-            {demos
-              .filter((demo) => demo.id !== recommendedDemo.id)
-              .map((demo) => (
-                <button key={demo.id} type="button" className="demo-row" onClick={() => onOpenDemo(demo.id)}>
-                  <span>{demo.name}</span>
-                  <small>{scenarioCopy[demo.scenario].label}</small>
-                </button>
-              ))}
+            <h2>{recommendedDemo.name}</h2>
+            <p>{scenarioCopy[recommendedDemo.scenario].description}</p>
           </div>
+          <button className="primary-action" type="button" onClick={() => onOpenDemo(recommendedDemo.id)}>
+            <ArrowRight size={18} />
+            Открыть готовый разбор
+          </button>
+        </section>
 
-          <AccessModel />
-        </aside>
+        <div className="launch-stack">
+          {demos
+            .filter((demo) => demo.id !== recommendedDemo.id)
+            .map((demo) => (
+              <button key={demo.id} type="button" className="demo-row" onClick={() => onOpenDemo(demo.id)}>
+                <span>{demo.name}</span>
+                <small>{scenarioCopy[demo.scenario].label}</small>
+              </button>
+            ))}
+        </div>
+
+        <AccessModel />
       </div>
 
     </section>
+  );
+}
+
+function HomeResultPreview({
+  activeGoalLabel,
+  expectedOutputs,
+  scenario,
+}: {
+  activeGoalLabel: string;
+  expectedOutputs: string[];
+  scenario: Scenario;
+}) {
+  const tracks =
+    scenario === "education"
+      ? ["ученик", "преподаватель", "ансамбль", "домашка"]
+      : ["вокал", "барабаны", "бас", "гитара", "клавиши"];
+
+  return (
+    <aside className="home-result-preview" aria-label="Превью результата">
+      <div className="result-preview-top">
+        <span>После загрузки</span>
+        <b>Free preview</b>
+      </div>
+      <div className="result-preview-title">
+        <strong>{activeGoalLabel}</strong>
+        <span>{scenario === "education" ? "урок, уровень, домашка" : "репетиция, партии, выдача"}</span>
+      </div>
+      <div className="preview-wave" aria-label="Форма песни">
+        {[42, 68, 54, 86, 60, 74, 48, 92, 56, 70, 44, 78].map((height, index) => (
+          <i key={index} style={{ height: `${height}%` }} />
+        ))}
+      </div>
+      <div className="preview-output-row">
+        {expectedOutputs.map((output) => (
+          <span key={output}>{output}</span>
+        ))}
+      </div>
+      <div className="preview-track-list">
+        {tracks.map((track, index) => (
+          <div key={track} className="preview-track">
+            <span>{track}</span>
+            <i>
+              <b style={{ width: `${72 - index * 5}%` }} />
+            </i>
+          </div>
+        ))}
+      </div>
+      <div className="preview-ai-note">
+        <Sparkles size={16} />
+        <span>
+          AI нашел 2 места для проверки и предложил{" "}
+          {scenario === "education" ? "версию сильнее для ученика" : "усилить припев"}.
+        </span>
+      </div>
+    </aside>
   );
 }
 
@@ -904,6 +1021,7 @@ function StagePackShell({
 
             <SectionTimeline project={project} />
             <TransportBar project={project} />
+            <StudioTrackStack project={project} onAction={runAction} />
             <ConfidenceMixer project={project} />
           </div>
 
@@ -1319,6 +1437,83 @@ function TransportBar({ project }: { project: Project }) {
         </span>
       </div>
     </div>
+  );
+}
+
+function StudioTrackStack({
+  project,
+  onAction,
+}: {
+  project: Project;
+  onAction: (actionId: DirectorActionId) => void;
+}) {
+  const entries = Object.entries(project.analysis.confidenceByPart);
+  const commandForPart = (part: string): { label: string; actionId: DirectorActionId } => {
+    const normalized = part.toLowerCase();
+
+    if (project.scenario === "education") {
+      return normalized.includes("вокал")
+        ? { label: "разбор урока", actionId: "lesson-analysis" }
+        : { label: "под ученика", actionId: "advanced-student-part" };
+    }
+
+    if (normalized.includes("гитар")) {
+      return { label: "объединить", actionId: "merge-guitars" };
+    }
+
+    if (normalized.includes("клав")) {
+      return { label: "на клавиши", actionId: "move-strings-to-keys" };
+    }
+
+    if (normalized.includes("бараб")) {
+      return { label: "упростить", actionId: "simplify-drums" };
+    }
+
+    if (normalized.includes("бас")) {
+      return { label: "трек без баса", actionId: "practice-without-bass" };
+    }
+
+    return { label: "усилить", actionId: "boost-chorus" };
+  };
+
+  return (
+    <section className="studio-track-stack" aria-label="Рабочие дорожки">
+      <div className="studio-head">
+        <div>
+          <Layers3 size={18} />
+          <strong>Рабочие дорожки</strong>
+        </div>
+        <span>{project.scenario === "education" ? "уровни и роли учеников" : "слои для репетиции и сцены"}</span>
+      </div>
+      <div className="studio-track-list">
+        {entries.map(([part, value], index) => {
+          const command = commandForPart(part);
+
+          return (
+            <div key={part} className="studio-track-row">
+              <div className="track-name">
+                <strong>{part}</strong>
+                <span>{index === 0 ? "ведущий слой" : index === 1 ? "ритм" : "поддержка"}</span>
+              </div>
+              <i className="track-confidence">
+                <b style={{ width: `${Math.round(value * 100)}%` }} />
+              </i>
+              <div className="track-controls">
+                <button type="button" title={`Solo: ${part}`} aria-label={`Solo: ${part}`}>
+                  S
+                </button>
+                <button type="button" title={`Mute: ${part}`} aria-label={`Mute: ${part}`}>
+                  M
+                </button>
+                <button type="button" onClick={() => onAction(command.actionId)}>
+                  {command.label}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
