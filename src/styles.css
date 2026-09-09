@@ -1,22 +1,112 @@
 :root {
-  --paper: #eef2ee;
-  --paper-strong: #ffffff;
-  --ink: #18201d;
-  --muted: #62706a;
-  --pine: #1f4f45;
-  --pine-2: #2d6b5b;
-  --coral: #c9563c;
-  --coral-dark: #9f3d2c;
-  --brass: #b6842e;
-  --blue-gray: #58717a;
-  --border: #d7dfd9;
-  --border-strong: #aab8b0;
-  --shadow: 0 18px 60px rgb(31 79 69 / 12%);
+  /* --- Дизайн-система Vokal, направление «Пульт». Источник: docs/design/tokens.json --- */
+  /* Примитивы. Хекс внутри компонента — ошибка ревью: пользуемся ролями ниже. */
+  --graphite-900: #0d1113;
+  --graphite-700: #3f4b52;
+  --graphite-500: #5c686e;
+  --steel-200: #dde3e6;
+  --steel-100: #f1f4f5;
+  --steel-border-strong: #b9c3c8;
+  --white: #fff;
+  --teal-500: #00d3a7;
+  --teal-600-hover: #00bd96;
+  --teal-700: #008f74;
+  --teal-tint: #effcf8;
+  --teal-tint-border: #b9ece0;
+  --amber-500: #c98a00;
+  --amber-700: #7a5400;
+  --amber-tint: #fdf8ec;
+  --amber-tint-border: #ecdcb5;
+  --red-500: #ff4d4d;
+  --red-700: #a11d1d;
+  --red-tint: #fdf2f2;
+  --red-tint-border: #f7cccc;
+
+  /* Графитовые поверхности: плеер, микшер, загрузчик. */
+  --console-base: #0d1113;
+  --console-panel: #181e21;
+  --console-line: #2a3338;
+  --console-ink: #fff;
+  --console-ink-muted: #c3ccd0;
+  --console-ink-quiet: #8b979d;
+  --console-warn-ink: #e0a92e;
+  --console-danger-ink: #ff8080;
+
+  /* Роли: ими пользуются компоненты. */
+  --ink: var(--graphite-900);
+  --ink-2: var(--graphite-700);
+  --ink-muted: var(--graphite-500);
+  --surface: var(--white);
+  --canvas: var(--steel-100);
+  --line: var(--steel-200);
+  --console: var(--graphite-900);
+  --accent: var(--teal-500);
+  --accent-ink: var(--teal-700);
+  --danger: var(--red-500);
+  --danger-ink: var(--red-700);
+  --warn: var(--amber-500);
+  --warn-ink: var(--amber-700);
+
+  /* Пространство, форма, высота, движение. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --s16: 64px;
+  --r-1: 6px;
+  --r-2: 8px;
+  --r-3: 12px;
+  --r-4: 16px;
+  --r-pill: 999px;
+  --e-1: 0 1px 2px rgb(13 17 19 / 6%);
+  --e-2: 0 8px 24px rgb(13 17 19 / 8%);
+  --e-3: 0 24px 64px rgb(13 17 19 / 14%);
+  --ring: 2px solid var(--graphite-900);
+  --t-fast: 120ms;
+  --t-base: 160ms;
+  --t-slow: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Высоты интерактивных элементов. */
+  --control-lg: 48px;
+  --control-md: 44px;
+  --control-sm: 38px;
+  --control-xs: 34px;
+  --content-max: 1300px;
+
+  /* Шрифты. В продакшне подключить локально с subset ru+latin. */
+  --font-ui: Manrope, "Helvetica Neue", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, monospace;
+  --font-print: "IBM Plex Sans", Helvetica, Arial, sans-serif;
+
+  /* Пороги уверенности разбора. */
+  --confidence-high: 85;
+  --confidence-medium: 75;
+
+  /*
+   * Совместимость на время миграции: старые имена переменных ведут на новые
+   * роли, поэтому стили перекрашиваются целиком без правки каждого правила.
+   * Удаляются по мере перевода компонентов на роли.
+   */
+  --paper: var(--canvas);
+  --paper-strong: var(--surface);
+  --muted: var(--ink-muted);
+  --pine: var(--accent-ink);
+  --pine-2: var(--accent);
+  --coral: var(--danger);
+  --coral-dark: var(--danger-ink);
+  --brass: var(--warn);
+  --blue-gray: var(--ink-2);
+  --border: var(--line);
+  --border-strong: var(--steel-border-strong);
+  --shadow: var(--e-2);
+
+  background: var(--canvas);
   color: var(--ink);
-  background: linear-gradient(135deg, rgb(255 255 255 / 92%), rgb(238 242 238 / 72%)), var(--paper);
-  font-family:
-    Aptos, "SF Pro Display", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -32,6 +122,9 @@ html {
 }
 
 body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-ui);
   margin: 0;
   min-width: 320px;
 }
@@ -740,19 +833,26 @@ textarea:focus-visible {
   padding: 12px;
 }
 
+/* Дизайн-система, кнопки: primary — графит 48 px, белый текст 14/700. */
 .primary-action {
   align-items: center;
-  background: var(--coral);
-  border: 1px solid var(--coral-dark);
-  border-radius: 8px;
-  color: white;
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--r-2);
+  color: var(--white);
   display: inline-flex;
-  font-weight: 850;
-  gap: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  gap: var(--s2);
   justify-content: center;
-  min-height: 48px;
-  padding: 12px 16px;
+  min-height: var(--control-lg);
+  padding: 12px var(--s4);
   width: 100%;
+}
+
+.primary-action:hover:not(:disabled) {
+  background: #242c30;
+  box-shadow: var(--e-2);
 }
 
 .primary-action:hover:not(:disabled) {
@@ -1617,15 +1717,15 @@ textarea:focus-visible {
 }
 
 .track-confidence b.high {
-  background: #4f9d84;
+  background: var(--accent);
 }
 
 .track-confidence b.mid {
-  background: #d9a441;
+  background: var(--warn);
 }
 
 .track-confidence b.low {
-  background: var(--coral);
+  background: var(--danger);
 }
 
 .track-controls {
@@ -1875,15 +1975,33 @@ textarea:focus-visible {
 
 .review-actions button,
 .suggestion-card button,
+/* secondary — белая, граница steel-border-strong, 13.5/600. */
 .secondary-action {
-  background: #e6ece7;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--steel-border-strong);
+  border-radius: var(--r-2);
   color: var(--ink);
-  font-size: 12px;
-  font-weight: 850;
-  min-height: 34px;
-  padding: 7px 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  min-height: var(--control-xs);
+  padding: 7px var(--s3);
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: var(--canvas);
+  border-color: var(--ink);
+}
+
+/* danger — белая с красной границей, текст red-700. */
+.secondary-action.danger {
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
+}
+
+.secondary-action.danger:hover:not(:disabled) {
+  background: var(--red-tint);
+  border-color: var(--danger-ink);
 }
 
 .pro-action {
@@ -2446,4 +2564,48 @@ textarea:focus-visible {
   font-size: 13px;
   margin: 0 0 12px;
   max-width: 62ch;
+}
+
+/* --- Дизайн-система: числа песни --- */
+
+/*
+ * Требование системы: BPM, тональность, размер, тайм-код, проценты, вес файла
+ * и номер версии набираются моноширинным с табличными цифрами. Иначе значения
+ * прыгают при обновлении и колонки не выравниваются.
+ */
+.song-facts span,
+.transport-metrics span,
+.command-metric strong,
+.cost-estimate-metrics b,
+.track-confidence + .track-value,
+.artifact-row small,
+.section-segment span,
+.constraint-grid span,
+.version-pill,
+.mock-links span {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Дизайн-система: фокус и отключённое состояние --- */
+
+/* Требование системы: видимый фокус на каждом контроле, 2px графит, offset 2. */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible {
+  outline: var(--ring);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }

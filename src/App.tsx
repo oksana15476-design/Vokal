@@ -140,8 +140,13 @@ const setupLabelByKey: Record<string, string> = {
 
 const formatConfidence = (value: number) => `${Math.round(value * 100)}%`;
 
+/**
+ * Пороги уверенности задаёт дизайн-система (docs/design/tokens.json,
+ * confidence.high = 85, confidence.medium = 75): 85 и выше — акцент,
+ * 75-84 — внимание, ниже 75 — опасность.
+ */
 const confidenceLevel = (value: number): "high" | "mid" | "low" =>
-  value >= 0.85 ? "high" : value >= 0.7 ? "mid" : "low";
+  value >= 0.85 ? "high" : value >= 0.75 ? "mid" : "low";
 
 const lowConfidenceThreshold = 0.8;
 

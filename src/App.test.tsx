@@ -147,12 +147,12 @@ describe("Stage Pack", () => {
     await openBandDemo(user);
     await waitForStagePack();
 
-    // Вокал 91% -> high, Гитара 72% -> mid. Раньше градиент красил высокие значения в красный.
-    const vocal = screen.getByLabelText(/Вокал: точность разбора/);
-    const guitar = screen.getByLabelText(/Гитара: точность разбора/);
-
-    expect(vocal.querySelector("b")!.className).toBe("high");
-    expect(guitar.querySelector("b")!.className).toBe("mid");
+    // Пороги задаёт дизайн-система: 85 и выше — акцент, 75-84 — внимание,
+    // ниже 75 — опасность. Вокал 91 -> high, Клавиши 78 -> mid, Гитара 72 -> low.
+    // Раньше градиент красил высокие значения в красный независимо от порогов.
+    expect(screen.getByLabelText(/Вокал: точность разбора/).querySelector("b")!.className).toBe("high");
+    expect(screen.getByLabelText(/Клавиши: точность разбора/).querySelector("b")!.className).toBe("mid");
+    expect(screen.getByLabelText(/Гитара: точность разбора/).querySelector("b")!.className).toBe("low");
   });
 
   it("откатывает материалы к предыдущей версии", async () => {
