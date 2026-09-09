@@ -78,7 +78,7 @@
   --content-max: 1300px;
 
   /* Шрифты. В продакшне подключить локально с subset ru+latin. */
-  --font-ui: Manrope, "Helvetica Neue", system-ui, sans-serif;
+  --font-ui: "Manrope Variable", Manrope, "Helvetica Neue", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, monospace;
   --font-print: "IBM Plex Sans", Helvetica, Arial, sans-serif;
 
@@ -242,17 +242,41 @@ textarea:focus-visible {
   max-width: 1320px;
 }
 
+/*
+ * Три жестких колонки требовали 1092 px вместе с отступами оболочки, а
+ * перестроение включалось только на 980 px. В промежутке — ровно там, где
+ * стоит планшет 1024 в альбомной ориентации, то есть в заявленном контексте
+ * использования — макет выезжал за экран.
+ *
+ * Дизайн-система требует многоколоночные блоки на minmax() + auto-fit, чтобы
+ * они схлопывались по вместимости содержимого, а не по одному порогу.
+ */
 .home-hero {
   align-items: stretch;
   display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(300px, 0.95fr) minmax(420px, 1.16fr) minmax(300px, 0.9fr);
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+
+/* Карточка задания — центральная и самая плотная, ей нужно больше места. */
+@media (width >= 1100px) {
+  .home-hero {
+    grid-template-columns: minmax(300px, 0.95fr) minmax(420px, 1.16fr) minmax(300px, 0.9fr);
+  }
 }
 
 .home-lead {
-  align-content: space-between;
+  align-content: start;
   display: grid;
-  padding: 24px;
+  gap: var(--s6);
+  padding: var(--s6);
+}
+
+/* На широком экране колонки одной высоты, и разгон по краям уместен. */
+@media (width >= 1100px) {
+  .home-lead {
+    align-content: space-between;
+  }
 }
 
 .job-card {
@@ -586,17 +610,35 @@ textarea:focus-visible {
   font-size: 13px;
 }
 
+/* Графитовая поверхность «пульта» из дизайн-системы. */
 .demo-spotlight {
-  background: #203b36;
-  border-radius: 8px;
-  color: white;
+  background: var(--console-base);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-4);
+  color: var(--console-ink);
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  gap: var(--s3);
+  padding: var(--s6);
+}
+
+/*
+ * На графите главная кнопка не может быть графитовой: по системе там работает
+ * акцентная заливка с графитовым текстом. До этой правки кнопка «Открыть
+ * демо-разбор» была почти неразличима на своей же карточке.
+ */
+.demo-spotlight .primary-action {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.demo-spotlight .primary-action:hover:not(:disabled) {
+  background: var(--teal-600-hover);
+  box-shadow: none;
 }
 
 .demo-spotlight .section-title {
-  color: #f1c57a;
+  color: var(--accent);
   margin: 0;
 }
 
@@ -623,8 +665,14 @@ textarea:focus-visible {
 .home-support-row {
   align-items: stretch;
   display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(260px, 330px) minmax(220px, 300px) minmax(0, 1fr);
+  gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+@media (width >= 1100px) {
+  .home-support-row {
+    grid-template-columns: minmax(260px, 330px) minmax(220px, 300px) minmax(0, 1fr);
+  }
 }
 
 .demo-row,
@@ -706,10 +754,15 @@ textarea:focus-visible {
   color: var(--pine);
 }
 
+/*
+ * Три жестких колонки не сжимались ниже ширины плашки статуса, и на 1000-1024 px
+ * карточка выезжала за экран. Дизайн-система для таких блоков предписывает
+ * auto-fit с minmax, чтобы они схлопывались по вместимости содержимого.
+ */
 .access-model {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
 }
 
 .access-card {
@@ -1201,21 +1254,28 @@ textarea:focus-visible {
 }
 
 .command-action {
-  background: var(--pine);
-  border: 1px solid var(--pine);
-  color: white;
-  font-size: 13px;
-  font-weight: 850;
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--r-2);
+  color: var(--white);
+  font-size: 13.5px;
+  font-weight: 700;
   justify-content: center;
 }
 
+/*
+ * «Пересобрать» требует внимания, но ничего не разрушает. По дизайн-системе
+ * красный закреплен за необратимым, поэтому здесь янтарный: после перекраски
+ * палитры кнопка читалась как опасное действие.
+ */
 .command-action.urgent {
-  background: var(--coral);
-  border-color: var(--coral-dark);
+  background: var(--warn);
+  border-color: var(--warn);
+  color: var(--ink);
 }
 
 .command-action:hover:not(:disabled) {
-  box-shadow: 0 12px 26px rgb(31 79 69 / 16%);
+  box-shadow: var(--e-2);
   transform: translateY(-1px);
 }
 
