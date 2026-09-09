@@ -19,7 +19,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   Share2,
-  Volume2,
 } from "lucide-react";
 import { processingGoals } from "./domain/mockData";
 import type { DirectorActionId, ProcessingGoalId, ProcessingStep, Project, ReviewStatus, Scenario } from "./domain/types";
@@ -100,14 +99,6 @@ const scenarioCopy: Record<Scenario, { label: string; description: string }> = {
     label: "Для обучения",
     description: "Разбор песни для урока, домашки, сильного ученика или школьного ансамбля.",
   },
-};
-
-const statusCopy: Record<ProcessingStep["status"], string> = {
-  queued: "в очереди",
-  running: "выполняется",
-  done: "готово",
-  warning: "предупреждение",
-  error: "ошибка",
 };
 
 const workspaceTabs: Array<{ id: WorkspaceTab; label: string; hint: string }> = [
@@ -279,7 +270,7 @@ export default function App() {
     startProcessing(nextProject);
   };
 
-  const canContinueToSetup = fileName.trim().length > 0 && acceptedConsent;
+  const canStartJob = fileName.trim().length > 0 && acceptedConsent;
 
   return (
     <main className="app-shell">
@@ -305,13 +296,13 @@ export default function App() {
           setScenario={setScenario}
           goalId={goalId}
           setGoalId={setGoalId}
-          goals={goals}
           fileName={fileName}
           setFileName={setFileName}
           acceptedConsent={acceptedConsent}
           setAcceptedConsent={setAcceptedConsent}
-          canContinueToSetup={canContinueToSetup}
-          onContinue={() => setScreen("setup")}
+          canStartJob={canStartJob}
+          onStart={startUploadProject}
+          onOpenSettings={() => setScreen("setup")}
           demos={demos}
           onOpenDemo={openDemo}
         />
@@ -321,9 +312,6 @@ export default function App() {
         <SetupScreen
           scenario={scenario}
           selectedGoalLabel={selectedGoal.label}
-          goals={goals}
-          goalId={goalId}
-          setGoalId={setGoalId}
           bandSettings={bandSettings}
           setBandSettings={setBandSettings}
           lessonSettings={lessonSettings}
@@ -357,13 +345,13 @@ interface StartScreenProps {
   setScenario: (scenario: Scenario) => void;
   goalId: ProcessingGoalId;
   setGoalId: (goalId: ProcessingGoalId) => void;
-  goals: ReturnType<typeof getGoalsForScenario>;
   fileName: string;
   setFileName: (fileName: string) => void;
   acceptedConsent: boolean;
   setAcceptedConsent: (accepted: boolean) => void;
-  canContinueToSetup: boolean;
-  onContinue: () => void;
+  canStartJob: boolean;
+  onStart: () => void;
+  onOpenSettings: () => void;
   demos: Project[];
   onOpenDemo: (demoId: string) => void;
 }
@@ -373,18 +361,18 @@ function StartScreen({
   setScenario,
   goalId,
   setGoalId,
-  goals,
   fileName,
   setFileName,
   acceptedConsent,
   setAcceptedConsent,
-  canContinueToSetup,
-  onContinue,
+  canStartJob,
+  onStart,
+  onOpenSettings,
   demos,
   onOpenDemo,
 }: StartScreenProps) {
   const recommendedDemo = demos.find((demo) => demo.scenario === scenario) ?? demos[0];
-  const activeGoal = goals.find((goal) => goal.id === goalId) ?? goals[0];
+  const activeGoal = processingGoals.find((goal) => goal.id === goalId) ?? getGoalsForScenario(scenario)[0];
   const expectedOutputs = activeGoal.expectedOutputs.slice(0, 4);
   const activeHomeJob =
     homeJobOptions.find((job) => job.goalId === goalId) ??
@@ -423,7 +411,7 @@ function StartScreen({
             <span>1</span>
             <div>
               <h2>Загрузите песню</h2>
-              <p>Выберите, что нужно получить. Детали состава, уровня ученика и экспорта уточним на следующем шаге.</p>
+              <p>Выберите результат. Vokal сразу сделает черновик, а детали можно уточнить отдельно.</p>
             </div>
           </div>
 
@@ -475,9 +463,14 @@ function StartScreen({
             ))}
           </div>
 
-          <button className="primary-action job-action" type="button" disabled={!canContinueToSetup} onClick={onContinue}>
-            <SlidersHorizontal size={18} />
+          <button className="primary-action job-action" type="button" disabled={!canStartJob} onClick={onStart}>
+            <Sparkles size={18} />
             Разобрать песню бесплатно
+          </button>
+
+          <button className="settings-link" type="button" disabled={!canStartJob} onClick={onOpenSettings}>
+            <SlidersHorizontal size={16} />
+            Уточнить состав, уровень или выдачу перед запуском
           </button>
 
           <div className="free-preview-note">
@@ -603,9 +596,6 @@ function AccessModel() {
 interface SetupScreenProps {
   scenario: Scenario;
   selectedGoalLabel: string;
-  goals: ReturnType<typeof getGoalsForScenario>;
-  goalId: ProcessingGoalId;
-  setGoalId: (goalId: ProcessingGoalId) => void;
   bandSettings: Record<string, string>;
   setBandSettings: (settings: Record<string, string>) => void;
   lessonSettings: Record<string, string>;
@@ -617,9 +607,6 @@ interface SetupScreenProps {
 function SetupScreen({
   scenario,
   selectedGoalLabel,
-  goals,
-  goalId,
-  setGoalId,
   bandSettings,
   setBandSettings,
   lessonSettings,
@@ -630,22 +617,16 @@ function SetupScreen({
   const fields =
     scenario === "band"
       ? [
-          ["rehearsalDate", "Срок репетиции"],
           ["vocalRange", "Диапазон вокала"],
           ["guitars", "Гитаристов"],
-          ["bass", "Бас"],
-          ["keys", "Клавиши"],
-          ["drums", "Барабаны"],
-          ["targetStyle", "Стиль версии"],
+          ["keys", "Клавиши и слои"],
+          ["targetStyle", "Что усилить"],
         ]
       : [
           ["instrument", "Инструмент ученика"],
           ["level", "Уровень"],
-          ["lessonGoal", "Цель урока"],
-          ["difficulty", "Сложность результата"],
-          ["partsCount", "Количество партий"],
-          ["classInstruments", "Инструменты в классе"],
-          ["recipientFormat", "Кому выдать"],
+          ["lessonGoal", "Что должно получиться"],
+          ["classInstruments", "Инструменты и ученики"],
         ];
 
   const values = scenario === "band" ? bandSettings : lessonSettings;
@@ -654,6 +635,10 @@ function SetupScreen({
     label,
     value: values[key] ?? "",
   }));
+  const promiseList =
+    scenario === "band"
+      ? ["адаптируем партии под реальный состав", "покажем слабые места перед репетицией", "экспорт и ссылки оставим в Pro"]
+      : ["подстроим сложность под ученика", "разложим материал на роли и домашку", "экспорт и ссылки оставим в Pro"];
 
   return (
     <section className="setup-view">
@@ -664,39 +649,27 @@ function SetupScreen({
 
       <div className="setup-header">
         <p className="eyebrow">{scenarioCopy[scenario].label}</p>
-        <h1>Настройка задачи</h1>
+        <h1>Уточнить перед запуском</h1>
         <p>
-          Цель: <strong>{selectedGoalLabel}</strong>. Уточните, кто будет играть или учиться, чтобы AI собрал
-          полезный черновик, а не случайный набор файлов.
+          Это необязательный шаг. Если хочется быстрее, запускайте сразу: Vokal уже знает выбранную задачу.
         </p>
       </div>
 
       <div className="setup-layout">
         <div className="settings-stack">
-          <section className="settings-card">
+          <section className="settings-card setup-focus-card">
             <div className="section-title">
               <Sparkles size={17} />
-              <span>Job</span>
+              <span>Выбранная задача</span>
             </div>
-            <div className="settings-goal-grid" aria-label="Что должен сделать AI">
-              {goals.map((goal) => (
-                <button
-                  key={goal.id}
-                  type="button"
-                  className={goal.id === goalId ? "settings-goal selected" : "settings-goal"}
-                  onClick={() => setGoalId(goal.id)}
-                >
-                  <strong>{goal.label}</strong>
-                  <span>{goal.description}</span>
-                </button>
-              ))}
-            </div>
+            <h2>{selectedGoalLabel}</h2>
+            <p>Задачу можно поменять на главной. Здесь только короткие уточнения, чтобы черновик был ближе к реальности.</p>
           </section>
 
           <section className="settings-card">
             <div className="section-title">
               <SlidersHorizontal size={17} />
-              <span>{scenario === "band" ? "Состав" : "Урок"}</span>
+              <span>{scenario === "band" ? "4 уточнения о составе" : "4 уточнения об уроке"}</span>
             </div>
             <div className="form-grid">
               {fields.map(([key, label]) => (
@@ -715,9 +688,17 @@ function SetupScreen({
         <aside className="setup-summary-card">
           <div className="section-title">
             <ListChecks size={17} />
-            <span>Бриф обработки</span>
+            <span>Что изменится</span>
           </div>
-          <h2>{selectedGoalLabel}</h2>
+          <h2>Можно запускать</h2>
+          <div className="setup-promise-list">
+            {promiseList.map((item) => (
+              <span key={item}>
+                <CheckCircle2 size={15} />
+                {item}
+              </span>
+            ))}
+          </div>
           <div className="brief-list">
             {summaryFields.map((field) => (
               <span key={field.label}>
@@ -728,7 +709,7 @@ function SetupScreen({
           </div>
           <button className="primary-action" type="button" onClick={onStart}>
             <Activity size={18} />
-            Запустить подготовку
+            Запустить черновик
           </button>
         </aside>
       </div>
@@ -736,15 +717,11 @@ function SetupScreen({
       <div className="setup-notes">
         <div>
           <Sparkles size={18} />
-          <span>
-            {scenario === "band"
-              ? "AI-директор проверит, где оригинальная аранжировка не совпадает с вашим составом."
-              : "AI-директор учтет уровень ученика и сможет сделать версию проще, близко к оригиналу или сложнее."}
-          </span>
+          <span>После обработки сначала покажем понятный обзор, а не все файлы сразу.</span>
         </div>
         <div>
           <AlertTriangle size={18} />
-          <span>Автоматический разбор будет показан как черновик с местами для ручной проверки.</span>
+          <span>Сомнительные места будут отдельно: их можно принять, исправить или оставить для репетиции.</span>
         </div>
       </div>
     </section>
@@ -753,6 +730,49 @@ function SetupScreen({
 
 function ProcessingScreen({ project, steps, activeIndex }: { project: Project; steps: ProcessingStep[]; activeIndex: number }) {
   const progress = Math.min(100, Math.round((activeIndex / project.processing.steps.length) * 100));
+  const currentStep =
+    steps.find((step) => step.status === "running") ??
+    [...steps].reverse().find((step) => step.status === "done" || step.status === "warning") ??
+    steps[0];
+  const getMilestoneStatus = (ids: string[]): ProcessingStep["status"] => {
+    const relatedSteps = steps.filter((step) => ids.includes(step.id));
+
+    if (relatedSteps.some((step) => step.status === "running")) {
+      return "running";
+    }
+
+    if (relatedSteps.some((step) => step.status === "warning")) {
+      return "warning";
+    }
+
+    if (relatedSteps.length > 0 && relatedSteps.every((step) => step.status === "done")) {
+      return "done";
+    }
+
+    return "queued";
+  };
+  const milestones = [
+    {
+      label: "Аудио",
+      detail: "файл, громкость, слои",
+      status: getMilestoneStatus(["normalize", "stems"]),
+    },
+    {
+      label: "Форма",
+      detail: "BPM, тональность, части песни",
+      status: getMilestoneStatus(["meter", "structure", "chords"]),
+    },
+    {
+      label: "Партии",
+      detail: "MIDI, ноты, материалы",
+      status: getMilestoneStatus(["midi", "notation"]),
+    },
+    {
+      label: "Ревью",
+      detail: "что проверить руками",
+      status: getMilestoneStatus(["director-review"]),
+    },
+  ];
 
   return (
     <section className="processing-view">
@@ -760,7 +780,7 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
         <div className="panel-heading">
           <Activity size={24} />
           <div>
-            <h1>Готовим Stage Pack</h1>
+            <h1>Готовим черновой разбор</h1>
             <p>{project.name}</p>
           </div>
         </div>
@@ -769,38 +789,30 @@ function ProcessingScreen({ project, steps, activeIndex }: { project: Project; s
           <span style={{ width: `${progress}%` }} />
         </div>
 
-        <div className="processing-steps">
-          {steps.map((step) => (
-            <div key={step.id} className={`step-row ${step.status}`}>
-              <span className="step-icon">
-                {step.status === "done" ? <CheckCircle2 size={18} /> : step.status === "warning" ? <AlertTriangle size={18} /> : <Clock3 size={18} />}
-              </span>
-              <div>
-                <strong>{step.label}</strong>
-                <p>{step.detail}</p>
-              </div>
-              <small>{statusCopy[step.status]}</small>
-            </div>
-          ))}
+        <div className="processing-focus">
+          <span>{progress}%</span>
+          <div>
+            <strong>{currentStep?.label ?? "Запуск"}</strong>
+            <p>{currentStep?.detail ?? "Готовим первый полезный результат."}</p>
+          </div>
         </div>
 
-        <div className="processing-summary">
-          <div>
-            <strong>Разбор песни</strong>
-            <span>форма, тональность, BPM и аккорды</span>
-          </div>
-          <div>
-            <strong>Материалы</strong>
-            <span>партии, MIDI, минус и клик</span>
-          </div>
-          <div>
-            <strong>Проверка</strong>
-            <span>сомнительные такты отдельно</span>
-          </div>
-          <div>
-            <strong>AI-директор</strong>
-            <span>предложит, как усилить или упростить</span>
-          </div>
+        <div className="processing-milestones" aria-label="Этапы обработки">
+          {milestones.map((milestone) => (
+            <div key={milestone.label} className={`processing-milestone ${milestone.status}`}>
+              <span className="step-icon">
+                {milestone.status === "done" ? (
+                  <CheckCircle2 size={18} />
+                ) : milestone.status === "warning" ? (
+                  <AlertTriangle size={18} />
+                ) : (
+                  <Clock3 size={18} />
+                )}
+              </span>
+              <strong>{milestone.label}</strong>
+              <small>{milestone.detail}</small>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -1022,7 +1034,6 @@ function StagePackShell({
             <SectionTimeline project={project} />
             <TransportBar project={project} />
             <StudioTrackStack project={project} onAction={runAction} />
-            <ConfidenceMixer project={project} />
           </div>
 
           <aside className="overview-next">
@@ -1512,33 +1523,6 @@ function StudioTrackStack({
             </div>
           );
         })}
-      </div>
-    </section>
-  );
-}
-
-function ConfidenceMixer({ project }: { project: Project }) {
-  const entries = Object.entries(project.analysis.confidenceByPart);
-
-  return (
-    <section className="confidence-mixer" aria-label="Уверенность по партиям">
-      <div className="mixer-head">
-        <div>
-          <Volume2 size={18} />
-          <strong>Партии и аудиослои</strong>
-        </div>
-        <span>видно, что можно выдавать, а что слушать руками</span>
-      </div>
-      <div className="mixer-grid">
-        {entries.map(([part, value]) => (
-          <div key={part} className="mixer-channel">
-            <span>{part}</span>
-            <i>
-              <b style={{ width: `${Math.round(value * 100)}%` }} />
-            </i>
-            <small>{formatConfidence(value)}</small>
-          </div>
-        ))}
       </div>
     </section>
   );
