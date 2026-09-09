@@ -21,11 +21,15 @@ import { processingGoals } from "./domain/mockData";
 import type { DirectorActionId, ProcessingGoalId, ProcessingStep, Project, ReviewStatus, Scenario } from "./domain/types";
 import {
   applyDirectorAction,
+  addSessionNote,
   createProjectFromDemo,
   createProjectFromUpload,
   createShareLinks,
+  deleteProjectResults,
+  deleteProjectSource,
   getGoalsForScenario,
   listDemoProjects,
+  rebuildExportBundle,
   updateReviewIssue,
 } from "./services/mockServices";
 
@@ -677,6 +681,11 @@ function StagePackShell({
     project.shareRecipients.filter((recipient) => recipient.status !== "opened").slice(0, 2).map((recipient) => recipient.id),
   );
   const [chatCommand, setChatCommand] = useState("");
+  const [sessionNote, setSessionNote] = useState(
+    project.scenario === "education"
+      ? "Ученик уверенно сыграл припев. Следующую версию можно сделать выразительнее."
+      : "На репетиции припев просел по энергии. Нужна более плотная концертная версия.",
+  );
   const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
   const selectedArtifact =
     project.stagePack.artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? project.stagePack.artifacts[0];
@@ -701,6 +710,22 @@ function StagePackShell({
 
   const issueLinks = () => {
     setProject((current) => (current ? createShareLinks(current, selectedRecipients) : current));
+  };
+
+  const rebuildBundle = () => {
+    setProject((current) => (current ? rebuildExportBundle(current) : current));
+  };
+
+  const deleteSource = () => {
+    setProject((current) => (current ? deleteProjectSource(current) : current));
+  };
+
+  const deleteResults = () => {
+    setProject((current) => (current ? deleteProjectResults(current) : current));
+  };
+
+  const addNote = () => {
+    setProject((current) => (current && sessionNote.trim() ? addSessionNote(current, sessionNote.trim()) : current));
   };
 
   const submitChat = () => {
@@ -876,6 +901,40 @@ function StagePackShell({
                 ))}
               </div>
             </section>
+
+            <section className="subpanel wide">
+              <h3>{project.scenario === "education" ? "Учебные ограничения и задания" : "Ограничения состава"}</h3>
+              <div className="constraint-grid">
+                {project.scenario === "education" ? (
+                  <>
+                    <span>Инструмент: {project.studentProfile?.instrument}</span>
+                    <span>Уровень: {project.studentProfile?.level}</span>
+                    <span>Ноты: {project.studentProfile?.notationReading}</span>
+                    <span>Дома: {project.studentProfile?.homeInstrument}</span>
+                    <span>Цель: {project.lesson?.goal}</span>
+                    <span>Выдача: {project.lesson?.homeworkFormat}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Вокал: {project.bandLineup?.vocalRange}</span>
+                    <span>Гитары: {project.bandLineup?.guitars}</span>
+                    <span>Бас: {project.bandLineup?.bass === "5 strings" ? "5 струн" : "4 струны"}</span>
+                    <span>Клавиши: {project.bandLineup?.keys ? "есть" : "нет"}</span>
+                    <span>Барабаны: {project.bandLineup?.drums ? "есть" : "нет"}</span>
+                    <span>Стиль: {project.bandLineup?.targetStyle}</span>
+                  </>
+                )}
+              </div>
+              {project.assignments.length > 0 && (
+                <div className="assignment-list">
+                  {project.assignments.map((assignment) => (
+                    <span key={assignment.id}>
+                      {assignment.recipient}: {assignment.title}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </section>
 
@@ -938,6 +997,9 @@ function StagePackShell({
             <button className="secondary-action" type="button" onClick={issueLinks} disabled={selectedRecipients.length === 0}>
               Создать моковые ссылки
             </button>
+            <button className="secondary-action" type="button" onClick={rebuildBundle}>
+              Пересобрать ZIP и треки
+            </button>
             {project.shareLinks.length > 0 && (
               <div className="mock-links">
                 {project.shareLinks.map((link) => (
@@ -945,6 +1007,33 @@ function StagePackShell({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="subpanel compact">
+            <h3>{project.scenario === "education" ? "После урока" : "После репетиции"}</h3>
+            <textarea
+              className="session-note"
+              value={sessionNote}
+              onChange={(event) => setSessionNote(event.target.value)}
+            />
+            <button className="secondary-action" type="button" onClick={addNote} disabled={!sessionNote.trim()}>
+              Создать следующую версию
+            </button>
+          </div>
+
+          <div className="subpanel compact">
+            <h3>Приватность</h3>
+            <p className="privacy-note">{project.legalConsent.text}</p>
+            <div className="retention-grid">
+              <span>Исходник: {project.dataRetention.sourceDeleted ? "удален" : "сохранен"}</span>
+              <span>Результаты: {project.dataRetention.resultsDeleted ? "удалены" : "сохранены"}</span>
+            </div>
+            <button className="secondary-action" type="button" onClick={deleteSource} disabled={project.dataRetention.sourceDeleted}>
+              Удалить исходник
+            </button>
+            <button className="secondary-action danger" type="button" onClick={deleteResults} disabled={project.dataRetention.resultsDeleted}>
+              Удалить результаты
+            </button>
           </div>
 
           <div className="subpanel compact">

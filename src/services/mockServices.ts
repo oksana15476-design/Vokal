@@ -315,3 +315,121 @@ export const createShareLinks = (project: Project, recipientIds: string[]): Proj
     ],
   };
 };
+
+export const rebuildExportBundle = (project: Project): Project => ({
+  ...project,
+  stagePack: {
+    ...project.stagePack,
+    artifacts: project.stagePack.artifacts.map((artifact) =>
+      artifact.type === "zip" || artifact.type === "practice"
+        ? {
+            ...artifact,
+            isStale: false,
+            status: "ready",
+          }
+        : artifact,
+    ),
+  },
+  exportBundles: project.exportBundles.map((bundle) => ({
+    ...bundle,
+    status: "ready",
+  })),
+  changeLog: [
+    {
+      id: `change-rebuild-${Date.now()}`,
+      title: "Пакет материалов пересобран",
+      description: "ZIP и репетиционные треки снова отмечены как актуальные.",
+      createdAt: now(),
+      actor: "Пользователь",
+    },
+    ...project.changeLog,
+  ],
+});
+
+export const deleteProjectSource = (project: Project): Project => ({
+  ...project,
+  dataRetention: {
+    ...project.dataRetention,
+    sourceDeleted: true,
+    retentionNote: "Исходный файл удален из мокового проекта. Результаты пока сохранены.",
+  },
+  changeLog: [
+    {
+      id: `change-delete-source-${Date.now()}`,
+      title: "Исходник удален",
+      description: "Моковый исходный файл помечен как удаленный.",
+      createdAt: now(),
+      actor: "Пользователь",
+    },
+    ...project.changeLog,
+  ],
+});
+
+export const deleteProjectResults = (project: Project): Project => ({
+  ...project,
+  dataRetention: {
+    ...project.dataRetention,
+    resultsDeleted: true,
+    retentionNote: "Исходник и результаты помечены как удаленные.",
+  },
+  stagePack: {
+    ...project.stagePack,
+    artifacts: project.stagePack.artifacts.map((artifact) => ({
+      ...artifact,
+      status: "pending",
+      isStale: true,
+    })),
+  },
+  exportBundles: project.exportBundles.map((bundle) => ({
+    ...bundle,
+    status: "pending",
+  })),
+  shareLinks: project.shareLinks.map((link) => ({
+    ...link,
+    status: "stale",
+  })),
+  changeLog: [
+    {
+      id: `change-delete-results-${Date.now()}`,
+      title: "Результаты удалены",
+      description: "Материалы Stage Pack и ссылки помечены как недоступные.",
+      createdAt: now(),
+      actor: "Пользователь",
+    },
+    ...project.changeLog,
+  ],
+});
+
+export const addSessionNote = (project: Project, note: string): Project => {
+  const kind = project.scenario === "education" ? "after-lesson" : "after-rehearsal";
+  const label = project.scenario === "education" ? "После урока" : "После репетиции";
+  const versionId = `${kind}-${project.versions.length + 1}`;
+
+  return {
+    ...project,
+    currentVersionId: versionId,
+    versions: [
+      ...project.versions,
+      {
+        id: versionId,
+        label,
+        kind,
+        parentVersionId: project.currentVersionId,
+        createdAt: now(),
+        createdBy: "Пользователь",
+        status: "draft",
+        changes: [note, "Следующая версия должна учитывать живую обратную связь."],
+      },
+    ],
+    changeLog: [
+      {
+        id: `change-session-note-${Date.now()}`,
+        title: `${label}: добавлена заметка`,
+        description: note,
+        createdAt: now(),
+        actor: "Пользователь",
+      },
+      ...project.changeLog,
+    ],
+  };
+};

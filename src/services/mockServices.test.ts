@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   applyDirectorAction,
+  addSessionNote,
   createProjectFromDemo,
   createProjectFromUpload,
   createShareLinks,
+  deleteProjectResults,
+  deleteProjectSource,
   listDemoProjects,
+  rebuildExportBundle,
   updateReviewIssue,
 } from "./mockServices";
 
@@ -84,5 +88,32 @@ describe("mock services", () => {
     expect(updated.shareLinks).toHaveLength(2);
     expect(updated.shareRecipients.filter((recipient) => recipient.status === "issued")).toHaveLength(2);
     expect(updated.changeLog[0].title).toBe("Материалы выданы");
+  });
+
+  it("rebuilds stale export bundle and zip artifacts", () => {
+    const project = applyDirectorAction(createProjectFromDemo("band-demo"), "boost-chorus");
+    const rebuilt = rebuildExportBundle(project);
+
+    expect(rebuilt.exportBundles[0].status).toBe("ready");
+    expect(rebuilt.stagePack.artifacts.find((artifact) => artifact.type === "zip")?.status).toBe("ready");
+    expect(rebuilt.stagePack.artifacts.find((artifact) => artifact.type === "zip")?.isStale).toBe(false);
+  });
+
+  it("tracks source and result deletion state", () => {
+    const project = createProjectFromDemo("band-demo");
+    const sourceDeleted = deleteProjectSource(project);
+    const resultsDeleted = deleteProjectResults(sourceDeleted);
+
+    expect(sourceDeleted.dataRetention.sourceDeleted).toBe(true);
+    expect(resultsDeleted.dataRetention.resultsDeleted).toBe(true);
+    expect(resultsDeleted.stagePack.artifacts.every((artifact) => artifact.status === "pending")).toBe(true);
+  });
+
+  it("adds a post session note as a new arrangement version", () => {
+    const project = createProjectFromDemo("education-lesson-demo");
+    const updated = addSessionNote(project, "Ученик легко сыграл припев, можно дать вариант сложнее.");
+
+    expect(updated.versions[updated.versions.length - 1].kind).toBe("after-lesson");
+    expect(updated.changeLog[0].title).toContain("После урока");
   });
 });
