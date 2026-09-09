@@ -1,0 +1,234 @@
+import {
+  createQueuedProcessing,
+  demoProjects,
+  directorActionResults,
+  processingGoals,
+} from "../domain/mockData";
+import type {
+  ArtifactStatus,
+  ArtifactType,
+  DirectorActionId,
+  ProcessingGoalId,
+  Project,
+  ReviewStatus,
+  Scenario,
+  UploadProjectInput,
+} from "../domain/types";
+
+const now = () => new Date().toISOString();
+
+const cloneProject = (project: Project): Project => JSON.parse(JSON.stringify(project)) as Project;
+
+export const listDemoProjects = (): Project[] => demoProjects.map(cloneProject);
+
+export const getGoalsForScenario = (scenario: Scenario) =>
+  processingGoals.filter((goal) => goal.scenario === scenario);
+
+const getGoal = (goalId: ProcessingGoalId) => {
+  const goal = processingGoals.find((item) => item.id === goalId);
+  if (!goal) {
+    throw new Error(`Unknown processing goal: ${goalId}`);
+  }
+
+  return goal;
+};
+
+export const createProjectFromDemo = (projectId: string): Project => {
+  const project = demoProjects.find((item) => item.id === projectId);
+  if (!project) {
+    throw new Error(`Unknown demo project: ${projectId}`);
+  }
+
+  const copy = cloneProject(project);
+  copy.id = `${project.id}-copy-${Date.now()}`;
+  return copy;
+};
+
+const extensionToFormat = (fileName: string): "MP3" | "WAV" | "FLAC" | "M4A" => {
+  const extension = fileName.split(".").pop()?.toLowerCase();
+
+  if (extension === "wav") return "WAV";
+  if (extension === "flac") return "FLAC";
+  if (extension === "m4a") return "M4A";
+  return "MP3";
+};
+
+export const createProjectFromUpload = (input: UploadProjectInput): Project => {
+  const base = cloneProject(input.scenario === "band" ? demoProjects[0] : demoProjects[1]);
+  const goal = getGoal(input.goalId);
+
+  return {
+    ...base,
+    id: `project-upload-${Date.now()}`,
+    name: `${input.fileName}: моковая подготовка`,
+    scenario: input.scenario,
+    processingGoal: goal,
+    upload: {
+      id: `upload-${Date.now()}`,
+      fileName: input.fileName,
+      format: extensionToFormat(input.fileName),
+      durationSeconds: 214,
+      quality: "medium",
+      sourceNote: "Локальная моковая запись: файл не отправлен на сервер.",
+    },
+    versions: [
+      {
+        id: "uploaded-draft",
+        label: "Черновик",
+        kind: input.scenario === "band" ? "band" : "easy",
+        createdAt: now(),
+        createdBy: "Пользователь",
+        status: "draft",
+        changes: ["Создан моковый проект из выбранного файла."],
+      },
+    ],
+    currentVersionId: "uploaded-draft",
+    processing: createQueuedProcessing(`job-upload-${Date.now()}`),
+    legalConsent: {
+      accepted: input.acceptedConsent,
+      text: "Материал используется для приватной репетиции, урока или внутренней подготовки.",
+      acceptedAt: input.acceptedConsent ? now() : undefined,
+    },
+    changeLog: [
+      {
+        id: `change-upload-${Date.now()}`,
+        title: "Создан проект из файла",
+        description: "Файл сохранен как моковая запись без реальной загрузки.",
+        createdAt: now(),
+        actor: "Пользователь",
+      },
+    ],
+    shareLinks: [],
+  };
+};
+
+export const getDirectorActionResult = (actionId: DirectorActionId) => {
+  const result = directorActionResults[actionId];
+  if (!result) {
+    throw new Error(`Unknown director action: ${actionId}`);
+  }
+
+  return result;
+};
+
+const markArtifact = (
+  status: ArtifactStatus,
+  staleTypes: ArtifactType[],
+  artifactType: ArtifactType,
+): ArtifactStatus => {
+  if (!staleTypes.includes(artifactType)) {
+    return status;
+  }
+
+  if (artifactType === "practice" || artifactType === "zip") {
+    return "rebuild_required";
+  }
+
+  return "needs_review";
+};
+
+export const applyDirectorAction = (project: Project, actionId: DirectorActionId): Project => {
+  const result = getDirectorActionResult(actionId);
+  const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
+  const versionId = `${actionId}-${project.versions.length + 1}`;
+
+  return {
+    ...project,
+    currentVersionId: versionId,
+    versions: [
+      ...project.versions,
+      {
+        id: versionId,
+        label: result.versionLabel,
+        kind: result.versionKind,
+        parentVersionId: currentVersion?.id,
+        createdAt: now(),
+        createdBy: "AI-директор",
+        status: "needs_review",
+        changes: result.changes,
+      },
+    ],
+    stagePack: {
+      ...project.stagePack,
+      versionId,
+      artifacts: project.stagePack.artifacts.map((artifact) => ({
+        ...artifact,
+        isStale: artifact.isStale || result.staleArtifactTypes.includes(artifact.type),
+        status: markArtifact(artifact.status, result.staleArtifactTypes, artifact.type),
+      })),
+    },
+    changeLog: [
+      {
+        id: `change-${actionId}-${Date.now()}`,
+        title: result.historyTitle,
+        description: result.changes.join(" "),
+        createdAt: now(),
+        actor: "AI-директор",
+      },
+      ...project.changeLog,
+    ],
+    chat: [
+      ...project.chat,
+      {
+        id: `chat-${actionId}-${Date.now()}`,
+        author: "director",
+        text: `${result.historyTitle}. Я создал новую версию и отметил материалы, которые нужно проверить или пересобрать.`,
+        createdAt: now(),
+      },
+    ],
+  };
+};
+
+export const updateReviewIssue = (project: Project, issueId: string, status: ReviewStatus): Project => ({
+  ...project,
+  reviewIssues: project.reviewIssues.map((issue) =>
+    issue.id === issueId
+      ? {
+          ...issue,
+          status,
+        }
+      : issue,
+  ),
+  reviewComments: [
+    ...project.reviewComments,
+    {
+      id: `comment-${issueId}-${Date.now()}`,
+      issueId,
+      author: "Пользователь",
+      text: `Статус изменен на ${status}.`,
+      createdAt: now(),
+    },
+  ],
+});
+
+export const createShareLinks = (project: Project, recipientIds: string[]): Project => {
+  const newLinks = recipientIds.map((recipientId) => {
+    const recipient = project.shareRecipients.find((item) => item.id === recipientId);
+
+    return {
+      id: `share-${recipientId}-${Date.now()}`,
+      recipientId,
+      label: recipient ? `${recipient.name}: ${recipient.material}` : recipientId,
+      url: `https://vokal.local/mock-share/${project.id}/${recipientId}`,
+      status: "mock_created" as const,
+    };
+  });
+
+  return {
+    ...project,
+    shareRecipients: project.shareRecipients.map((recipient) =>
+      recipientIds.includes(recipient.id) ? { ...recipient, status: "issued" } : recipient,
+    ),
+    shareLinks: [...project.shareLinks.filter((link) => !recipientIds.includes(link.recipientId)), ...newLinks],
+    changeLog: [
+      {
+        id: `change-share-${Date.now()}`,
+        title: "Материалы выданы",
+        description: `Созданы моковые ссылки: ${newLinks.length}.`,
+        createdAt: now(),
+        actor: "Пользователь",
+      },
+      ...project.changeLog,
+    ],
+  };
+};
