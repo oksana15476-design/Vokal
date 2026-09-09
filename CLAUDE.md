@@ -112,7 +112,8 @@
 порядок не отменяют, а дополняют.
 
 **Артефакты процесса.** Спеки кладем в `docs/superpowers/specs/`, планы — в
-`docs/superpowers/plans/`, дизайн-доки интеграций — в `docs/INTEGRATION_*_DESIGN.md`.
+`docs/superpowers/plans/`, дизайн-доки интеграций — в `docs/INTEGRATION_*_DESIGN.md`,
+бэклог с оценками — в `docs/BACKLOG.md`.
 
 ## Груминг
 
