@@ -34,6 +34,7 @@ import {
   addSessionNote,
   addUnderstoodNothingReply,
   applyDirectorAction,
+  applyDirectorActions,
   createProjectFromDemo,
   createProjectFromUpload,
   createShareLinks,
@@ -1228,6 +1229,7 @@ function StagePackShell({
   const [chatCommand, setChatCommand] = useState("");
   // Какое необратимое действие ждёт подтверждения. null — диалога нет.
   const [pendingDeletion, setPendingDeletion] = useState<"source" | "results" | null>(null);
+  const [pickedSuggestions, setPickedSuggestions] = useState<DirectorActionId[]>([]);
   const [sessionNote, setSessionNote] = useState(
     project.scenario === "education"
       ? "Ученик уверенно сыграл припев. Следующую версию можно сделать выразительнее."
@@ -1253,6 +1255,21 @@ function StagePackShell({
     ? confidences.reduce((sum, value) => sum + value, 0) / confidences.length
     : 0;
   const selectedVersionChanges = currentVersion?.changes ?? [];
+
+  const toggleSuggestion = (actionId: DirectorActionId) => {
+    setPickedSuggestions((current) =>
+      current.includes(actionId) ? current.filter((id) => id !== actionId) : [...current, actionId],
+    );
+  };
+
+  const assemblePicked = () => {
+    const picked = pickedSuggestions;
+    const titles = project.directorSuggestions
+      .filter((suggestion) => picked.includes(suggestion.actionId))
+      .map((suggestion) => suggestion.title);
+    setProject((current) => (current ? applyDirectorActions(current, picked, titles.join(". ")) : current));
+    setPickedSuggestions([]);
+  };
 
   const runAction = (actionId: DirectorActionId, userCommand?: string) => {
     setProject((current) => (current ? applyDirectorAction(current, actionId, userCommand) : current));
@@ -1784,10 +1801,22 @@ function StagePackShell({
               </EmptyState>
             )}
 
+            {/*
+              Предложения можно отметить и собрать одной версией. По одному
+              получалось по версии на каждое: три правки — три шага истории и
+              три отката, хотя решение было одно.
+            */}
             <div className="suggestions-grid">
               {project.directorSuggestions.slice(0, 4).map((suggestion) => (
                 <div key={suggestion.id} className="suggestion-card">
-                  <strong>{suggestion.title}</strong>
+                  <label className="suggestion-pick">
+                    <input
+                      type="checkbox"
+                      checked={pickedSuggestions.includes(suggestion.actionId)}
+                      onChange={() => toggleSuggestion(suggestion.actionId)}
+                    />
+                    <strong>{suggestion.title}</strong>
+                  </label>
                   <p>{suggestion.description}</p>
                   <button
                     className="btn btn-accent"
@@ -1799,6 +1828,13 @@ function StagePackShell({
                 </div>
               ))}
             </div>
+
+            {pickedSuggestions.length > 0 && (
+              <button className="btn btn-accent btn-block" type="button" onClick={assemblePicked}>
+                Собрать версию из {pickedSuggestions.length}{" "}
+                {plural(pickedSuggestions.length, "предложения", "предложений", "предложений")}
+              </button>
+            )}
 
             <div className="director-thread" aria-label="Разговор с AI-директором">
               {project.chat.length === 0 ? (

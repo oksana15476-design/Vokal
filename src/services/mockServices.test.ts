@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { processingMilestones, processingStepIds } from "../domain/mockData";
 import {
   applyDirectorAction,
+  applyDirectorActions,
   addSessionNote,
   createProjectFromDemo,
   createProjectFromUpload,
@@ -317,5 +318,64 @@ describe("откат на глубину, а не на шаг (B74)", () => {
     const back = rollbackToVersion(v3, demo.currentVersionId);
     // Ветка вперед должна остаться доступной: иначе откат — это удаление.
     expect(back.versions.map((version) => version.id)).toEqual(v3.versions.map((version) => version.id));
+  });
+});
+
+describe("сборка версии сразу из нескольких предложений (B98)", () => {
+  it("создает одну версию, а не по версии на предложение", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const before = demo.versions.length;
+
+    const next = applyDirectorActions(demo, ["merge-guitars", "simplify-drums", "boost-chorus"]);
+
+    // Три предложения — один шаг истории, а не три.
+    expect(next.versions.length).toBe(before + 1);
+    expect(next.changeLog.length).toBe(demo.changeLog.length + 1);
+  });
+
+  it("сводит правки всех выбранных предложений в одну версию", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const merged = applyDirectorActions(demo, ["merge-guitars", "simplify-drums"]);
+    const single = applyDirectorAction(demo, "merge-guitars");
+    const other = applyDirectorAction(demo, "simplify-drums");
+
+    const changes = merged.versions[merged.versions.length - 1].changes;
+    for (const change of single.versions[single.versions.length - 1].changes) {
+      expect(changes).toContain(change);
+    }
+    for (const change of other.versions[other.versions.length - 1].changes) {
+      expect(changes).toContain(change);
+    }
+  });
+
+  it("помечает устаревшим все, что задело хотя бы одно предложение", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const merged = applyDirectorActions(demo, ["merge-guitars", "simplify-drums"]);
+
+    const staleIds = (project: typeof demo) =>
+      project.stagePack.artifacts.filter((artifact) => artifact.isStale).map((artifact) => artifact.id);
+
+    for (const actionId of ["merge-guitars", "simplify-drums"] as const) {
+      for (const id of staleIds(applyDirectorAction(demo, actionId))) {
+        expect(staleIds(merged)).toContain(id);
+      }
+    }
+  });
+
+  it("сохраняет снимок материалов покидаемой версии ровно один раз", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const merged = applyDirectorActions(demo, ["merge-guitars", "simplify-drums", "boost-chorus"]);
+
+    const left = merged.versions.find((version) => version.id === demo.currentVersionId)!;
+    expect(left.artifactsSnapshot).toBeDefined();
+    // Снимок — состояние ДО правок, иначе откат вернет то же самое.
+    expect(left.artifactsSnapshot!.map((artifact) => artifact.isStale)).toEqual(
+      demo.stagePack.artifacts.map((artifact) => artifact.isStale),
+    );
+  });
+
+  it("пустой список ничего не меняет", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    expect(applyDirectorActions(demo, [])).toBe(demo);
   });
 });

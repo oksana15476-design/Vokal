@@ -354,6 +354,100 @@ export const applyDirectorAction = (
  * саму команду, и честный ответ: разбора языка в продукте нет, поэтому
  * выполнять непонятое как что-то похожее — значит врать о результате.
  */
+/**
+ * Собирает одну версию сразу из нескольких предложений директора.
+ *
+ * По одному предложению за раз получалось по версии на каждое: три правки —
+ * три шага истории и три отката, хотя решение было одно. Бренд-бук ровно про
+ * это: «Собрать версию v5 из двух вариантов».
+ *
+ * Снимок материалов покидаемой версии делается один раз и до правок —
+ * иначе откат вернул бы уже изменённое состояние.
+ */
+export const applyDirectorActions = (
+  project: Project,
+  actionIds: DirectorActionId[],
+  userCommand?: string,
+): Project => {
+  if (actionIds.length === 0) {
+    return project;
+  }
+  if (actionIds.length === 1) {
+    return applyDirectorAction(project, actionIds[0], userCommand);
+  }
+
+  const results = actionIds.map((actionId) => getDirectorActionResult(actionId));
+  const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
+  const versionId = `combined-${project.versions.length + 1}`;
+  const changes = results.flatMap((result) => result.changes);
+  const staleTypes = [...new Set(results.flatMap((result) => result.staleArtifactTypes))];
+  const historyTitle = `Собрана версия из ${actionIds.length} предложений`;
+
+  return {
+    ...project,
+    currentVersionId: versionId,
+    versions: [
+      ...project.versions.map((version) =>
+        version.id === project.currentVersionId && !version.artifactsSnapshot
+          ? { ...version, artifactsSnapshot: project.stagePack.artifacts.map((artifact) => ({ ...artifact })) }
+          : version,
+      ),
+      {
+        id: versionId,
+        label: results[0].versionLabel,
+        kind: results[0].versionKind,
+        parentVersionId: currentVersion?.id,
+        createdAt: now(),
+        createdBy: "AI-директор",
+        status: "needs_review" as const,
+        changes,
+      },
+    ],
+    stagePack: {
+      ...project.stagePack,
+      versionId,
+      artifacts: project.stagePack.artifacts.map((artifact) => ({
+        ...artifact,
+        isStale: artifact.isStale || staleTypes.includes(artifact.type),
+        status: markArtifact(artifact.status, staleTypes, artifact.type),
+      })),
+    },
+    exportBundles: project.exportBundles.map((bundle) => ({
+      ...bundle,
+      status: staleTypes.includes("zip") ? ("stale" as const) : bundle.status,
+    })),
+    changeLog: [
+      {
+        id: `change-combined-${Date.now()}`,
+        title: historyTitle,
+        description: changes.join(" "),
+        createdAt: now(),
+        actor: "AI-директор",
+      },
+      ...project.changeLog,
+    ],
+    chat: [
+      ...project.chat,
+      ...(userCommand?.trim()
+        ? [
+            {
+              id: `chat-combined-${Date.now()}-user`,
+              author: "user" as const,
+              text: userCommand.trim(),
+              createdAt: now(),
+            },
+          ]
+        : []),
+      {
+        id: `chat-combined-${Date.now()}-director`,
+        author: "director" as const,
+        text: `${historyTitle}. Правки сведены в один шаг: откатить их можно вместе, а не по очереди.`,
+        createdAt: now(),
+      },
+    ],
+  };
+};
+
 export const addUnderstoodNothingReply = (project: Project, userCommand: string): Project => ({
   ...project,
   chat: [

@@ -591,6 +591,41 @@ describe("демо не перетирает задание пользовате
   });
 });
 
+describe("выбор нескольких предложений директора (B98)", () => {
+  const openDirector = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+  };
+
+  it("собирает одну версию из выбранных предложений, а не по версии на каждое", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    const versionsBefore = document.querySelectorAll(".version-row").length;
+    const boxes = [...document.querySelectorAll(".suggestion-card input[type=checkbox]")] as HTMLInputElement[];
+    expect(boxes.length).toBeGreaterThan(1);
+
+    await user.click(boxes[0]);
+    await user.click(boxes[1]);
+
+    // Кнопка называет число выбранного: пользователь видит, что соберет.
+    const assemble = screen.getByRole("button", { name: /Собрать версию из 2 предложений/ });
+    await user.click(assemble);
+
+    await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore + 1));
+  });
+
+  it("не предлагает собрать, пока ничего не выбрано", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    expect(screen.queryByRole("button", { name: /Собрать версию из/ })).toBeNull();
+  });
+});
+
 describe("необратимое действие требует подтверждения (B101)", () => {
   const openExport = async (user: ReturnType<typeof userEvent.setup>) => {
     await openBandDemo(user);
