@@ -591,6 +591,76 @@ describe("демо не перетирает задание пользовате
   });
 });
 
+describe("необратимое действие требует подтверждения (B101)", () => {
+  const openExport = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+  };
+
+  it("не удаляет результаты по одному нажатию", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    // Раньше нажатие удаляло сразу. Отменить нельзя, спрашивать обязательно.
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByText(/Результаты: сохранены/)).toBeTruthy();
+  });
+
+  it("держит удаление заблокированным, пока пользователь не подтвердил", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    const confirm = dialog.getByRole("button", { name: /Удалить навсегда/ }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+
+    await user.click(dialog.getByRole("checkbox"));
+    expect(confirm.disabled).toBe(false);
+  });
+
+  it("отпускает без последствий по кнопке «Оставить»", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Оставить/ }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(/Результаты: сохранены/)).toBeTruthy();
+  });
+
+  it("удаляет после подтверждения", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("checkbox"));
+    await user.click(dialog.getByRole("button", { name: /Удалить навсегда/ }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(screen.getByText(/Результаты: удалены/)).toBeTruthy());
+  });
+
+  it("закрывается по Escape, не удаляя", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить исходник/ }));
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(/Исходник: сохранен/)).toBeTruthy();
+  });
+});
+
 describe("бренд-бук: структура экранов", () => {
   it("показывает шапку продукта со знаком и навигацией", async () => {
     render(<App />);

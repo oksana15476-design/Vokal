@@ -1226,6 +1226,8 @@ function StagePackShell({
     project.shareRecipients.filter((recipient) => recipient.status !== "opened").slice(0, 2).map((recipient) => recipient.id),
   );
   const [chatCommand, setChatCommand] = useState("");
+  // Какое необратимое действие ждёт подтверждения. null — диалога нет.
+  const [pendingDeletion, setPendingDeletion] = useState<"source" | "results" | null>(null);
   const [sessionNote, setSessionNote] = useState(
     project.scenario === "education"
       ? "Ученик уверенно сыграл припев. Следующую версию можно сделать выразительнее."
@@ -1335,8 +1337,43 @@ function StagePackShell({
     setChatCommand("");
   };
 
+  const deletionCopy = {
+    source: {
+      title: "Удалить исходник?",
+      body:
+        "Удалим загруженный файл. Материалы, собранные из него, останутся, но пересобрать их будет не из чего. Отменить нельзя.",
+      acknowledgement: "Понимаю, что пересобрать материалы будет не из чего",
+      confirmLabel: "Удалить навсегда",
+    },
+    results: {
+      title: "Удалить результаты?",
+      body:
+        "Удалим партии, ноты, MIDI, аудиослои и репетиционные треки. Выданные музыкантам ссылки перестанут работать. Отменить нельзя.",
+      acknowledgement: "Понимаю, что мои правки партий тоже удалятся",
+      confirmLabel: "Удалить навсегда",
+    },
+  } as const;
+
   return (
     <section className="stage-shell">
+      {pendingDeletion && (
+        <ConfirmDialog
+          title={deletionCopy[pendingDeletion].title}
+          body={deletionCopy[pendingDeletion].body}
+          acknowledgement={deletionCopy[pendingDeletion].acknowledgement}
+          confirmLabel={deletionCopy[pendingDeletion].confirmLabel}
+          onCancel={() => setPendingDeletion(null)}
+          onConfirm={() => {
+            if (pendingDeletion === "source") {
+              deleteSource();
+            } else {
+              deleteResults();
+            }
+            setPendingDeletion(null);
+          }}
+        />
+      )}
+
       <div className="stage-toolbar">
         <button className="text-button" type="button" onClick={onBack}>
           <ArrowLeft size={17} />
@@ -1993,10 +2030,24 @@ function StagePackShell({
                 <span>Исходник: {project.dataRetention.sourceDeleted ? "удален" : "сохранен"}</span>
                 <span>Результаты: {project.dataRetention.resultsDeleted ? "удалены" : "сохранены"}</span>
               </div>
-              <button className="secondary-action" type="button" onClick={deleteSource} disabled={project.dataRetention.sourceDeleted}>
+              {/*
+                Кнопки открывают подтверждение, а не удаляют. Отменить
+                удаление нельзя, поэтому спрашивать обязательно.
+              */}
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={() => setPendingDeletion("source")}
+                disabled={project.dataRetention.sourceDeleted}
+              >
                 Удалить исходник
               </button>
-              <button className="secondary-action danger" type="button" onClick={deleteResults} disabled={project.dataRetention.resultsDeleted}>
+              <button
+                className="btn btn-danger"
+                type="button"
+                onClick={() => setPendingDeletion("results")}
+                disabled={project.dataRetention.resultsDeleted}
+              >
                 Удалить результаты
               </button>
             </section>
@@ -2053,6 +2104,79 @@ function EmptyState({
  * Уверенность подписана процентом рядом с полосой: цвет не единственный
  * сигнал, иначе разбор нечитаем при дальтонизме и в ч/б печати партий.
  */
+/**
+ * Подтверждение необратимого действия. По бренд-буку: затемнение, белая
+ * карточка, обязательный чекбокс согласия, «Оставить» контуром и
+ * «Удалить навсегда» красной заливкой — красный в системе закреплён именно
+ * за необратимым.
+ *
+ * Чекбокс здесь не формальность: он держит подтверждающую кнопку
+ * выключенной, пока пользователь не прочитал, что именно исчезнет.
+ */
+function ConfirmDialog({
+  title,
+  body,
+  acknowledgement,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  body: string;
+  acknowledgement: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="dialog-scrim" role="presentation" onClick={onCancel}>
+      <div
+        className="dialog-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2>{title}</h2>
+        <p>{body}</p>
+        <label className="dialog-ack">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={(event) => setAcknowledged(event.target.checked)}
+          />
+          <span>{acknowledgement}</span>
+        </label>
+        <div className="dialog-actions">
+          <button className="btn btn-outline" type="button" onClick={onCancel}>
+            Оставить
+          </button>
+          <button
+            className="btn btn-danger solid"
+            type="button"
+            disabled={!acknowledged}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConsolePanel({
   project,
   onAction,
