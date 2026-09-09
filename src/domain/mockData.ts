@@ -5,6 +5,7 @@ import type {
   DirectorActionId,
   DirectorActionResult,
   DirectorSuggestion,
+  Musician,
   ProcessingGoal,
   ProcessingJob,
   ProcessingStep,
@@ -563,6 +564,22 @@ const artifacts = (scenario: Scenario): Artifact[] => [
     : []),
 ];
 
+// Состав группы: те же люди, что в получателях, но с ограничениями. Имена
+// отображаемые, не документные — см. docs/DATA_MAP.md.
+const bandMusicians: Musician[] = [
+  { id: "vocalist-1", name: "Оксана", role: "вокал", instrumentNote: "ведущий вокал", constraint: "диапазон A2-G4", level: "продвинутый" },
+  { id: "guitarist-1", name: "Илья", role: "гитара", instrumentNote: "электрогитара, строй E", constraint: "играет один за две партии", level: "средний" },
+  { id: "bassist-1", name: "Марк", role: "бас", instrumentNote: "5 струн, нижняя E1", constraint: "слэп не играет", level: "средний" },
+  { id: "keys-1", name: "Лена", role: "клавиши", instrumentNote: "2 слоя, Nord Stage", constraint: "закрывает струнные оригинала", level: "продвинутый" },
+  { id: "drummer-1", name: "Даня", role: "барабаны", instrumentNote: "акустическая установка", constraint: "без двойной педали", level: "начинающий" },
+];
+
+const ensembleMusicians: Musician[] = [
+  { id: "student-1", name: "Аня", role: "гитара", instrumentNote: "акустическая гитара", constraint: "читает простые ноты", level: "начинающий" },
+  { id: "student-2", name: "Миша", role: "клавиши", instrumentNote: "цифровое пианино", constraint: "октава без растяжки", level: "начинающий" },
+  { id: "student-3", name: "Соня", role: "барабаны", instrumentNote: "перкуссия", constraint: "без установки", level: "средний" },
+];
+
 const bandRecipients: ShareRecipient[] = [
   { id: "vocalist-1", name: "Оксана", role: "vocalist", material: "Вокал + текст", status: "opened" },
   { id: "guitarist-1", name: "Илья", role: "guitarist", material: "Гитара + TAB", status: "not_issued" },
@@ -626,6 +643,7 @@ export const demoProjects: Project[] = [
     directorSuggestions: directorSuggestions.filter((suggestion) => suggestion.scenario !== "education"),
     chat: [{ id: "chat-1", author: "director", text: "Я нашел две гитарные партии и струнный слой в припеве. Для вашего состава лучше сделать концертную версию.", createdAt: "2026-09-09T12:04:00+04:00" }],
     changeLog: [{ id: "change-1", title: "Создан Stage Pack", description: "Подготовлены партии, аудиослои, MIDI и первые предупреждения.", createdAt: "2026-09-09T12:05:00+04:00", actor: "AI-директор" }],
+    musicians: bandMusicians,
     shareRecipients: bandRecipients,
     shareLinks: [],
     exportBundles: [{ id: "zip-band", label: "Stage Pack ZIP", filesCount: 14, status: "ready" }],
@@ -669,6 +687,7 @@ export const demoProjects: Project[] = [
     directorSuggestions: directorSuggestions.filter((suggestion) => suggestion.scenario !== "band"),
     chat: [{ id: "chat-lesson-1", author: "director", text: "Для урока лучше оставить куплет и припев, а сложный переход вынести в отдельное упражнение.", createdAt: "2026-09-09T12:06:00+04:00" }],
     changeLog: [{ id: "change-lesson-1", title: "Создана Easy-версия", description: "Сокращена форма и подготовлена домашка.", createdAt: "2026-09-09T12:07:00+04:00", actor: "AI-директор" }],
+    musicians: [],
     shareRecipients: educationRecipients,
     shareLinks: [],
     exportBundles: [{ id: "zip-lesson", label: "Пакет урока", filesCount: 8, status: "ready" }],
@@ -718,6 +737,7 @@ export const demoProjects: Project[] = [
     directorSuggestions: directorSuggestions.filter((suggestion) => suggestion.scenario !== "band"),
     chat: [{ id: "chat-ensemble-1", author: "director", text: "Материал хорошо ложится на ансамбль. Я бы отдельно выдал роли и сделал крупный сценический вид припева.", createdAt: "2026-09-09T12:09:00+04:00" }],
     changeLog: [{ id: "change-ensemble-1", title: "Создана ансамблевая версия", description: "Материал разложен на учеников и отмечена coda.", createdAt: "2026-09-09T12:10:00+04:00", actor: "AI-директор" }],
+    musicians: ensembleMusicians,
     shareRecipients: educationRecipients,
     shareLinks: [],
     exportBundles: [{ id: "zip-ensemble", label: "Пакет ансамбля", filesCount: 11, status: "ready" }],

@@ -591,6 +591,45 @@ describe("демо не перетирает задание пользовате
   });
 });
 
+describe("состав — люди с ограничениями (B95)", () => {
+  it("показывает, кто играет, и что ограничивает каждого", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    const rows = [...document.querySelectorAll(".musician-row")];
+    expect(rows.length).toBeGreaterThan(2);
+
+    // Ограничение — данные рядом с человеком, а не примечание где-то ниже.
+    for (const row of rows) {
+      expect(row.querySelector(".musician-name")?.textContent?.trim()).toBeTruthy();
+      expect(row.querySelector(".musician-constraint")?.textContent?.trim()).toBeTruthy();
+    }
+
+    // Диапазон принадлежит вокалистке, а не группе.
+    const vocal = rows.find((row) => row.textContent?.includes("вокал"));
+    expect(vocal?.textContent).toMatch(/A2-G4/);
+  });
+
+  it("не выдает состав чужой группы за ваш", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    // Путь загрузки клонирует демо. Состав демо-группы на своем файле — та же
+    // подмена, что чужой разбор: людей пользователь не заводил.
+    expect(document.body.textContent).not.toContain("Оксана");
+    expect(document.body.textContent).not.toContain("Nord Stage");
+  });
+});
+
 describe("тосты подтверждают действие и дают его отменить (B100)", () => {
   const openDirector = async (user: ReturnType<typeof userEvent.setup>) => {
     await openBandDemo(user);

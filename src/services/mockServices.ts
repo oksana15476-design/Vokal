@@ -134,6 +134,9 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
     ...base,
     id: `project-upload-${Date.now()}`,
     name: `${titleFromFileName(input.fileName)}: подготовка`,
+    // Состав демо-группы на своем файле — та же подмена, что чужой разбор:
+    // этих людей пользователь не заводил.
+    musicians: [],
     scenario: input.scenario,
     processingGoal: goal,
     upload: {

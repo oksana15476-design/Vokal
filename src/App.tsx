@@ -51,7 +51,7 @@ import {
 } from "./services/mockServices";
 
 type Screen = "start" | "setup" | "processing" | "stage-pack";
-type WorkspaceTab = "overview" | "materials" | "review" | "director" | "export";
+type WorkspaceTab = "overview" | "materials" | "lineup" | "review" | "director" | "export";
 
 const homeJobOptions: Array<{
   goalId: ProcessingGoalId;
@@ -118,6 +118,7 @@ const scenarioCopy: Record<Scenario, { label: string; description: string }> = {
 const workspaceTabs: Array<{ id: WorkspaceTab; label: string; hint: string }> = [
   { id: "overview", label: "Обзор", hint: "что получилось" },
   { id: "materials", label: "Материалы", hint: "что собрано" },
+  { id: "lineup", label: "Состав", hint: "кто играет" },
   { id: "review", label: "Проверка", hint: "что проверить" },
   { id: "director", label: "AI-директор", hint: "что поменять" },
   { id: "export", label: "Выдача", hint: "кому и что" },
@@ -496,20 +497,25 @@ function AppHeader({
         >
           Новая песня
         </button>
-        {/*
-          «Состав» из бренд-бука здесь нет намеренно: своего экрана у него
-          пока не существует (B95), а вешать пункт на «Обзор» — врать
-          подписью. Пункт появится вместе с экраном.
-        */}
         {hasProject && (
-          <button
-            type="button"
-            className={workspaceTab === "export" ? "app-nav-item active" : "app-nav-item"}
-            aria-current={workspaceTab === "export" ? "page" : undefined}
-            onClick={() => onOpenTab("export")}
-          >
-            Выдача
-          </button>
+          <>
+            <button
+              type="button"
+              className={workspaceTab === "lineup" ? "app-nav-item active" : "app-nav-item"}
+              aria-current={workspaceTab === "lineup" ? "page" : undefined}
+              onClick={() => onOpenTab("lineup")}
+            >
+              Состав
+            </button>
+            <button
+              type="button"
+              className={workspaceTab === "export" ? "app-nav-item active" : "app-nav-item"}
+              aria-current={workspaceTab === "export" ? "page" : undefined}
+              onClick={() => onOpenTab("export")}
+            >
+              Выдача
+            </button>
+          </>
         )}
       </nav>
 
@@ -1644,6 +1650,13 @@ function StagePackShell({
         </section>
       )}
 
+      {workspaceTab === "lineup" && (
+        <section id="workspace-lineup" className="stage-panel" role="tabpanel">
+          <h2>Состав</h2>
+          <LineupPanel project={project} onOpenDemo={onOpenDemo} />
+        </section>
+      )}
+
       {workspaceTab === "materials" && (
         <section
           id="workspace-materials"
@@ -2310,6 +2323,54 @@ function ConfirmDialog({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Состав: люди, а не количество инструментов. Ограничение стоит рядом с
+ * именем, потому что оно принадлежит человеку — диапазон вокалистке, число
+ * струн басисту, уровень каждому свой. В плоском `BandLineup` этого не
+ * выразить, и директор предлагал транспонирование, не зная, чей диапазон.
+ */
+function LineupPanel({ project, onOpenDemo }: { project: Project; onOpenDemo: () => void }) {
+  const initials = (name: string) =>
+    name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("");
+
+  if (project.musicians.length === 0) {
+    return (
+      <EmptyState title="Состав не заведен" onOpenDemo={onOpenDemo}>
+        Директор подгоняет тональность, партии и сложность под конкретных людей: диапазон вокалиста, число струн
+        баса, уровень каждого. Пока состава нет, он считает по среднему случаю.
+      </EmptyState>
+    );
+  }
+
+  return (
+    <div className="lineup-list">
+      {project.musicians.map((musician) => (
+        <div key={musician.id} className="musician-row">
+          <span className="musician-avatar" aria-hidden="true">
+            {initials(musician.name)}
+          </span>
+          <div className="musician-body">
+            <strong className="musician-name">
+              {musician.name} · {musician.role}
+            </strong>
+            <span className="musician-instrument">{musician.instrumentNote}</span>
+          </div>
+          <span className="musician-constraint">{musician.constraint}</span>
+          <span className="mono-chip">{musician.level}</span>
+        </div>
+      ))}
+      <p className="privacy-note">
+        Состав заводится один раз и переиспользуется для каждой новой песни. Заведение руками появится вместе с
+        хранением песен.
+      </p>
     </div>
   );
 }

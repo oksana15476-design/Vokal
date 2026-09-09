@@ -39,6 +39,23 @@ export interface Upload {
   channels?: number;
 }
 
+/**
+ * Человек в составе. Заведён отдельной сущностью, потому что ограничения
+ * принадлежат людям, а не группе: диапазон — вокалиста, число струн —
+ * басиста, уровень — каждого свой. В плоском `BandLineup` этого не выразить,
+ * и директор предлагал транспонирование, не зная, чей это диапазон.
+ */
+export interface Musician {
+  id: string;
+  name: string;
+  role: "вокал" | "гитара" | "бас" | "клавиши" | "барабаны" | "бэк-вокал";
+  /** Чем играет: «5 струн · E1», «2 слоя · Nord Stage». */
+  instrumentNote: string;
+  /** Что ограничивает: диапазон, строй, каподастр. Данные, а не примечание. */
+  constraint: string;
+  level: "начинающий" | "средний" | "продвинутый";
+}
+
 export interface BandLineup {
   leadVocal: boolean;
   vocalRange: string;
@@ -346,6 +363,8 @@ export interface Project {
   processingGoal: ProcessingGoal;
   upload: Upload;
   bandLineup?: BandLineup;
+  /** Кто играет. Пусто в сценарии урока и у проектов без состава. */
+  musicians: Musician[];
   studentProfile?: StudentProfile;
   teacherProfile?: TeacherProfile;
   classGroup?: ClassGroup;
