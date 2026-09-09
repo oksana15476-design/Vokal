@@ -113,7 +113,12 @@ export interface ArrangementVersion {
   artifactsSnapshot?: Artifact[];
 }
 
-export type ProcessingStepStatus = "queued" | "running" | "done" | "warning" | "error";
+/**
+ * `skipped` — шаг не выполняется на этом пути, и результата у него не будет.
+ * Отдельный статус нужен, чтобы не выдавать несделанное за «готово»: на пути
+ * загрузки звук не обрабатывается вовсе.
+ */
+export type ProcessingStepStatus = "queued" | "running" | "done" | "warning" | "error" | "skipped";
 
 export interface ProcessingStep {
   id: string;

@@ -493,6 +493,80 @@ describe("пустые вкладки объясняют пустоту", () => 
   });
 });
 
+describe("шаги обработки не рапортуют о несделанном (B71)", () => {
+  // Останавливается на экране обработки, а не проскакивает его насквозь.
+  const startUpload = async (user: ReturnType<typeof userEvent.setup>) => {
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await screen.findByRole("heading", { name: /Читаем ваш файл/ });
+  };
+
+  it("не доводит до «готово» шаги, результата которых не существует", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // На пути загрузки Stage Pack пуст: разделения слоев, аккордов, MIDI и
+    // нот не произошло. Восемь зеленых шагов были отчетом о несделанном.
+    const milestones = [...document.querySelectorAll(".processing-milestone")];
+    expect(milestones.length).toBeGreaterThan(0);
+    expect(milestones.every((node) => !node.className.includes("done"))).toBe(true);
+    expect(milestones.every((node) => node.className.includes("skipped"))).toBe(true);
+  });
+
+  it("подписывает пропущенный шаг словами, а не только классом", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Класс пользователь не видит. Причину он должен прочитать.
+    expect(screen.getAllByText(/не выполняется/i).length).toBeGreaterThan(0);
+  });
+
+  it("доводит прогресс до 100%, когда выполнять нечего", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Знаменатель считается по выполняемым шагам. Со старым знаменателем
+    // полоса застревала, а все тесты оставались зелеными.
+    await waitFor(() => expect(screen.getByLabelText("Прогресс 100%")).toBeTruthy(), { timeout: PROCESSING_MS });
+  });
+
+  it("не обещает, что шаги идут, там где они не идут", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+    expect(screen.queryByText(/Шаги идут по таймеру/)).toBeNull();
+  });
+
+  it("не оценивает работу, которая не будет выполнена", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Экран уже сказал «Разбор не создается». Оценка сложности рядом с этой
+    // строкой оценивает работу, которой не будет, — два соседних утверждения
+    // противоречат друг другу.
+    expect(screen.queryByText(/Оценка сложности/)).toBeNull();
+    expect(screen.queryByText(/условных единиц сложности/)).toBeNull();
+  });
+
+  it("на демо-разборе шаги по-прежнему выполняются", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await screen.findByRole("heading", { name: /Собираем демо-разбор/ });
+
+    // Демо-данные существуют, поэтому шаги на этом пути настоящие.
+    // Правка не должна превратить в «пропущено» и их.
+    const milestones = [...document.querySelectorAll(".processing-milestone")];
+    expect(milestones.some((node) => node.className.includes("skipped"))).toBe(false);
+    await waitFor(() => expect(screen.getByLabelText("Прогресс 100%")).toBeTruthy(), { timeout: PROCESSING_MS });
+  });
+});
+
 describe("бренд-бук: структура экранов", () => {
   it("показывает шапку продукта со знаком и навигацией", async () => {
     render(<App />);

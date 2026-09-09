@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Gauge,
   Layers3,
+  MinusCircle,
   ListChecks,
   Play,
   Repeat2,
@@ -164,12 +165,32 @@ const mediumConfidenceThreshold = 0.75;
 const initialScenario: Scenario = "band";
 const initialGoalId: ProcessingGoalId = "band-rehearsal";
 
+/**
+ * Какие шаги на этом пути действительно выполняются.
+ *
+ * Демо-разбор существует заранее, поэтому его шаги настоящие. На пути
+ * загрузки звук не обрабатывается вовсе: разделения на слои, аккордов, MIDI
+ * и нот не происходит, Stage Pack остаётся пустым. Раньше все восемь шагов
+ * доходили до «готово» и рисовали четыре зелёные вехи за несделанную работу.
+ *
+ * Ровно поэтому здесь не появляются новые «настоящие» шаги вроде «Чтение
+ * файла»: у демо файла нет (`format: "DEMO"`), и такой шаг стал бы той же
+ * неправдой, только на другом пути.
+ */
+export const runnableStepIds = (project: Project): string[] =>
+  project.analysis.source === "demo" ? project.processing.steps.map((step) => step.id) : [];
+
 const stepStatusForIndex = (
   stepIndex: number,
   activeIndex: number,
   stepId: string,
   errorStepId: string | null,
+  runnable: string[],
 ): ProcessingStep["status"] => {
+  if (!runnable.includes(stepId)) {
+    return "skipped";
+  }
+
   if (stepIndex === activeIndex && stepId === errorStepId) {
     return "error";
   }
@@ -186,9 +207,11 @@ const stepStatusForIndex = (
 };
 
 function makeProcessingSteps(project: Project, activeIndex: number, errorStepId: string | null = null): ProcessingStep[] {
+  const runnable = runnableStepIds(project);
+
   return project.processing.steps.map((step, index) => ({
     ...step,
-    status: stepStatusForIndex(index, activeIndex, step.id, errorStepId),
+    status: stepStatusForIndex(index, activeIndex, step.id, errorStepId, runnable),
   }));
 }
 
@@ -260,7 +283,7 @@ export default function App() {
       return;
     }
 
-    if (processingIndex >= project.processing.steps.length) {
+    if (processingIndex >= runnableStepIds(project).length) {
       const timer = window.setTimeout(() => {
         setProject((current) =>
           current
@@ -270,10 +293,10 @@ export default function App() {
                   ...current.processing,
                   status: "ready",
                   progressPercent: 100,
-                  steps: current.processing.steps.map((step) => ({
-                    ...step,
-                    status: step.id === "structure" ? "warning" : "done",
-                  })),
+                  // Пропущенные остаются пропущенными. Раньше здесь всем
+                  // шагам подряд ставился «done», и регресс был невидим в
+                  // вёрстке: экран уже сменился.
+                  steps: makeProcessingSteps(current, runnableStepIds(current).length),
                 },
               }
             : current,
@@ -951,7 +974,11 @@ function ProcessingScreen({
   errorStepId: string | null;
   onRetry: (stepId: string) => void;
 }) {
-  const progress = Math.min(100, Math.round((activeIndex / project.processing.steps.length) * 100));
+  // Знаменатель — выполняемые шаги, а не все. Когда выполнять нечего,
+  // прогресс равен 100 сразу: работа окончена, а не застряла.
+  const runnableCount = runnableStepIds(project).length;
+  const progress = runnableCount === 0 ? 100 : Math.min(100, Math.round((activeIndex / runnableCount) * 100));
+  const nothingRuns = runnableCount === 0;
   const failedStep = errorStepId ? steps.find((step) => step.id === errorStepId) : undefined;
   const currentStep =
     steps.find((step) => step.status === "error") ??
@@ -971,6 +998,10 @@ function ProcessingScreen({
 
     if (relatedSteps.some((step) => step.status === "warning")) {
       return "warning";
+    }
+
+    if (relatedSteps.length > 0 && relatedSteps.every((step) => step.status === "skipped")) {
+      return "skipped";
     }
 
     if (relatedSteps.length > 0 && relatedSteps.every((step) => step.status === "done")) {
@@ -995,13 +1026,21 @@ function ProcessingScreen({
           <span style={{ width: `${progress}%` }} />
         </div>
 
-        <p className="processing-disclaimer">Шаги идут по таймеру, звук не обрабатывается.</p>
+        <p className="processing-disclaimer">
+          {nothingRuns
+            ? "Прототип читает свойства файла. Звук не обрабатывается, разбор не создается."
+            : "Шаги идут по таймеру, звук не обрабатывается."}
+        </p>
 
         <div className={failedStep ? "processing-focus failed" : "processing-focus"}>
           <span>{progress}%</span>
           <div>
-            <strong>{currentStep?.label ?? "Запуск"}</strong>
-            <p>{currentStep?.detail ?? "Первый шаг демо-разбора."}</p>
+            <strong>{nothingRuns ? "Разбор не создается" : (currentStep?.label ?? "Запуск")}</strong>
+            <p>
+              {nothingRuns
+                ? "Прочитаны формат, длительность, каналы и частота. Больше с файлом ничего не делается."
+                : (currentStep?.detail ?? "Первый шаг демо-разбора.")}
+            </p>
           </div>
         </div>
 
@@ -1030,12 +1069,14 @@ function ProcessingScreen({
                     <CheckCircle2 size={18} />
                   ) : status === "warning" || status === "error" ? (
                     <AlertTriangle size={18} />
+                  ) : status === "skipped" ? (
+                    <MinusCircle size={18} />
                   ) : (
                     <Clock3 size={18} />
                   )}
                 </span>
                 <strong>{milestone.label}</strong>
-                <small>{milestone.detail}</small>
+                <small>{status === "skipped" ? "не выполняется" : milestone.detail}</small>
               </div>
             );
           })}
@@ -1053,7 +1094,12 @@ function ProcessingScreen({
           </div>
         )}
 
-        <CostEstimateBox estimate={project.costEstimate} />
+        {/*
+          Оценка сложности показывается только там, где обработка идёт. На
+          пути загрузки экран строкой выше говорит «Разбор не создается» —
+          оценка работы, которой не будет, противоречит ей же.
+        */}
+        {!nothingRuns && <CostEstimateBox estimate={project.costEstimate} />}
       </div>
     </section>
   );

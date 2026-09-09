@@ -396,7 +396,9 @@ export const createQueuedProcessing = (id: string): ProcessingJob => ({
   id,
   status: "queued",
   steps: baseSteps.map((step) => ({ ...step })),
-  warnings: ["Результат будет черновиком для проверки музыкантом."],
+  // Пусто намеренно. На пути загрузки обработки нет, и обещать, что
+  // «результат будет черновиком», значит обещать результат.
+  warnings: [],
   progressPercent: 0,
 });
 

@@ -1167,18 +1167,23 @@ button:not(:disabled):active {
 }
 
 .progress-track {
-  background: #dce5de;
-  border-radius: 999px;
+  background: var(--surface-inset);
+  border-radius: var(--r-pill);
   height: 12px;
-  margin: 8px 0 0;
+  margin: var(--s2) 0 0;
   overflow: hidden;
 }
 
+/*
+ * Заливка одноцветная. Радужный градиент из старой палитры заканчивался
+ * красным, а красный в системе закреплён за необратимым: полный прогресс
+ * читался как авария. Плюс градиенты запрещены чеклистом ревью.
+ */
 .progress-track span {
-  background: linear-gradient(90deg, var(--pine), var(--brass), var(--coral));
+  background: var(--accent);
   display: block;
   height: 100%;
-  transition: width 220ms ease;
+  transition: width var(--t-slow) var(--ease);
 }
 
 .step-icon {
@@ -3195,4 +3200,28 @@ button:disabled {
   display: block;
   font-size: 17px;
   margin-top: var(--s1);
+}
+
+/*
+ * Веха, которая не выполняется. Пунктир рисуется через --border-strong: это
+ * токен dashed по дизайн-системе, а --line на белой карточке даёт контраст
+ * около 1.3:1 и пунктир физически не виден. Фон --canvas, а не --surface,
+ * иначе пропущенная веха ничем не отличается от стоящей в очереди.
+ */
+.processing-milestone.skipped {
+  background: var(--canvas);
+  border: 1px dashed var(--border-strong);
+  box-shadow: none;
+  color: var(--ink-muted);
+}
+
+.processing-milestone.skipped .step-icon {
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
+.processing-milestone.skipped small {
+  font-variant-numeric: normal;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
 }
