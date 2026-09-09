@@ -3588,3 +3588,43 @@ button:disabled {
   font-family: var(--font-data);
   font-style: normal;
 }
+
+/*
+ * Плашка причины у пустого состояния. Моноширинная, прописными: класс
+ * проблемы читается до абзаца, а не вычитывается из него.
+ */
+.empty-reason {
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  display: inline-block;
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--s2);
+  padding: var(--s1) var(--s2);
+  text-transform: uppercase;
+}
+
+.empty-reason.attention {
+  background: var(--amber-tint);
+  border-color: var(--amber-tint-border);
+  color: var(--warn-ink);
+}
+
+.empty-reason.error {
+  background: var(--red-tint);
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
+}
+
+.empty-reason.neutral {
+  background: var(--canvas);
+  color: var(--ink-muted);
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}

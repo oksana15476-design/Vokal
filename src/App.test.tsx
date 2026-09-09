@@ -591,6 +591,41 @@ describe("демо не перетирает задание пользовате
   });
 });
 
+describe("пустые состояния называют причину (B103)", () => {
+  it("ставит причину плашкой, а не прячет в тексте", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    const empty = document.querySelector(".no-analysis");
+    expect(empty).not.toBeNull();
+    // Причину видно до чтения абзаца.
+    expect(empty!.querySelector(".empty-reason")?.textContent).toMatch(/состав/i);
+  });
+
+  it("предлагает выход из пустоты, а не только демо", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    const empty = within(document.querySelector(".no-analysis") as HTMLElement);
+    expect(empty.getByRole("button", { name: /Заполнить состав/ })).toBeTruthy();
+    expect(empty.getByRole("button", { name: /демо/i })).toBeTruthy();
+  });
+});
+
 describe("таблица материалов: фильтр и постраничность (B99)", () => {
   const openMaterials = async (user: ReturnType<typeof userEvent.setup>) => {
     await openBandDemo(user);

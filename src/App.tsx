@@ -1668,7 +1668,7 @@ function StagePackShell({
       {workspaceTab === "lineup" && (
         <section id="workspace-lineup" className="stage-panel" role="tabpanel">
           <h2>Состав</h2>
-          <LineupPanel project={project} onOpenDemo={onOpenDemo} />
+          <LineupPanel project={project} onOpenDemo={onOpenDemo} onFillLineup={onBack} />
         </section>
       )}
 
@@ -1812,7 +1812,11 @@ function StagePackShell({
         <section id="workspace-review" className="stage-panel stage-view review-view" role="tabpanel">
           <div className="review-main">
             {project.reviewIssues.length === 0 ? (
-              <EmptyState title="Сомнительных мест нет, потому что нет разбора" onOpenDemo={onOpenDemo}>
+              <EmptyState
+                title="Сомнительных мест нет, потому что нет разбора"
+                reason={{ text: "разбора нет", kind: "neutral" }}
+                onOpenDemo={onOpenDemo}
+              >
                 Сомнительные места находит разбор песни. Пока звук не обрабатывается, находить их не в чем — это
                 не значит, что в вашей песне все чисто.
               </EmptyState>
@@ -1912,7 +1916,11 @@ function StagePackShell({
             </div>
 
             {project.directorSuggestions.length === 0 && (
-              <EmptyState title="Предложений пока нет" onOpenDemo={onOpenDemo}>
+              <EmptyState
+                title="Предложений пока нет"
+                reason={{ text: "разбора нет", kind: "neutral" }}
+                onOpenDemo={onOpenDemo}
+              >
                 AI-директор строит предложения на разборе песни: состав, партии, спорные места. Пока разбора нет,
                 предлагать нечего.
               </EmptyState>
@@ -2066,7 +2074,11 @@ function StagePackShell({
             <section className="subpanel compact">
               <h3>Кому выдать материалы</h3>
               {project.shareRecipients.length === 0 && (
-                <EmptyState title="Получателей пока нет" onOpenDemo={onOpenDemo}>
+                <EmptyState
+                  title="Получателей пока нет"
+                  reason={{ text: "нечего выдавать", kind: "neutral" }}
+                  onOpenDemo={onOpenDemo}
+                >
                   Список получателей собирается из состава группы или класса, а материалы для выдачи — из разбора.
                   Пока нет ни того, ни другого.
                 </EmptyState>
@@ -2226,24 +2238,42 @@ function StagePackShell({
  * читается как «проверено, проблем нет» — то есть ровно наоборот, поэтому
  * пустоту всегда объясняем и даем один выход.
  */
+/**
+ * Пустое состояние. По бренд-буку у пустоты есть плашка причины: класс
+ * проблемы читается до абзаца, а не вычитывается из него. Где у пустоты
+ * есть выход, кроме демо, он стоит первым действием.
+ */
 function EmptyState({
   title,
+  reason,
   children,
+  action,
   onOpenDemo,
 }: {
   title: string;
+  /** Класс причины: «состав не заполнен», «разбора нет». Моноширинная плашка. */
+  reason?: { text: string; kind: "attention" | "neutral" | "error" };
   children: ReactNode;
+  action?: { label: string; run: () => void };
   onOpenDemo: () => void;
 }) {
   return (
     <div className="no-analysis">
       <Layers3 size={20} />
       <div>
+        {reason && <span className={`empty-reason ${reason.kind}`}>{reason.text}</span>}
         <strong>{title}</strong>
         <p>{children}</p>
-        <button className="secondary-action" type="button" onClick={onOpenDemo}>
-          Открыть демо-разбор
-        </button>
+        <div className="empty-actions">
+          {action && (
+            <button className="btn btn-outline btn-xs" type="button" onClick={action.run}>
+              {action.label}
+            </button>
+          )}
+          <button className="btn btn-outline btn-xs" type="button" onClick={onOpenDemo}>
+            Открыть демо-разбор
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2402,7 +2432,15 @@ function ConfirmDialog({
  * струн басисту, уровень каждому свой. В плоском `BandLineup` этого не
  * выразить, и директор предлагал транспонирование, не зная, чей диапазон.
  */
-function LineupPanel({ project, onOpenDemo }: { project: Project; onOpenDemo: () => void }) {
+function LineupPanel({
+  project,
+  onOpenDemo,
+  onFillLineup,
+}: {
+  project: Project;
+  onOpenDemo: () => void;
+  onFillLineup: () => void;
+}) {
   const initials = (name: string) =>
     name
       .split(/\s+/)
@@ -2414,7 +2452,12 @@ function LineupPanel({ project, onOpenDemo }: { project: Project; onOpenDemo: ()
 
   if (project.musicians.length === 0) {
     return (
-      <EmptyState title="Состав не заведен" onOpenDemo={onOpenDemo}>
+      <EmptyState
+        title="Нечего адаптировать"
+        reason={{ text: "состав не заполнен", kind: "attention" }}
+        action={{ label: "Заполнить состав", run: onFillLineup }}
+        onOpenDemo={onOpenDemo}
+      >
         Директор подгоняет тональность, партии и сложность под конкретных людей: диапазон вокалиста, число струн
         баса, уровень каждого. Пока состава нет, он считает по среднему случаю.
       </EmptyState>
