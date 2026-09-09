@@ -31,6 +31,7 @@ import type {
   ReviewStatus,
   Scenario,
 } from "./domain/types";
+import { type AudioFacts, browserDecoder, formatDuration, readAudioFacts } from "./services/audioFile";
 import {
   applyDirectorAction,
   addSessionNote,
@@ -180,7 +181,8 @@ export default function App() {
   const [scenario, setScenario] = useState<Scenario>(initialScenario);
   const [goalId, setGoalId] = useState<ProcessingGoalId>(initialGoalId);
   const [fileName, setFileName] = useState("");
-  const [fileSize, setFileSize] = useState(0);
+  const [fileFacts, setFileFacts] = useState<AudioFacts | null>(null);
+  const [isDecoding, setIsDecoding] = useState(false);
   const [acceptedConsent, setAcceptedConsent] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [processingIndex, setProcessingIndex] = useState(0);
@@ -290,10 +292,11 @@ export default function App() {
     startProcessing(nextProject);
   };
 
-  const selectFile = (file: File | null) => {
+  const selectFile = async (file: File | null) => {
+    setFileFacts(null);
+
     if (!file) {
       setFileName("");
-      setFileSize(0);
       setUploadError(null);
       return;
     }
@@ -301,14 +304,25 @@ export default function App() {
     const error = validateUploadFile(file);
     if (error) {
       setFileName("");
-      setFileSize(0);
       setUploadError(error);
       return;
     }
 
     setFileName(file.name);
-    setFileSize(file.size);
     setUploadError(null);
+    setIsDecoding(true);
+
+    // Декодирование в браузере: файл никуда не отправляется.
+    const result = await readAudioFacts(file, browserDecoder);
+    setIsDecoding(false);
+
+    if (!result.ok) {
+      setFileName("");
+      setUploadError(result.error);
+      return;
+    }
+
+    setFileFacts(result.facts);
   };
 
   const startUploadProject = () => {
@@ -316,8 +330,8 @@ export default function App() {
       scenario,
       goalId,
       fileName,
-      fileSizeBytes: fileSize,
       acceptedConsent,
+      facts: fileFacts ?? undefined,
       setupSnapshot: {
         scenario,
         title: scenario === "band" ? "Состав группы" : "Учебная задача",
@@ -330,7 +344,7 @@ export default function App() {
     startProcessing(nextProject);
   };
 
-  const canStartJob = fileName.trim().length > 0 && acceptedConsent;
+  const canStartJob = fileName.trim().length > 0 && acceptedConsent && !isDecoding && fileFacts !== null;
 
   return (
     <main className="app-shell">
@@ -359,6 +373,7 @@ export default function App() {
           fileName={fileName}
           onSelectFile={selectFile}
           uploadError={uploadError}
+          isDecoding={isDecoding}
           acceptedConsent={acceptedConsent}
           setAcceptedConsent={setAcceptedConsent}
           canStartJob={canStartJob}
@@ -415,6 +430,7 @@ interface StartScreenProps {
   fileName: string;
   onSelectFile: (file: File | null) => void;
   uploadError: string | null;
+  isDecoding: boolean;
   acceptedConsent: boolean;
   setAcceptedConsent: (accepted: boolean) => void;
   canStartJob: boolean;
@@ -432,6 +448,7 @@ function StartScreen({
   fileName,
   onSelectFile,
   uploadError,
+  isDecoding,
   acceptedConsent,
   setAcceptedConsent,
   canStartJob,
@@ -510,7 +527,11 @@ function StartScreen({
 
           <label className={uploadError ? "drop-zone job-drop-zone invalid" : "drop-zone job-drop-zone"}>
             <FileAudio size={30} />
-            <span>{fileName || "Выберите MP3, WAV, FLAC или M4A. Файл останется на устройстве"}</span>
+            <span>
+              {isDecoding
+                ? "Читаем файл в браузере..."
+                : fileName || "Выберите MP3, WAV, FLAC или M4A. Файл останется на устройстве"}
+            </span>
             <input
               type="file"
               accept=".mp3,.wav,.flac,.m4a,audio/*"
@@ -547,9 +568,11 @@ function StartScreen({
 
           {!canStartJob && (
             <p className="action-hint">
-              {!fileName
-                ? "Чтобы продолжить, выберите файл песни."
-                : "Чтобы продолжить, подтвердите право обработать этот материал."}
+              {isDecoding
+                ? "Читаем файл, это займет мгновение."
+                : !fileName
+                  ? "Чтобы продолжить, выберите файл песни."
+                  : "Чтобы продолжить, подтвердите право обработать этот материал."}
             </p>
           )}
 
@@ -1067,7 +1090,9 @@ function StagePackShell({
   );
   const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
   const selectedArtifact =
-    project.stagePack.artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? project.stagePack.artifacts[0];
+    project.stagePack.artifacts.find((artifact) => artifact.id === selectedArtifactId) ??
+    project.stagePack.artifacts[0];
+  const hasArtifacts = project.stagePack.artifacts.length > 0;
   const readyArtifacts = project.stagePack.artifacts.filter((artifact) => artifact.status === "ready").length;
   const reviewCount = project.reviewIssues.filter(
     (issue) => issue.status === "needs_review" || issue.status === "uncertain",
@@ -1076,9 +1101,12 @@ function StagePackShell({
     (recipient) => recipient.status === "issued" || recipient.status === "opened",
   ).length;
   const hasStaleBundle = project.exportBundles.some((bundle) => bundle.status !== "ready");
-  const averageConfidence =
-    Object.values(project.analysis.confidenceByPart).reduce((sum, value) => sum + value, 0) /
-    Object.values(project.analysis.confidenceByPart).length;
+  const confidences = Object.values(project.analysis.confidenceByPart);
+  const hasAnalysis = project.analysis.source === "demo";
+  // Без разбора среднее считать не из чего: деление на ноль дало бы NaN на экране.
+  const averageConfidence = confidences.length
+    ? confidences.reduce((sum, value) => sum + value, 0) / confidences.length
+    : 0;
   const selectedVersionChanges = currentVersion?.changes ?? [];
 
   const runAction = (actionId: DirectorActionId) => {
@@ -1143,8 +1171,9 @@ function StagePackShell({
         <div>
           <h1>{project.name}</h1>
           <p>
-            {project.analysis.key}, {project.analysis.bpm} BPM, {project.analysis.meter}, точность разбора{" "}
-            {formatConfidence(averageConfidence)}
+            {hasAnalysis
+              ? `${project.analysis.key}, ${project.analysis.bpm} BPM, ${project.analysis.meter}, точность разбора ${formatConfidence(averageConfidence)}`
+              : `${project.upload.fileName} · ${project.analysis.duration}`}
           </p>
         </div>
         <span className="version-pill">{currentVersion?.label ?? "Версия"}</span>
@@ -1200,23 +1229,33 @@ function StagePackShell({
           <div className="overview-main">
             <div className="preview-header">
               <div>
-                <p className="eyebrow">Демо-разбор</p>
+                <p className="eyebrow">{hasAnalysis ? "Демо-разбор" : "Ваш файл"}</p>
                 <h2>{project.analysis.title}</h2>
-                <p>{project.analysis.summary}</p>
+                {hasAnalysis && <p>{project.analysis.summary}</p>}
               </div>
-              <span className="status-badge ready">демо-данные</span>
+              <span className="status-badge ready">{hasAnalysis ? "демо-данные" : "без разбора"}</span>
             </div>
 
-            <div className="song-facts">
-              <span>{project.analysis.artist}</span>
-              <span>{project.analysis.key}</span>
-              <span>{project.analysis.bpm} BPM</span>
-              <span>{project.analysis.meter}</span>
-              <span>{project.analysis.duration}</span>
-              <span>{project.analysis.genre}</span>
-            </div>
+            {hasAnalysis ? (
+              <div className="song-facts">
+                <span>{project.analysis.artist}</span>
+                <span>{project.analysis.key}</span>
+                <span>{project.analysis.bpm} BPM</span>
+                <span>{project.analysis.meter}</span>
+                <span>{project.analysis.duration}</span>
+                <span>{project.analysis.genre}</span>
+              </div>
+            ) : (
+              <div className="song-facts">
+                <span>{project.upload.format}</span>
+                <span>{project.analysis.duration}</span>
+                {project.upload.sampleRate && <span>{project.upload.sampleRate} Гц</span>}
+                {project.upload.channels === 1 && <span>моно</span>}
+                {project.upload.channels === 2 && <span>стерео</span>}
+              </div>
+            )}
 
-            {averageConfidence < lowConfidenceThreshold && (
+            {hasAnalysis && averageConfidence < lowConfidenceThreshold && (
               <div className="inline-warning" role="status">
                 <AlertTriangle size={17} />
                 <span>
@@ -1233,9 +1272,28 @@ function StagePackShell({
               </div>
             )}
 
-            <SectionTimeline project={project} />
-            <TransportBar project={project} />
-            <StudioTrackStack project={project} onAction={runAction} />
+            {hasAnalysis ? (
+              <>
+                <SectionTimeline project={project} />
+                <TransportBar project={project} />
+                <StudioTrackStack project={project} onAction={runAction} />
+              </>
+            ) : (
+              <div className="no-analysis" role="status">
+                <Layers3 size={20} />
+                <div>
+                  <strong>Звук не анализируется</strong>
+                  <p>
+                    Прототип прочитал файл и показывает его настоящие параметры. Форма песни, аккорды, партии и
+                    точность разбора появятся с настоящей обработкой звука — подставлять сюда данные другой песни
+                    было бы неправдой.
+                  </p>
+                  <button className="secondary-action" type="button" onClick={onBack}>
+                    Посмотреть на демо-разборе
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <aside className="overview-next">
@@ -1277,7 +1335,28 @@ function StagePackShell({
       )}
 
       {workspaceTab === "materials" && (
-        <section id="workspace-materials" className="stage-panel stage-view materials-view" role="tabpanel">
+        <section
+          id="workspace-materials"
+          className={hasArtifacts ? "stage-panel stage-view materials-view" : "stage-panel"}
+          role="tabpanel"
+        >
+          {!hasArtifacts && (
+            <div className="no-analysis" role="status">
+              <Layers3 size={20} />
+              <div>
+                <strong>Материалов пока нет</strong>
+                <p>
+                  Партии, ноты, MIDI и аудиослои собираются из разбора песни. Пока звук не обрабатывается,
+                  собирать их не из чего. Как это выглядит на готовом разборе, видно в демо-проекте.
+                </p>
+                <button className="secondary-action" type="button" onClick={onBack}>
+                  Посмотреть на демо-разборе
+                </button>
+              </div>
+            </div>
+          )}
+          {hasArtifacts && (
+          <>
           <aside className="material-list-pane">
             <div className="pane-title-row">
               <h2>Материалы</h2>
@@ -1332,6 +1411,8 @@ function StagePackShell({
               ))}
             </div>
           </div>
+          </>
+          )}
         </section>
       )}
 
@@ -1623,11 +1704,15 @@ function StagePackShell({
               <div className="constraint-grid">
                 <span>Файл: {project.upload.fileName}</span>
                 <span>Формат: {project.upload.format}</span>
-                <span>
-                  Длительность: {Math.floor(project.upload.durationSeconds / 60)}:
-                  {String(project.upload.durationSeconds % 60).padStart(2, "0")}
-                </span>
+                <span>Длительность: {formatDuration(project.upload.durationSeconds)}</span>
                 <span>Качество: {uploadQualityCopy[project.upload.quality]}</span>
+                {project.upload.sampleRate && <span>Частота: {project.upload.sampleRate} Гц</span>}
+                {project.upload.channels && (
+                  <span>Каналов: {project.upload.channels === 1 ? "1 (моно)" : project.upload.channels}</span>
+                )}
+                {project.upload.sizeBytes && (
+                  <span>Размер: {Math.round(project.upload.sizeBytes / 1024 / 1024)} МБ</span>
+                )}
               </div>
               <p className="privacy-note">{project.upload.sourceNote}</p>
             </section>

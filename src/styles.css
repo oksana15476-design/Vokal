@@ -2424,3 +2424,26 @@ textarea:focus-visible {
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
+
+.no-analysis {
+  align-items: flex-start;
+  background: var(--paper-strong);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto 1fr;
+  padding: 20px;
+}
+
+.no-analysis strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.no-analysis p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 12px;
+  max-width: 62ch;
+}

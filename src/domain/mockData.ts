@@ -281,6 +281,7 @@ export const processingMilestones: Array<{ label: string; detail: string; stepId
 ];
 
 const bandAnalysis: SongAnalysis = {
+  source: "demo",
   title: "Late Train Home",
   artist: "Demo Cover",
   bpm: 104,
@@ -316,6 +317,7 @@ const bandAnalysis: SongAnalysis = {
 };
 
 const lessonAnalysis: SongAnalysis = {
+  source: "demo",
   title: "Warm Lights",
   artist: "Demo Lesson",
   bpm: 92,
@@ -347,6 +349,7 @@ const lessonAnalysis: SongAnalysis = {
 };
 
 const ensembleAnalysis: SongAnalysis = {
+  source: "demo",
   title: "School Hall",
   artist: "Demo Ensemble",
   bpm: 118,

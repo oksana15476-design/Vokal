@@ -4,6 +4,7 @@ import {
   directorActionResults,
   processingGoals,
 } from "../domain/mockData";
+import { formatDuration } from "./audioFile";
 import type {
   ArtifactStatus,
   ArtifactType,
@@ -14,7 +15,7 @@ import type {
   ReviewStatus,
   Scenario,
   SetupSnapshot,
-  Upload,
+  SongAnalysis,
   UploadProjectInput,
 } from "../domain/types";
 
@@ -57,7 +58,6 @@ export const createProjectFromDemo = (projectId: string): Project => {
 
 export const supportedUploadExtensions = ["mp3", "wav", "flac", "m4a"] as const;
 export const maxUploadBytes = 50 * 1024 * 1024;
-export const lowQualityUploadBytes = 20 * 1024 * 1024;
 
 const extensionOf = (fileName: string) => fileName.split(".").pop()?.toLowerCase() ?? "";
 
@@ -74,9 +74,6 @@ export const validateUploadFile = (file: { name: string; size: number }): string
 
   return null;
 };
-
-export const qualityForSize = (sizeBytes: number): Upload["quality"] =>
-  sizeBytes >= lowQualityUploadBytes ? "low" : "medium";
 
 const extensionToFormat = (fileName: string): "MP3" | "WAV" | "FLAC" | "M4A" => {
   const extension = extensionOf(fileName);
@@ -107,24 +104,60 @@ const estimateFromSetup = (scenario: Scenario, snapshot: SetupSnapshot | undefin
   };
 };
 
+const titleFromFileName = (fileName: string) => fileName.replace(/\.[^.]+$/, "") || fileName;
+
+/**
+ * Разбора у загруженного файла нет и подставлять чужой нельзя: пользователь
+ * увидит тональность и аккорды другой песни. Пустой разбор честнее.
+ */
+const emptyAnalysis = (fileName: string, durationSeconds: number): SongAnalysis => ({
+  source: "none",
+  title: titleFromFileName(fileName),
+  artist: "",
+  bpm: 0,
+  key: "",
+  meter: "",
+  duration: formatDuration(durationSeconds),
+  genre: "",
+  sections: [],
+  chords: [],
+  confidenceByPart: {},
+  summary: "Звук не анализируется. Форма, аккорды и партии появятся с настоящей обработкой.",
+});
+
 export const createProjectFromUpload = (input: UploadProjectInput): Project => {
   const base = cloneProject(input.scenario === "band" ? demoProjects[0] : demoProjects[1]);
   const goal = getGoal(input.goalId);
+  const facts = input.facts;
 
   return {
     ...base,
     id: `project-upload-${Date.now()}`,
-    name: `${input.fileName}: моковая подготовка`,
+    name: `${titleFromFileName(input.fileName)}: подготовка`,
     scenario: input.scenario,
     processingGoal: goal,
     upload: {
       id: `upload-${Date.now()}`,
       fileName: input.fileName,
       format: extensionToFormat(input.fileName),
-      durationSeconds: 214,
-      quality: qualityForSize(input.fileSizeBytes ?? 0),
-      sourceNote: "Локальная моковая запись: файл не отправлен на сервер.",
+      durationSeconds: facts?.durationSeconds ?? 0,
+      quality: facts?.quality ?? "medium",
+      sourceNote: "Файл остается на устройстве и никуда не отправляется.",
+      sizeBytes: facts?.sizeBytes,
+      sampleRate: facts?.sampleRate,
+      channels: facts?.channels,
     },
+    analysis: emptyAnalysis(input.fileName, facts?.durationSeconds ?? 0),
+    reviewIssues: [],
+    reviewComments: [],
+    stagePack: { ...base.stagePack, artifacts: [] },
+    directorSuggestions: [],
+    chat: [],
+    assignments: [],
+    // Получатели и пакеты приходили от демо-группы: на своем файле пользователь
+    // видел чужих музыкантов по именам.
+    shareRecipients: [],
+    exportBundles: [],
     bandLineup:
       input.scenario === "band"
         ? {
@@ -182,7 +215,7 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
         createdAt: now(),
         createdBy: "Пользователь",
         status: "draft",
-        changes: ["Создан моковый проект из выбранного файла."],
+        changes: ["Проект создан из выбранного файла."],
       },
     ],
     currentVersionId: "uploaded-draft",
@@ -203,7 +236,7 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
       {
         id: `change-upload-${Date.now()}`,
         title: "Создан проект из файла",
-        description: "Файл сохранен как моковая запись без реальной загрузки.",
+        description: "Файл прочитан в браузере и остался на устройстве.",
         createdAt: now(),
         actor: "Пользователь",
       },
@@ -378,7 +411,7 @@ export const createShareLinks = (project: Project, recipientIds: string[]): Proj
       {
         id: `change-share-${Date.now()}`,
         title: "Материалы выданы",
-        description: `Созданы моковые ссылки: ${newLinks.length}.`,
+        description: `Создано демо-ссылок: ${newLinks.length}.`,
         createdAt: now(),
         actor: "Пользователь",
       },
@@ -422,7 +455,7 @@ export const deleteProjectSource = (project: Project): Project => ({
   dataRetention: {
     ...project.dataRetention,
     sourceDeleted: true,
-    retentionNote: "Исходный файл удален из мокового проекта. Результаты пока сохранены.",
+    retentionNote: "Исходный файл удален. Результаты пока сохранены.",
   },
   changeLog: [
     {

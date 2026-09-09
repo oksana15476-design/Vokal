@@ -33,6 +33,10 @@ export interface Upload {
   durationSeconds: number;
   quality: "good" | "medium" | "low";
   sourceNote: string;
+  /** Факты из декодированного аудио. У демо отсутствуют: файла нет. */
+  sizeBytes?: number;
+  sampleRate?: number;
+  channels?: number;
 }
 
 export interface BandLineup {
@@ -142,6 +146,12 @@ export interface ChordEvent {
 }
 
 export interface SongAnalysis {
+  /**
+   * Откуда взят разбор. `demo` — данные подготовлены заранее; `none` — разбора
+   * нет, потому что звук не анализируется. Промежуточного состояния нет:
+   * подставлять чужой разбор к своему файлу нельзя.
+   */
+  source: "demo" | "none";
   title: string;
   artist: string;
   bpm: number;
@@ -359,7 +369,14 @@ export interface UploadProjectInput {
   scenario: Scenario;
   goalId: ProcessingGoalId;
   fileName: string;
-  fileSizeBytes?: number;
   acceptedConsent: boolean;
   setupSnapshot?: SetupSnapshot;
+  /** Факты из декодированного файла. Отсутствуют, если декодирование не удалось. */
+  facts?: {
+    durationSeconds: number;
+    sampleRate: number;
+    channels: number;
+    sizeBytes: number;
+    quality: Upload["quality"];
+  };
 }

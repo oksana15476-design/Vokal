@@ -9,7 +9,6 @@ import {
   deleteProjectResults,
   deleteProjectSource,
   listDemoProjects,
-  qualityForSize,
   rebuildExportBundle,
   rollbackToVersion,
   updateReviewIssue,
@@ -176,10 +175,8 @@ describe("upload validation", () => {
     }
   });
 
-  it("marks a heavy source as low quality so processing can surface it", () => {
-    expect(qualityForSize(5 * 1024 * 1024)).toBe("medium");
-    expect(qualityForSize(30 * 1024 * 1024)).toBe("low");
-  });
+  // Качество больше не выводится из размера файла: размер говорит о битрейте
+  // контейнера и ничего не говорит о самой записи. Правила — в audioFile.test.ts.
 });
 
 describe("cost estimate", () => {
@@ -188,7 +185,6 @@ describe("cost estimate", () => {
       scenario: "band",
       goalId: "band-rehearsal",
       fileName: "song.mp3",
-      fileSizeBytes: 4_000_000,
       acceptedConsent: true,
     });
 
@@ -233,5 +229,65 @@ describe("review comments", () => {
     const updated = updateReviewIssue(project, issue.id, "accepted_for_rehearsal");
 
     expect(updated.reviewComments[updated.reviewComments.length - 1].text).toContain("принято для репетиции");
+  });
+});
+
+describe("загруженный проект не наследует чужой разбор", () => {
+  const upload = (facts?: Parameters<typeof createProjectFromUpload>[0]["facts"]) =>
+    createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "moya-pesnya.mp3",
+      acceptedConsent: true,
+      facts,
+    });
+
+  it("не показывает тональность, темп и аккорды демо-песни", () => {
+    const project = upload();
+    const demo = createProjectFromDemo("band-demo");
+
+    expect(project.analysis.source).toBe("none");
+    expect(project.analysis.chords).toHaveLength(0);
+    expect(Object.keys(project.analysis.confidenceByPart)).toHaveLength(0);
+    expect(project.analysis.sections).toHaveLength(0);
+    expect(project.analysis.key).not.toBe(demo.analysis.key);
+    expect(project.analysis.bpm).not.toBe(demo.analysis.bpm);
+  });
+
+  it("берет длительность и качество из фактов, а не из константы", () => {
+    const project = upload({
+      durationSeconds: 222.7,
+      sampleRate: 48000,
+      channels: 1,
+      sizeBytes: 4_000_000,
+      quality: "low",
+    });
+
+    expect(project.upload.durationSeconds).toBeCloseTo(222.7);
+    expect(project.upload.sampleRate).toBe(48000);
+    expect(project.upload.channels).toBe(1);
+    expect(project.upload.sizeBytes).toBe(4_000_000);
+    expect(project.upload.quality).toBe("low");
+    // Регресс: раньше здесь стояла зашитая константа 214.
+    expect(project.upload.durationSeconds).not.toBe(214);
+  });
+
+  it("называет проект по имени файла, а не по названию демо-песни", () => {
+    const project = upload();
+
+    expect(project.analysis.title).toBe("moya-pesnya");
+    expect(project.analysis.title).not.toContain("Late Train");
+  });
+
+  it("не оставляет сомнительных тактов от чужой песни", () => {
+    expect(upload().reviewIssues).toHaveLength(0);
+  });
+
+  it("демо-проекты сохраняют свой разбор", () => {
+    const demo = createProjectFromDemo("band-demo");
+
+    expect(demo.analysis.source).toBe("demo");
+    expect(demo.analysis.chords.length).toBeGreaterThan(0);
+    expect(demo.analysis.key).toBe("G minor");
   });
 });

@@ -1,8 +1,33 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+
+// В jsdom нет AudioContext, поэтому декодер подменяется. Ровно ради этого он
+// вынесен за интерфейс в audioFile.ts.
+vi.mock("./services/audioFile", async () => {
+  const actual = await vi.importActual<typeof import("./services/audioFile")>("./services/audioFile");
+  return {
+    ...actual,
+    browserDecoder: vi.fn(async () => ({
+      duration: 222.7,
+      sampleRate: 48000,
+      numberOfChannels: 2,
+      peak: 0.8,
+    })),
+  };
+});
+
+const pickFile = async (name = "moya-pesnya.mp3", size = 4_000_000) => {
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+  const file = new File(["x"], name, { type: "audio/mpeg" });
+  Object.defineProperty(file, "size", { value: size });
+  Object.defineProperty(file, "arrayBuffer", { value: () => Promise.resolve(new ArrayBuffer(size)) });
+  Object.defineProperty(input, "files", { value: [file], configurable: true });
+  fireEvent.change(input);
+  await waitFor(() => expect(screen.getByText(name)).toBeTruthy());
+};
 
 afterEach(cleanup);
 
@@ -69,15 +94,28 @@ describe("загрузка файла", () => {
     expect(screen.getByText("Чтобы продолжить, выберите файл песни.")).toBeTruthy();
   });
 
-  it("принимает поддерживаемый формат", async () => {
-    const user = userEvent.setup();
+  it("принимает поддерживаемый формат и читает его", async () => {
+    render(<App />);
+    await pickFile("song.mp3");
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("объясняет отказ декодера иначе, чем неподдерживаемый формат", async () => {
+    const { browserDecoder } = await import("./services/audioFile");
+    vi.mocked(browserDecoder).mockRejectedValueOnce(new Error("EncodingError"));
     render(<App />);
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(input, new File(["x"], "song.mp3", { type: "audio/mpeg" }));
+    const file = new File(["x"], "broken.m4a", { type: "audio/mp4" });
+    Object.defineProperty(file, "size", { value: 1000 });
+    Object.defineProperty(file, "arrayBuffer", { value: () => Promise.resolve(new ArrayBuffer(8)) });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
 
-    expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByText("song.mp3")).toBeTruthy();
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("не смог прочитать");
+    expect(alert.textContent).not.toContain("не поддерживается");
   });
 });
 
@@ -215,6 +253,28 @@ describe("честность текста", () => {
     }
   });
 
+  // Сторож проходил только демо-путь, поэтому не видел названия загруженного
+  // проекта — а там жило слово «моковая».
+  it("не обещает тарифов, сроков и не содержит жаргона на пути загрузки", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Запустить демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Экспорт/]) {
+      await user.click(screen.getByRole("tab", { name: tab }));
+      const text = document.body.textContent ?? "";
+
+      for (const pattern of forbidden) {
+        expect(text, `загрузка, вкладка ${tab}: ${pattern}`).not.toMatch(pattern);
+      }
+    }
+  });
+
   it("не обещает тарифов, сроков и не содержит жаргона в Stage Pack", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -248,5 +308,79 @@ describe("честность разметки документа", () => {
     for (const pattern of forbidden) {
       expect(text, `index.html: ${pattern}`).not.toMatch(pattern);
     }
+  });
+});
+
+describe("правда о загруженном файле", () => {
+  const startUpload = async (user: ReturnType<typeof userEvent.setup>) => {
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Запустить демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+  };
+
+  it("не показывает тональность и аккорды чужой песни", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Регресс: раньше на своем файле показывались G minor, 104 BPM и аккорды демо.
+    const text = document.body.textContent ?? "";
+    expect(text).not.toContain("G minor");
+    expect(text).not.toContain("104 BPM");
+    expect(screen.queryByLabelText("Аккорды")).toBeNull();
+  });
+
+  it("не показывает процент точности, которого нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    expect(document.body.textContent ?? "").not.toMatch(/точность разбора\s*\d/);
+    expect(document.body.textContent ?? "").not.toContain("NaN");
+  });
+
+  it("объясняет, что звук не анализируется", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    expect(screen.getByText(/Звук не анализируется/)).toBeTruthy();
+  });
+
+  it("показывает настоящую длительность файла, а не константу", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+    await user.click(screen.getByRole("tab", { name: /Экспорт/ }));
+
+    // 222.7 c = 3:42. Раньше здесь стояла зашитая константа 214 c = 3:34.
+    expect(screen.getAllByText(/3:42/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Частота: 48000/)).toBeTruthy();
+    expect(screen.getByText(/Качество: хорошее/)).toBeTruthy();
+    expect(document.body.textContent ?? "").not.toContain("3:34");
+  });
+
+  it("демо-проект по-прежнему показывает свой разбор", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    expect(document.body.textContent ?? "").toContain("G minor");
+  });
+
+  it("не делает сетевых вызовов при выборе файла", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<App />);
+    await pickFile();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });
