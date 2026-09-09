@@ -193,8 +193,9 @@ describe("cost estimate", () => {
     });
 
     expect(project.costEstimate.credits).toBeGreaterThan(0);
-    expect(project.costEstimate.runtime).not.toBe("");
     expect(["low", "medium", "high"]).toContain(project.costEstimate.complexity);
+    // Срока в оценке быть не должно: обработки нет, обещать нечего.
+    expect(JSON.stringify(project.costEstimate)).not.toMatch(/минут|секунд|час/i);
   });
 });
 

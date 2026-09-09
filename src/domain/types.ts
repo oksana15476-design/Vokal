@@ -295,8 +295,12 @@ export interface CostEstimate {
   tier: "fast_draft" | "accurate" | "multi_version";
   complexity: "low" | "medium" | "high";
   credits: number;
-  runtime: string;
   notes: string[];
+  /**
+   * Ожидаемого времени здесь намеренно нет: обработки не существует, а любое
+   * число рядом со словом «минут» читается как обещание срока и нарушает
+   * поправку спеки от 2026-09-09. Вернуть вместе с настоящим ModelRouter.
+   */
 }
 
 export interface SetupSnapshot {

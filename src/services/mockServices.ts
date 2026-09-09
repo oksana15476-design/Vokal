@@ -103,7 +103,6 @@ const estimateFromSetup = (scenario: Scenario, snapshot: SetupSnapshot | undefin
     tier: complexity === "high" ? "multi_version" : "fast_draft",
     complexity,
     credits: complexity === "high" ? 10 : complexity === "medium" ? 7 : 4,
-    runtime: complexity === "high" ? "8-12 минут" : complexity === "medium" ? "5-7 минут" : "3-5 минут",
     notes: ["Оценка демонстрационная.", "Учтены цель обработки и настройки сценария."],
   };
 };

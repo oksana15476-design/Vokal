@@ -577,7 +577,6 @@ const cost = (complexity: CostEstimate["complexity"], credits: number): CostEsti
   tier: complexity === "high" ? "multi_version" : "fast_draft",
   complexity,
   credits,
-  runtime: complexity === "high" ? "8-12 минут" : "3-5 минут",
   notes: [
     "Оценка демонстрационная.",
     "Сложность зависит от длительности, аудиослоев, партий и повторной обработки.",

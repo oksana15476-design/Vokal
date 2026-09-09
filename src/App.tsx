@@ -956,10 +956,6 @@ function CostEstimateBox({ estimate, compact = false }: { estimate: CostEstimate
           условных единиц сложности
         </span>
         <span>
-          <b>{estimate.runtime}</b>
-          ориентир по времени
-        </span>
-        <span>
           <b>{tierCopy[estimate.tier]}</b>
           режим
         </span>
