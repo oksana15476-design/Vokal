@@ -1239,6 +1239,8 @@ function StagePackShell({
   const [pendingDeletion, setPendingDeletion] = useState<"source" | "results" | null>(null);
   const [pickedSuggestions, setPickedSuggestions] = useState<DirectorActionId[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [materialsPage, setMaterialsPage] = useState(0);
+  const [onlyPdf, setOnlyPdf] = useState(false);
 
   const dismissToast = (id: string) => setToasts((current) => current.filter((toast) => toast.id !== id));
 
@@ -1259,6 +1261,19 @@ function StagePackShell({
     project.stagePack.artifacts.find((artifact) => artifact.id === selectedArtifactId) ??
     project.stagePack.artifacts[0];
   const hasArtifacts = project.stagePack.artifacts.length > 0;
+  // Список материалов листается: одиннадцать строк подряд читаются как
+  // свалка, а в бренд-буке таблица показывает страницу и говорит, сколько
+  // строк из скольких видно.
+  const materialsPageSize = 6;
+  const filteredArtifacts = onlyPdf
+    ? project.stagePack.artifacts.filter((artifact) => artifact.format === "PDF")
+    : project.stagePack.artifacts;
+  const pageCount = Math.max(1, Math.ceil(filteredArtifacts.length / materialsPageSize));
+  const safePage = Math.min(materialsPage, pageCount - 1);
+  const visibleArtifacts = filteredArtifacts.slice(
+    safePage * materialsPageSize,
+    safePage * materialsPageSize + materialsPageSize,
+  );
   const readyArtifacts = project.stagePack.artifacts.filter((artifact) => artifact.status === "ready").length;
   const reviewCount = project.reviewIssues.filter(
     (issue) => issue.status === "needs_review" || issue.status === "uncertain",
@@ -1683,9 +1698,35 @@ function StagePackShell({
           <aside className="material-list-pane">
             <div className="pane-title-row">
               <h2>Материалы</h2>
-              <span>{project.stagePack.artifacts.length}</span>
+              <div className="pane-tools">
+                <button
+                  type="button"
+                  className={onlyPdf ? "btn btn-outline btn-xs active" : "btn btn-outline btn-xs"}
+                  aria-pressed={onlyPdf}
+                  onClick={() => {
+                    setOnlyPdf((value) => !value);
+                    setMaterialsPage(0);
+                  }}
+                >
+                  Только PDF
+                </button>
+                {/*
+                  Выключена: файлов не существует, обработки нет. Кнопка,
+                  которая нажимается и ничего не скачивает, — обещание, как
+                  кнопка воспроизведения на пульте.
+                */}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-xs"
+                  disabled
+                  title="Файлов пока нет: звук не обрабатывается"
+                >
+                  Скачать ZIP
+                </button>
+              </div>
             </div>
-            {project.stagePack.artifacts.map((artifact) => (
+
+            {visibleArtifacts.map((artifact) => (
               <button
                 key={artifact.id}
                 type="button"
@@ -1694,9 +1735,8 @@ function StagePackShell({
               >
                 <span>{artifact.name}</span>
                 <small>
-                  {artifact.format} · {formatConfidence(artifact.confidence)} · {artifactStatusCopy[artifact.status]}
-                  {" · "}
-                  {audienceCopy[artifact.audience]}
+                  <i className="artifact-format">{artifact.format}</i> · {formatConfidence(artifact.confidence)} ·{" "}
+                  {artifactStatusCopy[artifact.status]} · {audienceCopy[artifact.audience]}
                 </small>
                 <span className={hasAssembledContent(artifact) ? "access-label assembled" : "access-label processing"}>
                   {hasAssembledContent(artifact) ? "собрано" : "нужна обработка"}
@@ -1704,6 +1744,35 @@ function StagePackShell({
                 {artifact.isStale && <em>нужно пересобрать</em>}
               </button>
             ))}
+
+            <div className="pane-footer">
+              <span>
+                Показаны {visibleArtifacts.length} из {project.stagePack.artifacts.length}
+              </span>
+              <div className="pager">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  aria-label="Предыдущая страница"
+                  disabled={safePage === 0}
+                  onClick={() => setMaterialsPage((page) => Math.max(0, page - 1))}
+                >
+                  <ArrowLeft size={15} />
+                </button>
+                <span className="pager-position">
+                  {safePage + 1} / {pageCount}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  aria-label="Следующая страница"
+                  disabled={safePage + 1 >= pageCount}
+                  onClick={() => setMaterialsPage((page) => Math.min(pageCount - 1, page + 1))}
+                >
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            </div>
           </aside>
 
           <div className="material-preview-pane">

@@ -591,6 +591,56 @@ describe("демо не перетирает задание пользовате
   });
 });
 
+describe("таблица материалов: фильтр и постраничность (B99)", () => {
+  const openMaterials = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Материалы/ }));
+  };
+
+  it("показывает материалы страницами и говорит, сколько показано", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openMaterials(user);
+
+    const rows = document.querySelectorAll(".artifact-row");
+    const total = 11;
+    expect(rows.length).toBeLessThan(total);
+    expect(screen.getByText(new RegExp(`Показаны ${rows.length} из ${total}`))).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /Следующая страница/ }));
+    expect(document.querySelectorAll(".artifact-row").length).toBeGreaterThan(0);
+    expect(screen.getByText(/из 11/)).toBeTruthy();
+  });
+
+  it("фильтрует по формату и возвращается на первую страницу", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openMaterials(user);
+
+    await user.click(screen.getByRole("button", { name: /Следующая страница/ }));
+    await user.click(screen.getByRole("button", { name: /Только PDF/ }));
+
+    const rows = [...document.querySelectorAll(".artifact-row")];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.querySelector(".artifact-format")?.textContent).toBe("PDF");
+    }
+  });
+
+  it("не предлагает скачать то, чего нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openMaterials(user);
+
+    // Файлов не существует: обработки нет. Кнопка, которая нажимается и
+    // ничего не скачивает, — обещание, как кнопка воспроизведения.
+    const zip = screen.getByRole("button", { name: /Скачать ZIP/ }) as HTMLButtonElement;
+    expect(zip.disabled).toBe(true);
+    expect(zip.getAttribute("title")).toMatch(/файл/i);
+  });
+});
+
 describe("уровень сложности — три выдачи, а не настройка (B97)", () => {
   const openEnsemble = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(screen.getByRole("button", { name: /School Hall: ансамбль учеников/ }));

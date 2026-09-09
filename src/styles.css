@@ -3546,3 +3546,45 @@ button:disabled {
   flex-wrap: wrap;
   gap: var(--s2);
 }
+
+/*
+ * Инструменты и постраничность списка материалов. Подвал говорит, сколько
+ * строк из скольких видно: без этого страница читается как весь пакет.
+ */
+.pane-tools {
+  display: flex;
+  gap: var(--s2);
+}
+
+.pane-tools .active {
+  background: var(--surface-inset);
+}
+
+.pane-footer {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: var(--s2);
+  justify-content: space-between;
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+}
+
+.pager {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.pager-position {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.artifact-format {
+  font-family: var(--font-data);
+  font-style: normal;
+}
