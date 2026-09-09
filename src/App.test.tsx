@@ -591,6 +591,38 @@ describe("демо не перетирает задание пользовате
   });
 });
 
+describe("уровень сложности — три выдачи, а не настройка (B97)", () => {
+  const openEnsemble = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: /School Hall: ансамбль учеников/ }));
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+  };
+
+  it("предлагает три уровня и показывает, чем они отличаются", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openEnsemble(user);
+
+    const levels = screen.getByRole("radiogroup", { name: /Уровень сложности/ });
+    expect(within(levels).getAllByRole("radio").length).toBe(3);
+
+    const describedFirst = document.querySelector(".level-detail")!.textContent;
+    await user.click(within(levels).getByRole("radio", { name: /Продвинутый/ }));
+    // Переключатель меняет выдачу, а не настройку в глубине.
+    expect(document.querySelector(".level-detail")!.textContent).not.toBe(describedFirst);
+  });
+
+  it("не показывает уровни там, где учеников нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    expect(screen.queryByRole("radiogroup", { name: /Уровень сложности/ })).toBeNull();
+  });
+});
+
 describe("состав — люди с ограничениями (B95)", () => {
   it("показывает, кто играет, и что ограничивает каждого", async () => {
     const user = userEvent.setup();

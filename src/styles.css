@@ -3480,3 +3480,69 @@ button:disabled {
     grid-area: constraint;
   }
 }
+
+/*
+ * Уровень сложности как выдача. Сегментированный переключатель: активный
+ * сегмент — графитовая заливка, потому что это выбор, а не подтверждение
+ * результата системы.
+ */
+.level-picker {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  margin-top: var(--s4);
+  padding: var(--s4);
+}
+
+.level-picker h3 {
+  margin: 0 0 var(--s3);
+}
+
+.level-switch {
+  background: var(--surface-inset);
+  border-radius: var(--r-pill);
+  display: flex;
+  gap: var(--s1);
+  padding: var(--s1);
+}
+
+.level-option {
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
+  cursor: pointer;
+  flex: 1 1 0;
+  font-weight: 600;
+  min-height: var(--control-xs);
+  padding: 0 var(--s3);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.level-option.active {
+  background: var(--console);
+  color: var(--console-ink);
+}
+
+.level-detail {
+  background: var(--canvas);
+  border-radius: var(--r-2);
+  margin-top: var(--s3);
+  padding: var(--s4);
+}
+
+.level-detail strong {
+  display: block;
+  margin-bottom: var(--s2);
+}
+
+.level-detail p {
+  color: var(--ink-muted);
+  margin: 0 0 var(--s3);
+}
+
+.level-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}

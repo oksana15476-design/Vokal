@@ -20,7 +20,7 @@ import {
   Sparkles,
   Share2,
 } from "lucide-react";
-import { processingGoals, processingMilestones } from "./domain/mockData";
+import { lessonLevels, processingGoals, processingMilestones } from "./domain/mockData";
 import type {
   ArrangementVersion,
   CostEstimate,
@@ -2341,6 +2341,8 @@ function LineupPanel({ project, onOpenDemo }: { project: Project; onOpenDemo: ()
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("");
 
+  const isLesson = project.scenario === "education";
+
   if (project.musicians.length === 0) {
     return (
       <EmptyState title="Состав не заведен" onOpenDemo={onOpenDemo}>
@@ -2367,11 +2369,58 @@ function LineupPanel({ project, onOpenDemo }: { project: Project; onOpenDemo: ()
           <span className="mono-chip">{musician.level}</span>
         </div>
       ))}
+      {isLesson && <LessonLevels />}
+
       <p className="privacy-note">
         Состав заводится один раз и переиспользуется для каждой новой песни. Заведение руками появится вместе с
         хранением песен.
       </p>
     </div>
+  );
+}
+
+/**
+ * Уровень сложности как выдача, а не настройка. Одна песня превращается в
+ * три учебных материала, и переключатель показывает, чем они отличаются,
+ * а не абстрактную «сложность 3 из 5».
+ */
+function LessonLevels() {
+  const [levelId, setLevelId] = useState(lessonLevels[1].id);
+  const level = lessonLevels.find((item) => item.id === levelId) ?? lessonLevels[0];
+
+  return (
+    <section className="level-picker">
+      <h3>Уровень сложности</h3>
+      <div className="level-switch" role="radiogroup" aria-label="Уровень сложности">
+        {lessonLevels.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="radio"
+            aria-checked={item.id === levelId}
+            className={item.id === levelId ? "level-option active" : "level-option"}
+            onClick={() => setLevelId(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <div className="level-detail">
+        <strong>{level.title}</strong>
+        <p>{level.detail}</p>
+        <div className="level-facts">
+          {level.facts.map((fact) => (
+            <span key={fact} className="mono-chip">
+              {fact}
+            </span>
+          ))}
+        </div>
+      </div>
+      <p className="privacy-note">
+        Одна песня превращается в три учебных материала. Переключатель — часть выдачи ученику, а не настройка в
+        глубине.
+      </p>
+    </section>
   );
 }
 
