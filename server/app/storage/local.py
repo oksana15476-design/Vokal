@@ -277,8 +277,7 @@ class LocalDiskStorage(ObjectStorage):
         # хранения получит от нее чужое имя — то есть удалит не тот файл.
         if metadata.key != key:
             raise StorageError(
-                f"метаданные по пути объекта {key!r} записаны для другого "
-                f"ключа: {metadata.key!r}"
+                f"метаданные по пути объекта {key!r} записаны для другого ключа: {metadata.key!r}"
             )
         return metadata
 

@@ -505,7 +505,8 @@ async def store_file(
         stored = await storage.put(
             key,
             data,
-            content_type or CONTENT_TYPE_BY_EXTENSION.get(
+            content_type
+            or CONTENT_TYPE_BY_EXTENSION.get(
                 extension_of(upload.file_name), "application/octet-stream"
             ),
         )
@@ -607,9 +608,7 @@ async def _record_stored(
     return await _set_duration(repos, updated, int(facts.duration_seconds))
 
 
-async def _set_duration(
-    repos: Repositories, upload: models.Upload, seconds: int
-) -> models.Upload:
+async def _set_duration(repos: Repositories, upload: models.Upload, seconds: int) -> models.Upload:
     """Длительность записывается в обход набора полей `UploadPatch`.
 
     В наборе такого поля нет, а завести его — правка `app/db/repositories.py`,

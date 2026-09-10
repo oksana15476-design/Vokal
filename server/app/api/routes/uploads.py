@@ -133,9 +133,7 @@ async def _owned_project(
     return project
 
 
-async def _owned_upload(
-    repos: Repositories, upload_id: uuid.UUID, user_id: str
-) -> models.Upload:
+async def _owned_upload(repos: Repositories, upload_id: uuid.UUID, user_id: str) -> models.Upload:
     # Удаленные строки читаются намеренно: отклоненная и удаленная загрузки
     # обязаны отвечать своим состоянием, а не `404`. «Не найдено» на месте
     # «исходник удален» заставило бы клиент гадать, что произошло.

@@ -181,9 +181,7 @@ def build_app(session: AsyncSession, user_id: object, storage: ObjectStorage):
 
 
 def client_for(app) -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://vokal.test"
-    )
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://vokal.test")
 
 
 def error_of(response: httpx.Response) -> dict:
@@ -196,21 +194,15 @@ def error_of(response: httpx.Response) -> dict:
 
 
 async def test_quality_repeats_frontend_rule_for_mono() -> None:
-    assert (
-        service.quality_from_audio(channels=1, sample_rate=48000, peak=0.5) is UploadQuality.LOW
-    )
+    assert service.quality_from_audio(channels=1, sample_rate=48000, peak=0.5) is UploadQuality.LOW
 
 
 async def test_quality_repeats_frontend_rule_for_low_sample_rate() -> None:
-    assert (
-        service.quality_from_audio(channels=2, sample_rate=22050, peak=0.5) is UploadQuality.LOW
-    )
+    assert service.quality_from_audio(channels=2, sample_rate=22050, peak=0.5) is UploadQuality.LOW
 
 
 async def test_quality_is_good_only_without_clipping() -> None:
-    assert (
-        service.quality_from_audio(channels=2, sample_rate=44100, peak=0.5) is UploadQuality.GOOD
-    )
+    assert service.quality_from_audio(channels=2, sample_rate=44100, peak=0.5) is UploadQuality.GOOD
 
 
 async def test_clipping_takes_quality_down_to_medium() -> None:
@@ -325,9 +317,7 @@ async def test_create_upload_returns_identifier_and_target(session: AsyncSession
     project = await make_project(session)
     storage = FakeStorage()
     async with client_for(build_app(session, project.user_id, storage)) as client:
-        response = await client.post(
-            "/api/uploads", json=create_payload(projectId=str(project.id))
-        )
+        response = await client.post("/api/uploads", json=create_payload(projectId=str(project.id)))
 
     assert response.status_code == 201, response.text
     body = response.json()
@@ -363,9 +353,7 @@ async def test_create_upload_refuses_oversized_file(session: AsyncSession) -> No
         )
 
     assert response.status_code == 422
-    assert any(
-        "sizeBytes" in item["field"] for item in error_of(response)["details"]["fields"]
-    )
+    assert any("sizeBytes" in item["field"] for item in error_of(response)["details"]["fields"])
 
 
 async def test_service_refuses_oversized_file_by_code(session: AsyncSession) -> None:
@@ -385,9 +373,7 @@ async def test_create_upload_refuses_foreign_project(session: AsyncSession) -> N
     project = await make_project(session)
     stranger = await make_project(session, contact="other@example.test")
     async with client_for(build_app(session, stranger.user_id, FakeStorage())) as client:
-        response = await client.post(
-            "/api/uploads", json=create_payload(projectId=str(project.id))
-        )
+        response = await client.post("/api/uploads", json=create_payload(projectId=str(project.id)))
 
     assert response.status_code == 403
     assert error_of(response)["code"] == "forbidden"
@@ -455,9 +441,7 @@ async def test_unknown_consent_version_is_refused(session: AsyncSession) -> None
         )
 
     assert response.status_code == 422
-    assert any(
-        "versionId" in item["field"] for item in error_of(response)["details"]["fields"]
-    )
+    assert any("versionId" in item["field"] for item in error_of(response)["details"]["fields"])
 
 
 async def test_declined_consent_is_refused(session: AsyncSession) -> None:
@@ -745,9 +729,7 @@ async def test_complete_before_file_is_refused(session: AsyncSession) -> None:
     upload = await _make_upload(session, project)
 
     async with client_for(build_app(session, project.user_id, FakeStorage())) as client:
-        response = await client.post(
-            f"/api/uploads/{upload.id}/complete", json={"sizeBytes": 4096}
-        )
+        response = await client.post(f"/api/uploads/{upload.id}/complete", json={"sizeBytes": 4096})
 
     assert response.status_code == 409
     assert error_of(response)["code"] == "upload_state_conflict"
