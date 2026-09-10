@@ -1,0 +1,1432 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
+import { forbiddenClaims, requiredDisclosures } from "./domain/claims";
+import { currentConsent } from "./domain/consent";
+
+// В jsdom нет AudioContext, поэтому декодер подменяется. Ровно ради этого он
+// вынесен за интерфейс в audioFile.ts.
+vi.mock("./services/audioFile", async () => {
+  const actual = await vi.importActual<typeof import("./services/audioFile")>("./services/audioFile");
+  return {
+    ...actual,
+    browserDecoder: vi.fn(async () => ({
+      duration: 222.7,
+      sampleRate: 48000,
+      numberOfChannels: 2,
+      peak: 0.8,
+    })),
+  };
+});
+
+const pickFile = async (name = "moya-pesnya.mp3", size = 4_000_000) => {
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+  const file = new File(["x"], name, { type: "audio/mpeg" });
+  Object.defineProperty(file, "size", { value: size });
+  Object.defineProperty(file, "arrayBuffer", { value: () => Promise.resolve(new ArrayBuffer(size)) });
+  Object.defineProperty(input, "files", { value: [file], configurable: true });
+  fireEvent.change(input);
+  await waitFor(() => expect(screen.getByText(name)).toBeTruthy());
+};
+
+afterEach(() => {
+  cleanup();
+  // Песня теперь переживает перезагрузку (B6). Без очистки она пережила бы
+  // и границу между тестами, а протечка состояния незаметна: тест просто
+  // начинает проверять не то, что написано в его названии.
+  window.localStorage.clear();
+});
+
+const PROCESSING_MS = 8000;
+
+const openBandDemo = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+};
+
+const waitForStagePack = async () =>
+  waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+    timeout: PROCESSING_MS,
+  });
+
+describe("экран обработки", () => {
+  it("доводит все вехи до готовности, включая «Ревью»", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+
+    const review = await screen.findByText("Ревью");
+    const milestone = review.closest(".processing-milestone");
+    expect(milestone).not.toBeNull();
+
+    // Регресс: веха «Ревью» ссылалась на несуществующий шаг и навсегда оставалась queued.
+    await waitFor(() => expect(milestone!.className).not.toContain("queued"), { timeout: PROCESSING_MS });
+  });
+
+  it("показывает предупреждения обработки", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+
+    expect(await screen.findByLabelText("Предупреждения обработки")).toBeTruthy();
+  });
+
+  it("показывает оценку сложности обработки", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+
+    const estimate = await screen.findByLabelText("Оценка сложности обработки");
+    expect(within(estimate).getByText(/единиц сложности/)).toBeTruthy();
+    expect(within(estimate).getByText(/средняя сложность/)).toBeTruthy();
+  });
+});
+
+describe("загрузка файла", () => {
+  it("отклоняет неподдерживаемый формат и объясняет причину", async () => {
+    render(<App />);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("не поддерживается");
+  });
+
+  it("объясняет, почему кнопка запуска недоступна", async () => {
+    render(<App />);
+
+    expect(screen.getByText("Чтобы продолжить, выберите файл песни.")).toBeTruthy();
+  });
+
+  it("принимает поддерживаемый формат и читает его", async () => {
+    render(<App />);
+    await pickFile("song.mp3");
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("объясняет отказ декодера иначе, чем неподдерживаемый формат", async () => {
+    const { browserDecoder } = await import("./services/audioFile");
+    vi.mocked(browserDecoder).mockRejectedValueOnce(new Error("EncodingError"));
+    render(<App />);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["x"], "broken.m4a", { type: "audio/mp4" });
+    Object.defineProperty(file, "size", { value: 1000 });
+    Object.defineProperty(file, "arrayBuffer", { value: () => Promise.resolve(new ArrayBuffer(8)) });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    fireEvent.change(input);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("не смог прочитать");
+    expect(alert.textContent).not.toContain("не поддерживается");
+  });
+});
+
+describe("Stage Pack", () => {
+  it("показывает ответ AI-директора в диалоге после действия", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    // Демо-проекты приходят с готовой репликой директора: до правки она не рендерилась вовсе.
+    const log = screen.getByLabelText("Разговор с AI-директором");
+    expect(log.textContent).toContain("Я нашел две гитарные партии");
+    const before = log.querySelectorAll(".chat-bubble").length;
+
+    await user.click(within(screen.getByRole("tabpanel")).getAllByText("Усилить припев")[0]);
+
+    // Две реплики: команда пользователя и ответ директора. Раньше писалась
+    // только вторая, и было непонятно, на что директор отвечает.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Разговор с AI-директором").querySelectorAll(".chat-bubble").length).toBe(
+        before + 2,
+      ),
+    );
+  });
+
+  it("кодирует точность цветом, а не длиной полосы", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    // Пороги задаёт дизайн-система: 85 и выше — акцент, 75-84 — внимание,
+    // ниже 75 — опасность. Вокал 91 -> high, Клавиши 78 -> mid, Гитара 72 -> low.
+    // Раньше градиент красил высокие значения в красный независимо от порогов.
+    const barFor = (part: string) => {
+      const row = [...document.querySelectorAll(".console-track-row")].find((node) =>
+        node.querySelector(".track-name strong")?.textContent?.includes(part),
+      );
+      expect(row, `нет дорожки «${part}»`).toBeTruthy();
+      return row!.querySelector(".track-confidence b")!.className;
+    };
+
+    expect(barFor("Вокал")).toBe("high");
+    expect(barFor("Клавиши")).toBe("mid");
+    expect(barFor("Гитара")).toBe("low");
+  });
+
+  it("откатывает материалы к предыдущей версии", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    const versionsBefore = document.querySelectorAll(".version-row").length;
+    const activeLabel = document.querySelector(".version-row.active span")!.textContent!;
+
+    await user.click(within(screen.getByRole("tabpanel")).getAllByText("Усилить припев")[0]);
+    await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore + 1));
+
+    await user.click(screen.getByRole("tab", { name: /Материалы/ }));
+    expect(screen.getAllByText("нужно пересобрать").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    const target = [...document.querySelectorAll(".version-row")].find(
+      (row) => row.querySelector("span")?.textContent === activeLabel,
+    )!;
+    await user.click(target as HTMLElement);
+
+    await user.click(screen.getByRole("tab", { name: /Материалы/ }));
+    await waitFor(() => expect(screen.queryByText("нужно пересобрать")).toBeNull());
+  });
+});
+
+describe("доменные поля на экране", () => {
+  it("показывает жанр, аудиторию материала и данные исходника", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    // Жанр лежал в модели, но не выводился нигде.
+    expect(screen.getByText("pop/rock")).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: /Материалы/ }));
+    expect(document.body.textContent).toContain("всем");
+
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+    expect(screen.getByText(/Формат: DEMO/)).toBeTruthy();
+    expect(screen.getByText(/Качество: среднее/)).toBeTruthy();
+  });
+});
+
+// Запреты и обязательные раскрытия переехали в реестр обещаний
+// `src/domain/claims.ts` (B11a). До этого запреты жили списком регулярных
+// выражений прямо здесь, а раскрытия не проверялись вовсе: любое из них
+// можно было удалить при правке верстки, и ни один тест бы не упал.
+//
+// Сторож проверяет СВОЙСТВО «не обещаем цен и сроков», а не список
+// исторических строк. Первая версия списка была литеральной и пропускала
+// «3-5 минут» под подписью «ориентир по времени» — зеленый тест удостоверял
+// не то, что требовалось. Вторая смотрела только в document.body и
+// пропустила «моковый» в <head>. Третья использовала \b на кириллице, где
+// он определен только по ASCII, и три запрета не могли совпасть НИКОГДА.
+const forbidden = forbiddenClaims.map((claim) => claim.pattern);
+
+describe("согласие записывается тем же текстом, что показано (B58)", () => {
+  it("записывает в проект ровно ту формулировку, которую видел пользователь", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const shown = screen.getByRole("checkbox").closest("label")!.textContent!.trim();
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+
+    // Раньше на экране показывалась одна формулировка, а в проект писалась
+    // другая: запись свидетельствовала о том, чего пользователь не читал.
+    expect(document.body.textContent).toContain(shown);
+    expect(shown).toBe(currentConsent().text);
+  });
+});
+
+describe("список песен (B94)", () => {
+  it("собирает открытые песни в один список", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+    await user.click(screen.getByRole("button", { name: /School Hall: ансамбль учеников/ }));
+    await waitForStagePack();
+
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+    const rows = [...document.querySelectorAll(".song-row")];
+    expect(rows.length).toBe(2);
+    // Недавно открытая — первой.
+    expect(rows[0].textContent).toContain("School Hall");
+  });
+
+  it("открывает песню из списка", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+
+    await user.click(within(document.querySelector(".song-row") as HTMLElement).getByRole("button", { name: /Открыть/ }));
+    expect(await screen.findByRole("tab", { name: /Материалы/ })).toBeTruthy();
+  });
+
+  it("не удаляет песню из списка без подтверждения", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+
+    await user.click(within(document.querySelector(".song-row") as HTMLElement).getByRole("button", { name: /Удалить/ }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(document.querySelectorAll(".song-row").length).toBe(1);
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("checkbox"));
+    await user.click(dialog.getByRole("button", { name: /Удалить навсегда/ }));
+    await waitFor(() => expect(document.querySelectorAll(".song-row").length).toBe(0));
+  });
+
+  it("объясняет пустой список, а не показывает пустоту", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+
+    expect(screen.getByText(/Пока ни одной песни/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Загрузить песню/ })).toBeTruthy();
+  });
+});
+
+describe("песня переживает перезагрузку (B6)", () => {
+  it("возвращает открытую песню после перезагрузки страницы", async () => {
+    const user = userEvent.setup();
+    const first = render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    const name = document.querySelector(".stage-toolbar h1")!.textContent;
+    first.unmount();
+
+    // Новое монтирование = перезагрузка вкладки.
+    render(<App />);
+    const resume = await screen.findByRole("button", { name: /Вернуться к песне/ });
+    expect(resume.closest(".resume-row")!.textContent).toContain(name);
+  });
+
+  it("не падает на испорченном сохранении, а начинает с чистого листа", () => {
+    window.localStorage.setItem("vokal.project.v1", "{это не json");
+    render(<App />);
+
+    // Битое сохранение не должно ронять приложение: пользователь остается
+    // без песни, но с работающим экраном.
+    expect(screen.getByRole("heading", { name: /От выбора песни/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Вернуться к песне/ })).toBeNull();
+  });
+
+  it("выбрасывает сохранение чужой версии схемы", () => {
+    window.localStorage.setItem(
+      "vokal.project.v1",
+      JSON.stringify({ schema: 999, project: { id: "x", name: "Старая песня" } }),
+    );
+    render(<App />);
+
+    expect(screen.queryByText(/Старая песня/)).toBeNull();
+  });
+
+  it("забывает песню, когда пользователь удалил результаты", async () => {
+    const user = userEvent.setup();
+    const first = render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("checkbox"));
+    await user.click(dialog.getByRole("button", { name: /Удалить навсегда/ }));
+    await waitFor(() => expect(screen.getByText(/Результаты: удалены/)).toBeTruthy());
+    first.unmount();
+
+    // Удаление должно доходить и до сохранения, иначе «удалено» — неправда:
+    // перезагрузка вернула бы то, что пользователь удалил.
+    render(<App />);
+    const resume = screen.queryByRole("button", { name: /Вернуться к песне/ });
+    if (resume) {
+      await user.click(resume);
+      await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+      expect(screen.getByText(/Результаты: удалены/)).toBeTruthy();
+    }
+  });
+});
+
+describe("слой проверки полон (B8)", () => {
+  const openReview = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Проверка/ }));
+  };
+
+  it("дает сказать «все еще не уверен», а не только «проверено»", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openReview(user);
+
+    const item = document.querySelector(".review-item") as HTMLElement;
+    const actions = within(item).getAllByRole("button").map((node) => node.textContent?.trim());
+
+    // Раньше предлагались только «проверено», «исправлено» и «принято для
+    // репетиции». Все три заявляют, что вопрос закрыт. Музыкант, который
+    // посмотрел такт и остался в сомнении, сказать это не мог.
+    expect(actions).toContain("сомнительно");
+    // Текущий статус в списке не предлагается: ставить то, что уже стоит,
+    // нечего. У свежего места это «нужно проверить».
+    expect(actions).not.toContain("нужно проверить");
+    expect(item.textContent).toMatch(/нужно проверить/);
+  });
+
+  it("возвращает место в работу после ошибочной отметки", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openReview(user);
+
+    const item = () => document.querySelector(".review-item") as HTMLElement;
+    await user.click(within(item()).getByRole("button", { name: "проверено" }));
+    await waitFor(() => expect(item().textContent).toMatch(/проверено/));
+
+    await user.click(within(item()).getByRole("button", { name: "нужно проверить" }));
+    await waitFor(() => expect(item().textContent).toMatch(/нужно проверить/));
+  });
+
+  it("дает написать свой комментарий к месту", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openReview(user);
+
+    const item = document.querySelector(".review-item") as HTMLElement;
+    const field = within(item).getByRole("textbox", { name: /Комментарий/ });
+    await user.type(field, "Тут гитарист играет по-другому, оставили как есть");
+    await user.click(within(item).getByRole("button", { name: /Записать/ }));
+
+    await waitFor(() =>
+      expect(document.querySelector(".review-item")!.textContent).toContain(
+        "Тут гитарист играет по-другому, оставили как есть",
+      ),
+    );
+  });
+});
+
+describe("счетчики склоняются (B7)", () => {
+  it("не пишет «1 материалов» в пакетах выдачи", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+
+    const text = document.body.textContent ?? "";
+    // Форма числительного: 1 материал, 2 материала, 5 материалов.
+    expect(text).not.toMatch(/(?<!\d)1 материалов/);
+    expect(text).not.toMatch(/(?<!\d)[234] материалов/);
+    expect(text).not.toMatch(/(?<!\d)[05-9] материала(?!х)/);
+  });
+
+  it("склоняет число находок директора", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const heading = screen.getByText(/Директор нашел/);
+    const match = heading.textContent!.match(/Директор нашел (\d+) (\S+)/)!;
+    const n = Number(match[1]);
+    const word = match[2];
+    const expected = n % 10 === 1 && n % 100 !== 11 ? "находку" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 11 || n % 100 > 14) ? "находки" : "находок";
+    expect(word, `${n} ${word}`).toBe(expected);
+  });
+});
+
+describe("обязательные раскрытия не исчезают", () => {
+  const on = (surface: string) => requiredDisclosures.filter((item) => item.surface === surface);
+
+  it("говорит на первом экране, что звук не обрабатывается и файл остается у пользователя", () => {
+    render(<App />);
+    const text = document.body.textContent ?? "";
+
+    for (const item of on("первый экран")) {
+      expect(text, `${item.id}: ${item.because}`).toMatch(item.pattern);
+    }
+  });
+
+  it("говорит, где лежит сохраненная песня", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+    const text = document.body.textContent ?? "";
+
+    for (const item of on("первый экран с открытой песней")) {
+      expect(text, `${item.id}: ${item.because}`).toMatch(item.pattern);
+    }
+  });
+
+  it("говорит на пути загрузки, что разбор не создается", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await screen.findByRole("heading", { name: /Читаем ваш файл/ });
+    const text = document.body.textContent ?? "";
+
+    for (const item of on("путь загрузки")) {
+      expect(text, `${item.id}: ${item.because}`).toMatch(item.pattern);
+    }
+  });
+
+  it("держит реестр непустым и без дубликатов", () => {
+    // Реестр, из которого молча вычистили строки, выглядит как пройденная
+    // проверка. Пустой список запретов проходит любой текст.
+    expect(forbiddenClaims.length).toBeGreaterThan(5);
+    expect(requiredDisclosures.length).toBeGreaterThan(2);
+    expect(new Set(forbiddenClaims.map((c) => c.id)).size).toBe(forbiddenClaims.length);
+    expect(new Set(requiredDisclosures.map((c) => c.id)).size).toBe(requiredDisclosures.length);
+    for (const claim of [...forbiddenClaims, ...requiredDisclosures]) {
+      expect(claim.because.length, `${claim.id}: причина не записана`).toBeGreaterThan(20);
+    }
+  });
+});
+
+describe("честность текста", () => {
+  it("не обещает тарифов, сроков и не содержит жаргона на первом экране", () => {
+    render(<App />);
+    const text = document.body.textContent ?? "";
+
+    for (const pattern of forbidden) {
+      expect(text, `первый экран: ${pattern}`).not.toMatch(pattern);
+    }
+  });
+
+  it("не обещает сроков на экране обработки", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+
+    // Блок оценки живет здесь, а сторож его раньше не видел вовсе.
+    await screen.findByLabelText("Оценка сложности обработки");
+    const text = document.body.textContent ?? "";
+
+    for (const pattern of forbidden) {
+      expect(text, `экран обработки: ${pattern}`).not.toMatch(pattern);
+    }
+  });
+
+  // Сторож проходил только демо-путь, поэтому не видел названия загруженного
+  // проекта — а там жило слово «моковая».
+  it("не обещает тарифов, сроков и не содержит жаргона на пути загрузки", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    for (const tab of [/Обзор/, /Материалы/, /Состав/, /Проверка/, /AI-директор/, /Выдача/]) {
+      await user.click(screen.getByRole("tab", { name: tab }));
+      const text = document.body.textContent ?? "";
+
+      for (const pattern of forbidden) {
+        expect(text, `загрузка, вкладка ${tab}: ${pattern}`).not.toMatch(pattern);
+      }
+    }
+  });
+
+  // Поверхности, которых при написании сторожа не существовало: состав,
+  // уровни сложности, подтверждение удаления, тосты. Ровно та дыра, из-за
+  // которой сторож однажды не видел путь загрузки целиком.
+  it("не обещает тарифов и сроков на поверхностях, появившихся позже", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /School Hall: ансамбль учеников/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    const assertClean = (where: string) => {
+      const text = document.body.textContent ?? "";
+      for (const pattern of forbidden) {
+        expect(text, `${where}: ${pattern}`).not.toMatch(pattern);
+      }
+    };
+
+    // Состав и все три уровня сложности.
+    await user.click(screen.getByRole("tab", { name: /Состав/ }));
+    assertClean("состав");
+    for (const level of [/Начинающий/, /Средний/, /Продвинутый/]) {
+      await user.click(screen.getByRole("radio", { name: level }));
+      assertClean(`уровень ${level}`);
+    }
+
+    // Тост после действия директора.
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+    await screen.findByRole("status");
+    assertClean("тост");
+
+    // Подтверждение необратимого удаления.
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+    await screen.findByRole("dialog");
+    assertClean("подтверждение удаления");
+    await user.keyboard("{Escape}");
+
+    // Список песен и подтверждение удаления песни (B94).
+    await user.click(screen.getByRole("button", { name: /^Песни$/ }));
+    assertClean("список песен");
+    await user.click(within(document.querySelector(".song-row") as HTMLElement).getByRole("button", { name: /Удалить/ }));
+    await screen.findByRole("dialog");
+    assertClean("подтверждение удаления песни");
+  });
+
+  it("не обещает тарифов, сроков и не содержит жаргона в Stage Pack", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    for (const tab of [/Обзор/, /Материалы/, /Проверка/, /AI-директор/, /Выдача/]) {
+      await user.click(screen.getByRole("tab", { name: tab }));
+      const text = document.body.textContent ?? "";
+
+      for (const pattern of forbidden) {
+        expect(text, `вкладка ${tab}: ${pattern}`).not.toMatch(pattern);
+      }
+    }
+  });
+});
+
+describe("честность разметки документа", () => {
+  // index.html не попадает в jsdom при рендере компонента, поэтому сторож по
+  // document.body его не видел — и слово «моковый» пережило чистку текста.
+  // Проверяем файл на диске тем же набором запретов.
+  it("не содержит жаргона и обещаний в title и meta", async () => {
+    const fs = await import("node:fs/promises");
+    const html = await fs.readFile(`${process.cwd()}/index.html`, "utf-8");
+    const meta = [...html.matchAll(/content="([^"]*)"/g)].map((m) => m[1]).join(" ");
+    const title = html.match(/<title>([^<]*)<\/title>/)?.[1] ?? "";
+    const text = `${title} ${meta}`;
+
+    for (const pattern of forbidden) {
+      expect(text, `index.html: ${pattern}`).not.toMatch(pattern);
+    }
+  });
+});
+
+describe("правда о загруженном файле", () => {
+  const startUpload = async (user: ReturnType<typeof userEvent.setup>) => {
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+  };
+
+  it("не показывает тональность и аккорды чужой песни", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Регресс: раньше на своем файле показывались Gm, 104 BPM и аккорды демо.
+    const text = document.body.textContent ?? "";
+    expect(text).not.toContain("Gm");
+    expect(text).not.toContain("104 BPM");
+    expect(screen.queryByLabelText("Аккорды")).toBeNull();
+  });
+
+  it("не показывает процент точности, которого нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    expect(document.body.textContent ?? "").not.toMatch(/точность разбора\s*\d/);
+    expect(document.body.textContent ?? "").not.toContain("NaN");
+  });
+
+  it("объясняет, что звук не анализируется", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    expect(screen.getByText(/Звук не анализируется/)).toBeTruthy();
+  });
+
+  it("показывает настоящую длительность файла, а не константу", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+
+    // 222.7 c = 3:42. Раньше здесь стояла зашитая константа 214 c = 3:34.
+    expect(screen.getAllByText(/3:42/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Частота: 48000/)).toBeTruthy();
+    expect(screen.getByText(/Качество: хорошее/)).toBeTruthy();
+    expect(document.body.textContent ?? "").not.toContain("3:34");
+  });
+
+  it("демо-проект по-прежнему показывает свой разбор", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    expect(document.body.textContent ?? "").toContain("Gm");
+  });
+
+  it("не делает сетевых вызовов при выборе файла", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<App />);
+    await pickFile();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("свой файл не выдается за демо", () => {
+  it("кнопка запуска на своем файле не называет разбор демонстрационным", async () => {
+    render(<App />);
+    await pickFile();
+
+    expect(screen.getByRole("button", { name: /Разобрать мой файл/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Запустить демо-разбор/ })).toBeNull();
+  });
+
+  it("пустое состояние открывает демо-разбор, а не выбрасывает на главную", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    // Регресс: кнопка была подписана «Посмотреть на демо-разборе», а вызывала
+    // возврат на первый экран — обещанное действие не выполнялось.
+    await user.click(screen.getAllByRole("button", { name: /Открыть демо-разбор/ })[0]);
+    await waitFor(() => expect(document.body.textContent).toContain("Gm"), {
+      timeout: PROCESSING_MS,
+    });
+  });
+});
+
+describe("пустые вкладки объясняют пустоту", () => {
+  const uploadPath = async (user: ReturnType<typeof userEvent.setup>) => {
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+  };
+
+  it("не выдает отсутствие разбора за успех", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+
+    // Регресс: «без разбора» рисовалось классом успеха, а сводка справа
+    // утверждала, что форма и аккорды собраны — на этом пути это неправда.
+    expect(screen.getByText("без разбора").className).not.toContain("ready");
+    const summary = screen.getByText("Собрано").closest("span")!;
+    expect(summary.textContent).not.toContain("аккорды");
+  });
+
+  it("не показывает три нуля вместо состояния проекта", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+
+    // Регресс: полоса показывала «0/0 материалов», «0 на проверку», «0/0 получателей».
+    const strip = screen.getByLabelText("Состояние песни");
+    expect(strip.textContent).not.toContain("0/0");
+    expect(strip.textContent).toContain("разбора песни нет");
+  });
+
+  it("объясняет, почему нет сомнительных тактов, вместо «0 в работе»", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+    await user.click(screen.getByRole("tab", { name: /Проверка/ }));
+
+    // Ноль без объяснения читается как «проверено, проблем нет» — обратное правде.
+    expect(screen.getByText(/Сомнительных мест нет, потому что нет разбора/)).toBeTruthy();
+    expect(screen.queryByText(/в работе/)).toBeNull();
+  });
+
+  it("объясняет пустого AI-директора и пустой экспорт", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await uploadPath(user);
+
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    expect(screen.getByText(/Предложений пока нет/)).toBeTruthy();
+
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+    expect(screen.getByText(/Получателей пока нет/)).toBeTruthy();
+  });
+
+  it("демо-путь пустых состояний не показывает", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Открыть демо-разбор/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    await user.click(screen.getByRole("tab", { name: /Проверка/ }));
+    expect(screen.queryByText(/Сомнительных мест нет/)).toBeNull();
+    expect(screen.getByText(/в работе/)).toBeTruthy();
+  });
+});
+
+describe("шаги обработки не рапортуют о несделанном (B71)", () => {
+  // Останавливается на экране обработки, а не проскакивает его насквозь.
+  const startUpload = async (user: ReturnType<typeof userEvent.setup>) => {
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await screen.findByRole("heading", { name: /Читаем ваш файл/ });
+  };
+
+  it("не доводит до «готово» шаги, результата которых не существует", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // На пути загрузки Stage Pack пуст: разделения слоев, аккордов, MIDI и
+    // нот не произошло. Восемь зеленых шагов были отчетом о несделанном.
+    const milestones = [...document.querySelectorAll(".processing-milestone")];
+    expect(milestones.length).toBeGreaterThan(0);
+    expect(milestones.every((node) => !node.className.includes("done"))).toBe(true);
+    expect(milestones.every((node) => node.className.includes("skipped"))).toBe(true);
+  });
+
+  it("подписывает пропущенный шаг словами, а не только классом", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Класс пользователь не видит. Причину он должен прочитать.
+    expect(screen.getAllByText(/не выполняется/i).length).toBeGreaterThan(0);
+  });
+
+  it("доводит прогресс до 100%, когда выполнять нечего", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Знаменатель считается по выполняемым шагам. Со старым знаменателем
+    // полоса застревала, а все тесты оставались зелеными.
+    await waitFor(() => expect(screen.getByLabelText("Прогресс 100%")).toBeTruthy(), { timeout: PROCESSING_MS });
+  });
+
+  it("не обещает, что шаги идут, там где они не идут", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+    expect(screen.queryByText(/Шаги идут по таймеру/)).toBeNull();
+  });
+
+  it("не оценивает работу, которая не будет выполнена", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startUpload(user);
+
+    // Экран уже сказал «Разбор не создается». Оценка сложности рядом с этой
+    // строкой оценивает работу, которой не будет, — два соседних утверждения
+    // противоречат друг другу.
+    expect(screen.queryByText(/Оценка сложности/)).toBeNull();
+    expect(screen.queryByText(/условных единиц сложности/)).toBeNull();
+  });
+
+  it("на демо-разборе шаги по-прежнему выполняются", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await screen.findByRole("heading", { name: /Собираем демо-разбор/ });
+
+    // Демо-данные существуют, поэтому шаги на этом пути настоящие.
+    // Правка не должна превратить в «пропущено» и их.
+    const milestones = [...document.querySelectorAll(".processing-milestone")];
+    expect(milestones.some((node) => node.className.includes("skipped"))).toBe(false);
+    await waitFor(() => expect(screen.getByLabelText("Прогресс 100%")).toBeTruthy(), { timeout: PROCESSING_MS });
+  });
+});
+
+describe("демо не перетирает задание пользователя (B77)", () => {
+  const jobOption = (title: string) =>
+    screen.getByRole("radio", { name: new RegExp(title) });
+
+  it("сохраняет выбранное задание после просмотра демо", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Пользователь собрал свое задание: школьный ансамбль.
+    await user.click(jobOption("Школьный ансамбль"));
+    expect(jobOption("Школьный ансамбль").getAttribute("aria-checked")).toBe("true");
+
+    // Заглянул в демо и вернулся.
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+
+    // Раньше openDemo вызывал setScenario и setGoalId и подменял выбор
+    // пользователя своим: задание исчезало, подсветка показывала чужое.
+    expect(jobOption("Школьный ансамбль").getAttribute("aria-checked")).toBe("true");
+    expect(jobOption("Подготовить к репетиции").getAttribute("aria-checked")).toBe("false");
+  });
+});
+
+describe("пустые состояния называют причину (B103)", () => {
+  it("ставит причину плашкой, а не прячет в тексте", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    const empty = document.querySelector(".no-analysis");
+    expect(empty).not.toBeNull();
+    // Причину видно до чтения абзаца.
+    expect(empty!.querySelector(".empty-reason")?.textContent).toMatch(/состав/i);
+  });
+
+  it("предлагает выход из пустоты, а не только демо", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    const empty = within(document.querySelector(".no-analysis") as HTMLElement);
+    expect(empty.getByRole("button", { name: /Заполнить состав/ })).toBeTruthy();
+    expect(empty.getByRole("button", { name: /демо/i })).toBeTruthy();
+  });
+});
+
+describe("таблица материалов: фильтр и постраничность (B99)", () => {
+  const openMaterials = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Материалы/ }));
+  };
+
+  it("показывает материалы страницами и говорит, сколько показано", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openMaterials(user);
+
+    const rows = document.querySelectorAll(".artifact-row");
+    const total = 11;
+    expect(rows.length).toBeLessThan(total);
+    expect(screen.getByText(new RegExp(`Показаны ${rows.length} из ${total}`))).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: /Следующая страница/ }));
+    expect(document.querySelectorAll(".artifact-row").length).toBeGreaterThan(0);
+    expect(screen.getByText(/из 11/)).toBeTruthy();
+  });
+
+  it("фильтрует по формату и возвращается на первую страницу", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openMaterials(user);
+
+    await user.click(screen.getByRole("button", { name: /Следующая страница/ }));
+    await user.click(screen.getByRole("button", { name: /Только PDF/ }));
+
+    const rows = [...document.querySelectorAll(".artifact-row")];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.querySelector(".artifact-format")?.textContent).toBe("PDF");
+    }
+  });
+
+  it("не предлагает скачать то, чего нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openMaterials(user);
+
+    // Файлов не существует: обработки нет. Кнопка, которая нажимается и
+    // ничего не скачивает, — обещание, как кнопка воспроизведения.
+    const zip = screen.getByRole("button", { name: /Скачать ZIP/ }) as HTMLButtonElement;
+    expect(zip.disabled).toBe(true);
+    expect(zip.getAttribute("title")).toMatch(/файл/i);
+  });
+});
+
+describe("уровень сложности — три выдачи, а не настройка (B97)", () => {
+  const openEnsemble = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: /School Hall: ансамбль учеников/ }));
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+  };
+
+  it("предлагает три уровня и показывает, чем они отличаются", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openEnsemble(user);
+
+    const levels = screen.getByRole("radiogroup", { name: /Уровень сложности/ });
+    expect(within(levels).getAllByRole("radio").length).toBe(3);
+
+    const describedFirst = document.querySelector(".level-detail")!.textContent;
+    await user.click(within(levels).getByRole("radio", { name: /Продвинутый/ }));
+    // Переключатель меняет выдачу, а не настройку в глубине.
+    expect(document.querySelector(".level-detail")!.textContent).not.toBe(describedFirst);
+  });
+
+  it("не показывает уровни там, где учеников нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    expect(screen.queryByRole("radiogroup", { name: /Уровень сложности/ })).toBeNull();
+  });
+});
+
+describe("состав — люди с ограничениями (B95)", () => {
+  it("показывает, кто играет, и что ограничивает каждого", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("button", { name: /^Состав$/ }));
+
+    const rows = [...document.querySelectorAll(".musician-row")];
+    expect(rows.length).toBeGreaterThan(2);
+
+    // Ограничение — данные рядом с человеком, а не примечание где-то ниже.
+    for (const row of rows) {
+      expect(row.querySelector(".musician-name")?.textContent?.trim()).toBeTruthy();
+      expect(row.querySelector(".musician-constraint")?.textContent?.trim()).toBeTruthy();
+    }
+
+    // Диапазон принадлежит вокалистке, а не группе.
+    const vocal = rows.find((row) => row.textContent?.includes("вокал"));
+    expect(vocal?.textContent).toMatch(/A2-G4/);
+  });
+
+  it("не выдает состав чужой группы за ваш", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+
+    // Путь загрузки клонирует демо. Состав демо-группы на своем файле — та же
+    // подмена, что чужой разбор: людей пользователь не заводил.
+    expect(document.body.textContent).not.toContain("Оксана");
+    expect(document.body.textContent).not.toContain("Nord Stage");
+  });
+});
+
+describe("тосты подтверждают действие и дают его отменить (B100)", () => {
+  const openDirector = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+  };
+
+  it("подтверждает примененное предложение и предлагает отменить", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+
+    const toast = await screen.findByRole("status");
+    expect(toast.textContent).toMatch(/верси/i);
+    expect(within(toast).getByRole("button", { name: /Отменить/ })).toBeTruthy();
+  });
+
+  it("отменяет действие обратно по кнопке в тосте", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    const before = document.querySelectorAll(".version-row").length;
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+    await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(before + 1));
+
+    const activeBefore = document.querySelector(".version-row.active span")!.textContent;
+    await user.click(within(await screen.findByRole("status")).getByRole("button", { name: /Отменить/ }));
+
+    // Отмена возвращает предыдущую версию, а не удаляет историю.
+    await waitFor(() => expect(document.querySelector(".version-row.active span")!.textContent).not.toBe(activeBefore));
+    expect(document.querySelectorAll(".version-row").length).toBe(before + 1);
+  });
+
+  it("держит на экране не больше двух тостов сразу", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    const cards = within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button");
+    for (const card of cards.slice(0, 3)) {
+      await user.click(card);
+    }
+
+    await waitFor(() => expect(document.querySelectorAll(".toast").length).toBeGreaterThan(0));
+    expect(document.querySelectorAll(".toast").length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("выбор нескольких предложений директора (B98)", () => {
+  const openDirector = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+  };
+
+  it("собирает одну версию из выбранных предложений, а не по версии на каждое", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    const versionsBefore = document.querySelectorAll(".version-row").length;
+    const boxes = [...document.querySelectorAll(".suggestion-card input[type=checkbox]")] as HTMLInputElement[];
+    expect(boxes.length).toBeGreaterThan(1);
+
+    await user.click(boxes[0]);
+    await user.click(boxes[1]);
+
+    // Кнопка называет число выбранного: пользователь видит, что соберет.
+    const assemble = screen.getByRole("button", { name: /Собрать версию из 2 предложений/ });
+    await user.click(assemble);
+
+    await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore + 1));
+  });
+
+  it("не предлагает собрать, пока ничего не выбрано", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openDirector(user);
+
+    expect(screen.queryByRole("button", { name: /Собрать версию из/ })).toBeNull();
+  });
+});
+
+describe("необратимое действие требует подтверждения (B101)", () => {
+  const openExport = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+  };
+
+  it("не удаляет результаты по одному нажатию", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    // Раньше нажатие удаляло сразу. Отменить нельзя, спрашивать обязательно.
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByText(/Результаты: сохранены/)).toBeTruthy();
+  });
+
+  it("держит удаление заблокированным, пока пользователь не подтвердил", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    const confirm = dialog.getByRole("button", { name: /Удалить навсегда/ }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+
+    await user.click(dialog.getByRole("checkbox"));
+    expect(confirm.disabled).toBe(false);
+  });
+
+  it("отпускает без последствий по кнопке «Оставить»", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Оставить/ }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(/Результаты: сохранены/)).toBeTruthy();
+  });
+
+  it("удаляет после подтверждения", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить результаты/ }));
+
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("checkbox"));
+    await user.click(dialog.getByRole("button", { name: /Удалить навсегда/ }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(screen.getByText(/Результаты: удалены/)).toBeTruthy());
+  });
+
+  it("закрывается по Escape, не удаляя", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openExport(user);
+    await user.click(screen.getByRole("button", { name: /Удалить исходник/ }));
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(/Исходник: сохранен/)).toBeTruthy();
+  });
+});
+
+describe("бренд-бук: структура экранов", () => {
+  it("показывает шапку продукта со знаком и навигацией", async () => {
+    render(<App />);
+
+    const header = document.querySelector(".app-header");
+    expect(header).not.toBeNull();
+    expect(within(header as HTMLElement).getByText("Vokal")).toBeTruthy();
+  });
+
+  it("показывает полосу метрик песни до открытия вкладок", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const strip = document.querySelector(".metric-strip");
+    expect(strip).not.toBeNull();
+    // BPM, готовые материалы, такты на проверку, выдача.
+    expect(strip!.querySelectorAll(".metric-card").length).toBe(4);
+    expect(within(strip as HTMLElement).getByText(/BPM/)).toBeTruthy();
+  });
+
+  it("собирает весь звук на одной графитовой панели", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const console_ = document.querySelector(".console-panel");
+    expect(console_).not.toBeNull();
+    // Транспорт, форма песни, дорожки и аккорды — внутри неё, а не рядом.
+    for (const part of [".console-transport", ".console-wave", ".console-sections", ".console-tracks", ".console-chords"]) {
+      expect(console_!.querySelector(part), `нет ${part} внутри пульта`).not.toBeNull();
+    }
+  });
+
+  it("подписывает процентом каждую полосу уверенности", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const rows = [...document.querySelectorAll(".console-track-row")];
+    expect(rows.length).toBeGreaterThan(0);
+    // Цвет — не единственный сигнал: число стоит рядом с полосой.
+    for (const row of rows) {
+      expect(row.querySelector(".track-confidence"), "нет полосы").not.toBeNull();
+      expect(row.querySelector(".track-percent")?.textContent, "нет процента").toMatch(/^\d+%$/);
+    }
+  });
+
+  it("отличает аккорд под вопросом рамкой, а не только наведением", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    const chords = [...document.querySelectorAll(".console-chords .chord-chip")];
+    expect(chords.length).toBeGreaterThan(0);
+    expect(chords.some((chip) => chip.className.includes("uncertain"))).toBe(true);
+  });
+
+  it("держит не больше одной графитовой кнопки на экране", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    // Правило бренд-бука: главное действие шага — одно. Стартовый экран
+    // раньше держал два графитовых CTA рядом: «подготовить» и «демо».
+    expect(document.querySelectorAll("button.btn-primary").length).toBe(1);
+
+    await openBandDemo(user);
+    await waitForStagePack();
+    expect(document.querySelectorAll("button.btn-primary").length).toBeLessThanOrEqual(1);
+
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+    expect(document.querySelectorAll("button.btn-primary").length).toBeLessThanOrEqual(1);
+  });
+
+  it("дает вернуться к открытой песне после ухода на главный экран", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    await user.click(screen.getByRole("button", { name: /На главный экран/ }));
+
+    // Песня остается в памяти, но раньше к ней не вело ничего: работа
+    // становилась недостижимой без предупреждения.
+    const resume = await screen.findByRole("button", { name: /Вернуться к песне/ });
+    await user.click(resume);
+    expect(await screen.findByRole("tab", { name: /Материалы/ })).toBeTruthy();
+  });
+
+  it("не выполняет нераспознанную команду как чужую", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+
+    const versionsBefore = document.querySelectorAll(".version-row").length;
+    await user.type(screen.getByRole("textbox", { name: /Команда AI-директору/ }), "сделай красиво и по-своему");
+    await user.click(screen.getByRole("button", { name: /Применить в демо/ }));
+
+    const thread = screen.getByLabelText("Разговор с AI-директором");
+    // Текст пользователя остается в переписке дословно, а не подменяется
+    // названием действия, которое он не просил.
+    await waitFor(() => expect(thread.textContent).toContain("сделай красиво и по-своему"));
+    // Раньше любая нераспознанная команда молча выполнялась как «усилить
+    // припев» и создавала версию с чужими правками.
+    expect(thread.textContent).not.toContain("Усилить припев");
+    expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore);
+  });
+
+  it("выполняет распознанную команду и пишет ее в переписку", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+
+    const versionsBefore = document.querySelectorAll(".version-row").length;
+    await user.type(screen.getByRole("textbox", { name: /Команда AI-директору/ }), "транспонируй ниже");
+    await user.click(screen.getByRole("button", { name: /Применить в демо/ }));
+
+    await waitFor(() => expect(document.querySelectorAll(".version-row").length).toBe(versionsBefore + 1));
+    expect(screen.getByLabelText("Разговор с AI-директором").textContent).toContain("транспонируй ниже");
+  });
+
+  it("не выдает за рабочие кнопки Solo и Mute", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    // Звука нет, солировать и заглушать нечего. Кнопка, которая нажимается
+    // и ничего не делает, — обещание, как и кнопка воспроизведения.
+    const controls = [...document.querySelectorAll(".track-controls button")].filter(
+      (node) => node.textContent === "M" || node.textContent === "S",
+    ) as HTMLButtonElement[];
+    expect(controls.length).toBeGreaterThan(0);
+    for (const button of controls) {
+      expect(button.disabled, `кнопка ${button.textContent} нажимается вхолостую`).toBe(true);
+    }
+  });
+
+  it("дает каждой партии урока свою команду, а не одну на всех", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    // Демо урока: партии «Мелодия», «Аккорды», «Гитара», «Бас». Вокала в нем
+    // нет, и ветка урока раздавала «усложнить» всем четырем.
+    await user.click(screen.getByRole("button", { name: /Warm Lights: урок гитары/ }));
+    await waitForStagePack();
+
+    const byPart = new Map(
+      [...document.querySelectorAll(".console-track-row")].map((row) => [
+        row.querySelector(".track-name strong")?.textContent?.trim() ?? "",
+        row.querySelector(".track-command")?.textContent?.trim() ?? "",
+      ]),
+    );
+
+    expect(byPart.size).toBeGreaterThan(2);
+    // Раньше все четыре получали «усложнить» — одна команда на весь урок.
+    expect(new Set(byPart.values()).size).toBeGreaterThan(1);
+    // «Усложнить аккорды» не имеет смысла ни в одном прочтении.
+    expect(byPart.get("Аккорды")).not.toBe("усложнить");
+    // «Разбор к уроку» не доставался никому: ветка искала вокал, которого нет.
+    expect([...byPart.values()]).toContain("разбор к уроку");
+    // Ярлыки стоят в колонке фиксированной ширины и не переносятся.
+    for (const label of byPart.values()) {
+      expect(label.length, `ярлык «${label}» длиннее 14 знаков`).toBeLessThanOrEqual(14);
+    }
+  });
+
+  it("не выдает за рабочие органы, которых нет", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+
+    // Звука в продукте нет. Кнопка воспроизведения, которая нажимается и
+    // ничего не делает, — обещание, а не элемент управления.
+    const play = document.querySelector(".console-play") as HTMLButtonElement;
+    expect(play).not.toBeNull();
+    expect(play.disabled).toBe(true);
+    expect(play.getAttribute("aria-label")).toMatch(/звук/i);
+
+    // То же про режимы транспорта: клика, скорости и петли не существует.
+    expect(document.querySelectorAll(".console-modes .mono-chip").length).toBeLessThanOrEqual(1);
+  });
+
+  it("показывает разговор с директором репликами, а не списком карточек", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openBandDemo(user);
+    await waitForStagePack();
+    await user.click(screen.getByRole("tab", { name: /AI-директор/ }));
+
+    // В демо директор уже сказал первое слово, но пользователь — ещё нет.
+    expect(document.querySelectorAll(".director-thread .chat-bubble.from-director").length).toBe(1);
+    expect(document.querySelectorAll(".director-thread .chat-bubble.from-user").length).toBe(0);
+
+    await user.click(within(document.querySelector(".suggestions-grid") as HTMLElement).getAllByRole("button")[0]);
+
+    const thread = document.querySelector(".director-thread");
+    expect(thread).not.toBeNull();
+    // Команда пользователя тоже остаётся в переписке, а не только ответ директора.
+    expect(thread!.querySelectorAll(".chat-bubble.from-user").length).toBeGreaterThan(0);
+    expect(thread!.querySelectorAll(".chat-bubble.from-director").length).toBeGreaterThan(0);
+  });
+});

@@ -1,22 +1,109 @@
 :root {
-  --paper: #eef2ee;
-  --paper-strong: #ffffff;
-  --ink: #18201d;
-  --muted: #62706a;
-  --pine: #1f4f45;
-  --pine-2: #2d6b5b;
-  --coral: #c9563c;
-  --coral-dark: #9f3d2c;
-  --brass: #b6842e;
-  --blue-gray: #58717a;
-  --border: #d7dfd9;
-  --border-strong: #aab8b0;
-  --shadow: 0 18px 60px rgb(31 79 69 / 12%);
+  /*
+   * Весов выше 800 в Manrope Variable нет: 850 и 900 схлопывались в 800, и
+   * различие между ними было мнимым. Раздел «Миграция» бренд-бука требует
+   * настоящих весов — 700 и 800.
+   */
+  /* --- Дизайн-система Vokal, направление «Пульт». Источник: docs/design/tokens.json --- */
+  /* Примитивы. Хекс внутри компонента — ошибка ревью: пользуемся ролями ниже. */
+  --graphite-900: #0d1113;
+  --graphite-700: #3f4b52;
+  --graphite-500: #5c686e;
+  --steel-200: #dde3e6;
+  --steel-100: #f1f4f5;
+  --steel-border-strong: #b9c3c8;
+  --white: #fff;
+  --teal-500: #00d3a7;
+  --teal-600-hover: #00bd96;
+  --teal-700: #008f74;
+  --teal-tint: #effcf8;
+  --teal-tint-border: #b9ece0;
+  --amber-500: #c98a00;
+  --amber-700: #7a5400;
+  --amber-tint: #fdf8ec;
+  --amber-tint-border: #ecdcb5;
+  --red-500: #ff4d4d;
+  --red-700: #a11d1d;
+  --red-tint: #fdf2f2;
+  --red-tint-border: #f7cccc;
+
+  /* Графитовые поверхности: плеер, микшер, загрузчик. */
+  --console-base: #0d1113;
+  --console-panel: #181e21;
+  --console-line: #2a3338;
+  --console-ink: #fff;
+  --console-ink-muted: #c3ccd0;
+  --console-ink-quiet: #8b979d;
+  --console-warn-ink: #e0a92e;
+  --console-danger-ink: #ff8080;
+
+  /* Роли: ими пользуются компоненты. */
+  --ink: var(--graphite-900);
+  --ink-2: var(--graphite-700);
+  --ink-muted: var(--graphite-500);
+  --surface: var(--white);
+  --canvas: var(--steel-100);
+  /* Вдавленная светлая поверхность: активная плашка навигации, входящая реплика. */
+  --surface-inset: var(--steel-200);
+  --line: var(--steel-200);
+  --console: var(--graphite-900);
+  --accent: var(--teal-500);
+  --accent-ink: var(--teal-700);
+  /*
+   * Акцент как текст на бирюзовой подложке. --accent-ink задан с расчётом
+   * на белый фон (4.6:1); на --teal-tint он даёт 3.85:1 и норму не проходит.
+   * Здесь 5.2:1 на подложке и 5.5:1 на белом.
+   */
+  --accent-ink-tint: #00775f;
+  --danger: var(--red-500);
+  --danger-ink: var(--red-700);
+  --warn: var(--amber-500);
+  --warn-ink: var(--amber-700);
+
+  /* Пространство, форма, высота, движение. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --s16: 64px;
+  --r-1: 6px;
+  --r-2: 8px;
+  --r-3: 12px;
+  --r-4: 16px;
+  --r-pill: 999px;
+  --e-1: 0 1px 2px rgb(13 17 19 / 6%);
+  --e-2: 0 8px 24px rgb(13 17 19 / 8%);
+  --e-3: 0 24px 64px rgb(13 17 19 / 14%);
+  /* Затемнение под модалкой: единственная поверхность поверх экрана. */
+  --scrim: rgb(13 17 19 / 52%);
+  --ring: 2px solid var(--graphite-900);
+  --t-fast: 120ms;
+  --t-base: 160ms;
+  --t-slow: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Высоты интерактивных элементов. */
+  --control-lg: 48px;
+  --control-md: 44px;
+  --control-sm: 38px;
+  --control-xs: 34px;
+  --content-max: 1300px;
+
+  /* Шрифты. В продакшне подключить локально с subset ru+latin. */
+  --font-ui: "Manrope Variable", Manrope, "Helvetica Neue", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, monospace;
+  --font-print: "IBM Plex Sans", Helvetica, Arial, sans-serif;
+
+  /* Пороги уверенности разбора. */
+  --confidence-high: 85;
+  --confidence-medium: 75;
+
+  background: var(--canvas);
   color: var(--ink);
-  background: linear-gradient(135deg, rgb(255 255 255 / 92%), rgb(238 242 238 / 72%)), var(--paper);
-  font-family:
-    Aptos, "SF Pro Display", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -32,6 +119,9 @@ html {
 }
 
 body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-ui);
   margin: 0;
   min-width: 320px;
 }
@@ -59,75 +149,160 @@ button:not(:disabled):active {
   transform: translateY(1px) scale(0.99);
 }
 
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid rgb(201 86 60 / 28%);
-  outline-offset: 2px;
-}
+/* --- Оболочка и шапка продукта --- */
 
+/*
+ * Отступ страницы вынесен в переменную: шапка идёт во всю ширину окна и
+ * выходит из этого отступа ровно на его величину, чтобы нижняя линия
+ * доходила до краёв экрана на любой ширине.
+ */
 .app-shell {
-  min-height: 100dvh;
-  padding: 20px;
-}
+  --page-pad: var(--s6);
 
-.topbar {
-  align-items: center;
   display: flex;
-  gap: 18px;
-  justify-content: space-between;
-  margin: 0 auto 20px;
-  max-width: 1320px;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: 0 var(--page-pad) var(--s8);
 }
 
-.brand-button,
+/*
+ * Флекс-элемент по умолчанию не сжимается уже своего min-content, поэтому
+ * одна широкая строка внутри распирала всю страницу и на 360 px она
+ * разъезжалась до 754 px. Широкое содержимое обязано листаться внутри
+ * своего контейнера, а не двигать страницу.
+ */
+.app-shell > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app-header {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+  margin: 0 calc(var(--page-pad) * -1) var(--s6);
+  padding: var(--s2) var(--page-pad);
+}
+
+.brand-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-2);
+  color: var(--ink);
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--s2);
+  min-height: var(--control-md);
+  padding: 0;
+  text-align: left;
+}
+
+.brand-button strong {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Знак Vokal: такт из четырёх долей. */
+.brand-mark {
+  background: var(--console);
+  border-radius: var(--r-1);
+  display: grid;
+  /* Зазор между долями — пропорция знака из бренд-бука, не шаг шкалы. */
+  gap: 3px;
+  grid-template-columns: repeat(2, 5px);
+  height: 28px;
+  place-content: center;
+  width: 28px;
+}
+
+.brand-mark i {
+  background: var(--accent);
+  border-radius: 1px;
+  height: 5px;
+  width: 5px;
+}
+
 .text-button {
   align-items: center;
   background: transparent;
   border: 0;
   color: var(--ink);
   display: inline-flex;
-  gap: 10px;
+  gap: var(--s2);
   padding: 0;
   text-align: left;
 }
 
-.brand-button strong,
-.brand-button small {
-  display: block;
+.app-nav {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--s1);
+  min-width: 0;
 }
 
-.brand-button small {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 2px;
-}
-
-.brand-mark {
+.app-nav-item {
   align-items: center;
-  background: var(--pine);
-  border-radius: 8px;
-  color: white;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
   display: inline-flex;
-  height: 40px;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 500;
   justify-content: center;
-  width: 40px;
+  min-height: var(--control-xs);
+  padding: 0 var(--s3);
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
+  white-space: nowrap;
 }
 
-.topbar-plan {
+.app-nav-item:hover:not(:disabled) {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.app-nav-item.active {
+  background: var(--surface-inset);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.app-header-state {
   align-items: center;
   display: flex;
-  font-size: 14px;
-  gap: 8px;
+  flex: 0 0 auto;
+  gap: var(--s2);
+  margin-inline-start: auto;
 }
 
-.topbar-plan span {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  font-weight: 850;
-  padding: 7px 10px;
+/* Моночип: ярлык факта или команды. Строчными, моноширинным. */
+.mono-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  color: var(--ink-muted);
+  display: inline-flex;
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  gap: var(--s1);
+  min-height: 26px;
+  padding: 0 var(--s2);
+  white-space: nowrap;
+}
+
+.mono-chip.on-console {
+  background: var(--console-panel);
+  border-color: var(--console-line);
+  color: var(--console-ink-muted);
 }
 
 .home-lead,
@@ -136,40 +311,69 @@ textarea:focus-visible {
 .setup-view,
 .processing-card,
 .stage-panel {
-  background: rgb(255 255 255 / 84%);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  box-shadow: var(--e-2);
 }
 
 .home-screen {
   display: grid;
-  gap: 16px;
+  gap: var(--s4);
   margin: 0 auto;
   max-width: 1320px;
 }
 
+/*
+ * Три жестких колонки требовали 1092 px вместе с отступами оболочки, а
+ * перестроение включалось только на 980 px. В промежутке — ровно там, где
+ * стоит планшет 1024 в альбомной ориентации, то есть в заявленном контексте
+ * использования — макет выезжал за экран.
+ *
+ * Дизайн-система требует многоколоночные блоки на minmax() + auto-fit, чтобы
+ * они схлопывались по вместимости содержимого, а не по одному порогу.
+ */
 .home-hero {
   align-items: stretch;
   display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(300px, 0.95fr) minmax(420px, 1.16fr) minmax(300px, 0.9fr);
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+
+/* Карточка задания — центральная и самая плотная, ей нужно больше места. */
+@media (width >= 1100px) {
+  .home-hero {
+    grid-template-columns: minmax(300px, 0.95fr) minmax(420px, 1.16fr) minmax(300px, 0.9fr);
+  }
 }
 
 .home-lead {
-  align-content: space-between;
+  align-content: start;
   display: grid;
-  padding: 24px;
+  gap: var(--s6);
+  padding: var(--s6);
+}
+
+/*
+ * `space-between` разгонял содержимое по краям колонки, и между вводным
+ * текстом и чипами доказательств оставалось около 350 px пустоты: колонка
+ * заметно ниже соседней карточки задания. Содержимое прижато к верху,
+ * колонка по-прежнему тянется на всю высоту фоном.
+ */
+@media (width >= 1100px) {
+  .home-lead {
+    align-content: start;
+  }
 }
 
 .job-card {
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  gap: var(--s3);
+  padding: var(--s4);
 }
 
 .hero-job-card {
-  gap: 10px;
+  gap: var(--s3);
 }
 
 .home-lead h1,
@@ -193,7 +397,7 @@ textarea:focus-visible {
 .setup-header p,
 .processing-card p,
 .stage-toolbar p {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 16px;
   line-height: 1.6;
   text-wrap: pretty;
@@ -201,54 +405,59 @@ textarea:focus-visible {
 
 .intro-copy {
   max-width: 520px;
-  margin: 10px 0 0;
+  margin: var(--s3) 0 0;
 }
 
 .hero-proof-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 18px;
+  gap: var(--s2);
+  margin-top: var(--s4);
 }
 
 .hero-proof-row span {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
   font-size: 12px;
-  font-weight: 850;
-  padding: 8px 10px;
+  font-weight: 700;
+  padding: var(--s2) var(--s3);
 }
 
 .eyebrow,
 .section-title {
   align-items: center;
-  color: var(--coral-dark);
+  color: var(--danger-ink);
   display: flex;
   font-size: 12px;
   font-weight: 800;
-  gap: 8px;
+  gap: var(--s2);
   letter-spacing: 0;
-  margin: 0 0 12px;
+  margin: 0 0 var(--s3);
   text-transform: uppercase;
 }
 
 .job-card-head {
   align-items: flex-start;
   display: grid;
-  gap: 10px;
+  gap: var(--s3);
   grid-template-columns: auto 1fr;
 }
 
 .job-card-head > span {
   align-items: center;
-  background: var(--pine);
-  border-radius: 8px;
-  color: white;
+  /*
+   * Белый текст на --accent-ink даёт 4.05:1. Дизайн-система задаёт обратную
+   * пару: бирюза как фон, текст на ней только графитовый. Так и контраст в
+   * норме, и правило соблюдено.
+   */
+  background: var(--accent);
+  border-radius: var(--r-2);
+  color: var(--ink);
   display: inline-flex;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
   height: 34px;
   justify-content: center;
   width: 34px;
@@ -261,27 +470,27 @@ textarea:focus-visible {
 }
 
 .job-card-head p {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
   line-height: 1.4;
-  margin: 5px 0 0;
+  margin: var(--s1) 0 0;
 }
 
 .home-job-grid {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .home-job-option {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   color: var(--ink);
   display: grid;
-  gap: 4px;
+  gap: var(--s1);
   min-height: 70px;
-  padding: 10px;
+  padding: var(--s3);
   text-align: left;
 }
 
@@ -296,48 +505,48 @@ textarea:focus-visible {
 }
 
 .home-job-option span {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 11px;
   font-weight: 800;
   line-height: 1.25;
 }
 
 .home-job-option.selected {
-  background: #fff8ef;
-  border-color: rgb(182 132 46 / 52%);
-  box-shadow: inset 0 0 0 1px rgb(182 132 46 / 48%);
+  background: var(--amber-tint);
+  border-color: var(--warn);
+  box-shadow: inset 0 0 0 1px var(--warn);
 }
 
 .job-director-command,
 .free-preview-note {
   align-items: flex-start;
-  border-radius: 8px;
+  border-radius: var(--r-2);
   display: flex;
-  gap: 9px;
+  gap: var(--s2);
   line-height: 1.35;
-  padding: 10px;
+  padding: var(--s3);
 }
 
 .job-director-command {
-  background: #1e2b27;
-  border: 1px solid rgb(255 255 255 / 8%);
-  color: #f7fbf8;
+  background: var(--console);
+  border: 1px solid var(--console-line);
+  color: var(--console-ink);
   font-size: 13px;
 }
 
 .job-director-command svg {
-  color: #f1c57a;
+  color: var(--accent);
   flex: 0 0 auto;
 }
 
 .job-director-command b {
-  color: #f1c57a;
+  color: var(--accent);
 }
 
 .free-preview-note {
-  background: rgb(31 79 69 / 8%);
-  border: 1px solid rgb(31 79 69 / 12%);
-  color: var(--pine);
+  background: var(--teal-tint);
+  border: 1px solid var(--teal-tint-border);
+  color: var(--accent-ink-tint);
   font-size: 12px;
   font-weight: 800;
 }
@@ -347,13 +556,13 @@ textarea:focus-visible {
 }
 
 .home-result-preview {
-  background: #1e2b27;
-  border-color: rgb(255 255 255 / 8%);
-  box-shadow: 0 18px 60px rgb(31 79 69 / 20%);
-  color: #f7fbf8;
+  background: var(--console);
+  border-color: var(--console-line);
+  box-shadow: var(--e-3);
+  color: var(--console-ink);
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  gap: var(--s3);
+  padding: var(--s4);
 }
 
 .result-preview-top,
@@ -361,24 +570,24 @@ textarea:focus-visible {
 .preview-ai-note {
   align-items: flex-start;
   display: flex;
-  gap: 10px;
+  gap: var(--s3);
   justify-content: space-between;
 }
 
 .result-preview-top span {
-  color: #f1c57a;
+  color: var(--accent);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
   text-transform: uppercase;
 }
 
 .result-preview-top b {
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 999px;
-  color: rgb(255 255 255 / 76%);
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-pill);
+  color: var(--console-ink-muted);
   font-size: 11px;
-  padding: 5px 8px;
+  padding: var(--s1) var(--s2);
 }
 
 .result-preview-title {
@@ -398,27 +607,32 @@ textarea:focus-visible {
 }
 
 .result-preview-title span {
-  color: #d4dfd8;
+  color: var(--console-ink-muted);
   font-size: 13px;
-  margin-top: 5px;
+  margin-top: var(--s1);
 }
 
 .preview-wave {
   align-items: center;
-  background: rgb(255 255 255 / 7%);
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 8px;
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 4px;
+  gap: var(--s1);
   grid-template-columns: repeat(12, 1fr);
   min-height: 104px;
-  padding: 12px;
+  padding: var(--s3);
 }
 
+/*
+ * Столбики волны, полосы дорожек и слоёв — одноцветный акцент. Раньше это
+ * были градиенты старой палитры (латунь → коралл); градиенты запрещены
+ * чеклистом ревью, а звук на пульте заливается бирюзой.
+ */
 .preview-wave i {
   align-self: center;
-  background: linear-gradient(180deg, #f1c57a, var(--coral));
-  border-radius: 999px;
+  background: var(--accent);
+  border-radius: var(--r-pill);
   display: block;
   min-height: 18px;
 }
@@ -426,84 +640,102 @@ textarea:focus-visible {
 .preview-output-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: var(--s2);
 }
 
 .preview-output-row span {
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 999px;
-  color: #f7fbf8;
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-pill);
+  color: var(--console-ink);
   font-size: 12px;
-  font-weight: 850;
-  padding: 7px 9px;
+  font-weight: 700;
+  padding: var(--s2);
 }
 
 .preview-track-list {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .preview-track {
   align-items: center;
   display: grid;
-  gap: 10px;
+  gap: var(--s3);
   grid-template-columns: 78px 1fr;
 }
 
 .preview-track span {
-  color: #d4dfd8;
+  color: var(--console-ink-muted);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .preview-track i {
-  background: rgb(255 255 255 / 10%);
-  border-radius: 999px;
+  background: var(--console-line);
+  border-radius: var(--r-pill);
   display: block;
   height: 9px;
   overflow: hidden;
 }
 
 .preview-track b {
-  background: linear-gradient(90deg, var(--pine-2), #f1c57a);
+  background: var(--accent);
   display: block;
   height: 100%;
 }
 
 .preview-ai-note {
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 8px;
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-2);
   justify-content: flex-start;
   line-height: 1.4;
-  padding: 11px;
+  padding: var(--s3);
 }
 
 .preview-ai-note svg {
-  color: #f1c57a;
+  color: var(--accent);
   flex: 0 0 auto;
 }
 
 .preview-ai-note span {
-  color: rgb(255 255 255 / 78%);
+  color: var(--console-ink-muted);
   font-size: 13px;
 }
 
+/* Графитовая поверхность «пульта» из дизайн-системы. */
 .demo-spotlight {
-  background: #203b36;
-  border-radius: 8px;
-  color: white;
+  background: var(--console-base);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-4);
+  color: var(--console-ink);
   display: grid;
-  gap: 12px;
-  padding: 18px;
+  gap: var(--s3);
+  padding: var(--s6);
+}
+
+/*
+ * На графите главная кнопка не может быть графитовой: по системе там работает
+ * акцентная заливка с графитовым текстом. До этой правки кнопка «Открыть
+ * демо-разбор» была почти неразличима на своей же карточке.
+ */
+.demo-spotlight .primary-action {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.demo-spotlight .primary-action:hover:not(:disabled) {
+  background: var(--teal-600-hover);
+  box-shadow: none;
 }
 
 .demo-spotlight .section-title {
-  color: #f1c57a;
+  color: var(--accent);
   margin: 0;
 }
 
@@ -516,7 +748,7 @@ textarea:focus-visible {
 }
 
 .demo-spotlight p {
-  color: rgb(255 255 255 / 76%);
+  color: var(--console-ink-muted);
   line-height: 1.5;
   margin: 0;
   text-wrap: pretty;
@@ -524,24 +756,30 @@ textarea:focus-visible {
 
 .launch-stack {
   display: grid;
-  gap: 10px;
+  gap: var(--s3);
 }
 
 .home-support-row {
   align-items: stretch;
   display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(260px, 330px) minmax(220px, 300px) minmax(0, 1fr);
+  gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+@media (width >= 1100px) {
+  .home-support-row {
+    grid-template-columns: minmax(260px, 330px) minmax(220px, 300px) minmax(0, 1fr);
+  }
 }
 
 .demo-row,
 .artifact-row {
-  background: rgb(255 255 255 / 86%);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   color: var(--ink);
   min-height: 74px;
-  padding: 14px;
+  padding: var(--s4);
   text-align: left;
 }
 
@@ -554,9 +792,9 @@ textarea:focus-visible {
 
 .demo-row small,
 .artifact-row small {
-  color: var(--muted);
+  color: var(--ink-muted);
   line-height: 1.45;
-  margin-top: 6px;
+  margin-top: var(--s2);
 }
 
 .demo-row:hover,
@@ -567,25 +805,25 @@ textarea:focus-visible {
 .review-actions button:hover:not(:disabled),
 .suggestion-row:hover,
 .suggestion-card button:hover:not(:disabled) {
-  border-color: rgb(31 79 69 / 35%);
-  box-shadow: 0 10px 24px rgb(31 79 69 / 8%);
+  border-color: var(--steel-border-strong);
+  box-shadow: var(--e-2);
   transform: translateY(-1px);
 }
 
 .job-result-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .job-result-row span {
-  background: rgb(182 132 46 / 12%);
-  border: 1px solid rgb(182 132 46 / 20%);
-  border-radius: 999px;
-  color: #7b5a20;
+  background: var(--amber-tint);
+  border: 1px solid var(--amber-tint-border);
+  border-radius: var(--r-pill);
+  color: var(--warn-ink);
   font-size: 12px;
-  font-weight: 850;
-  padding: 8px 10px;
+  font-weight: 700;
+  padding: var(--s2) var(--s3);
 }
 
 .job-action {
@@ -596,61 +834,66 @@ textarea:focus-visible {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: 8px;
-  color: var(--muted);
+  border-radius: var(--r-2);
+  color: var(--ink-muted);
   display: inline-flex;
   font-size: 13px;
-  font-weight: 850;
-  gap: 7px;
+  font-weight: 700;
+  gap: var(--s2);
   justify-content: center;
   min-height: 36px;
-  padding: 7px 10px;
+  padding: var(--s2) var(--s3);
   width: 100%;
 }
 
 .settings-link:hover:not(:disabled) {
-  background: #f1f5f0;
-  color: var(--pine);
+  background: var(--canvas);
+  color: var(--accent-ink);
 }
 
+/*
+ * Три жестких колонки не сжимались ниже ширины плашки статуса, и на 1000-1024 px
+ * карточка выезжала за экран. Дизайн-система для таких блоков предписывает
+ * auto-fit с minmax, чтобы они схлопывались по вместимости содержимого.
+ */
 .access-model {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
 }
 
 .access-card {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 6px;
+  gap: var(--s2);
   min-height: 132px;
-  padding: 14px;
+  padding: var(--s4);
 }
 
 .access-card span {
   align-self: start;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-size: 11px;
-  font-weight: 900;
-  padding: 5px 8px;
+  font-weight: 800;
+  padding: var(--s1) var(--s2);
   width: max-content;
 }
 
 .access-card.free span {
-  background: rgb(31 79 69 / 10%);
-  color: var(--pine);
+  background: var(--teal-tint);
+  color: var(--accent-ink-tint);
 }
 
 .access-card.trial span {
-  background: rgb(182 132 46 / 16%);
-  color: #7b5a20;
+  background: var(--amber-tint);
+  color: var(--warn-ink);
 }
 
 .access-card.pro span {
-  background: rgb(201 86 60 / 12%);
-  color: var(--coral-dark);
+  background: var(--red-tint);
+  color: var(--danger-ink);
 }
 
 .access-card strong {
@@ -659,7 +902,7 @@ textarea:focus-visible {
 }
 
 .access-card p {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
   line-height: 1.45;
   margin: 0;
@@ -669,7 +912,7 @@ textarea:focus-visible {
 .panel-heading {
   align-items: flex-start;
   display: flex;
-  gap: 12px;
+  gap: var(--s3);
 }
 
 .panel-heading h2,
@@ -680,31 +923,31 @@ textarea:focus-visible {
 }
 
 .panel-heading p {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 14px;
   line-height: 1.5;
-  margin: 6px 0 0;
+  margin: var(--s2) 0 0;
 }
 
 .drop-zone {
   align-items: center;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: 8px;
-  color: var(--blue-gray);
+  border: 1.5px dashed var(--steel-border-strong);
+  border-radius: var(--r-2);
+  color: var(--ink-2);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--s3);
   justify-content: center;
-  margin-top: 22px;
+  margin-top: var(--s6);
   min-height: 150px;
-  padding: 22px;
+  padding: var(--s6);
   text-align: center;
 }
 
 .drop-zone.job-drop-zone {
   margin-top: 0;
   min-height: 104px;
-  padding: 16px;
+  padding: var(--s4);
 }
 
 .drop-zone input {
@@ -715,13 +958,13 @@ textarea:focus-visible {
 
 .consent-row {
   align-items: flex-start;
-  color: var(--muted);
+  color: var(--ink-muted);
   display: grid;
   font-size: 14px;
-  gap: 10px;
+  gap: var(--s3);
   grid-template-columns: auto 1fr;
   line-height: 1.45;
-  margin: 18px 0;
+  margin: var(--s4) 0;
 }
 
 .consent-row.compact {
@@ -730,71 +973,80 @@ textarea:focus-visible {
 
 .setup-notes div {
   align-items: flex-start;
-  background: #f1f5f0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--muted);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  color: var(--ink-muted);
   display: flex;
-  gap: 10px;
+  gap: var(--s3);
   line-height: 1.45;
-  padding: 12px;
+  padding: var(--s3);
 }
 
+/* Дизайн-система, кнопки: primary — графит 48 px, белый текст 14/700. */
 .primary-action {
   align-items: center;
-  background: var(--coral);
-  border: 1px solid var(--coral-dark);
-  border-radius: 8px;
-  color: white;
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--r-2);
+  color: var(--white);
   display: inline-flex;
-  font-weight: 850;
-  gap: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  gap: var(--s2);
   justify-content: center;
-  min-height: 48px;
-  padding: 12px 16px;
+  min-height: var(--control-lg);
+  padding: 12px var(--s4);
   width: 100%;
 }
 
 .primary-action:hover:not(:disabled) {
-  background: var(--coral-dark);
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+  box-shadow: var(--e-2);
 }
 
 .setup-view,
 .processing-view,
 .stage-shell {
   margin: 0 auto;
-  max-width: 1480px;
+  /*
+   * `100%` здесь обязателен. Без него оболочка получает ширину по
+   * min-content содержимого — ряд вкладок распирал страницу до 754 px на
+   * 360-й ширине, хотя сами вкладки умеют листаться.
+   */
+  max-width: min(1480px, 100%);
 }
 
 .setup-view {
-  padding: 28px;
+  padding: var(--s8);
 }
 
 .setup-header {
-  margin-top: 22px;
+  margin-top: var(--s6);
   max-width: 860px;
 }
 
 .setup-layout {
   align-items: start;
   display: grid;
-  gap: 18px;
+  gap: var(--s4);
   grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-  margin-top: 26px;
+  margin-top: var(--s6);
 }
 
 .settings-stack {
   display: grid;
-  gap: 14px;
+  gap: var(--s4);
 }
 
 .settings-card {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: var(--s3);
+  padding: var(--s4);
 }
 
 .setup-focus-card h2 {
@@ -804,7 +1056,7 @@ textarea:focus-visible {
 }
 
 .setup-focus-card p {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 14px;
   line-height: 1.45;
   margin: 0;
@@ -813,42 +1065,42 @@ textarea:focus-visible {
 
 .form-grid {
   display: grid;
-  gap: 14px;
+  gap: var(--s4);
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   margin-top: 0;
 }
 
 .field {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .field span {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
   font-weight: 800;
 }
 
 .field input {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   color: var(--ink);
   min-height: 44px;
-  padding: 10px 12px;
+  padding: var(--s3);
 }
 
 .setup-summary-card {
-  background: #203b36;
-  border-radius: 8px;
-  color: white;
+  background: var(--console);
+  border-radius: var(--r-2);
+  color: var(--console-ink);
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: var(--s4);
+  padding: var(--s4);
 }
 
 .setup-summary-card .section-title {
-  color: #f1c57a;
+  color: var(--accent);
   margin: 0;
 }
 
@@ -861,53 +1113,53 @@ textarea:focus-visible {
 
 .brief-list {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .brief-list span {
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 8px;
-  color: rgb(255 255 255 / 76%);
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-2);
+  color: var(--console-ink-muted);
   display: grid;
   font-size: 13px;
-  gap: 3px;
+  gap: var(--s1);
   line-height: 1.35;
-  padding: 10px;
+  padding: var(--s3);
 }
 
 .brief-list b {
-  color: white;
+  color: var(--console-ink);
 }
 
 .setup-promise-list {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .setup-promise-list span {
   align-items: center;
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 8px;
-  color: rgb(255 255 255 / 82%);
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-2);
+  color: var(--console-ink-muted);
   display: flex;
   font-size: 13px;
-  gap: 8px;
+  gap: var(--s2);
   line-height: 1.35;
-  padding: 10px;
+  padding: var(--s3);
 }
 
 .setup-promise-list svg {
-  color: #f1c57a;
+  color: var(--accent);
   flex: 0 0 auto;
 }
 
 .setup-notes {
   display: grid;
-  gap: 10px;
+  gap: var(--s3);
   grid-template-columns: 1fr 1fr;
-  margin-top: 22px;
+  margin-top: var(--s6);
 }
 
 .processing-view {
@@ -917,32 +1169,39 @@ textarea:focus-visible {
 }
 
 .processing-card {
+  display: grid;
+  gap: var(--s4);
   margin: 0 auto;
   max-width: 820px;
-  padding: 28px;
+  padding: var(--s8);
   width: 100%;
 }
 
 .progress-track {
-  background: #dce5de;
-  border-radius: 999px;
+  background: var(--surface-inset);
+  border-radius: var(--r-pill);
   height: 12px;
-  margin: 24px 0;
+  margin: var(--s2) 0 0;
   overflow: hidden;
 }
 
+/*
+ * Заливка одноцветная. Радужный градиент из старой палитры заканчивался
+ * красным, а красный в системе закреплён за необратимым: полный прогресс
+ * читался как авария. Плюс градиенты запрещены чеклистом ревью.
+ */
 .progress-track span {
-  background: linear-gradient(90deg, var(--pine), var(--brass), var(--coral));
+  background: var(--accent);
   display: block;
   height: 100%;
-  transition: width 220ms ease;
+  transition: width var(--t-slow) var(--ease);
 }
 
 .step-icon {
   align-items: center;
-  background: #e6ece7;
-  border-radius: 8px;
-  color: var(--blue-gray);
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+  color: var(--ink-2);
   display: inline-flex;
   height: 38px;
   justify-content: center;
@@ -951,23 +1210,23 @@ textarea:focus-visible {
 
 .processing-focus {
   align-items: center;
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 14px;
+  gap: var(--s4);
   grid-template-columns: auto 1fr;
-  padding: 18px;
+  padding: var(--s4);
 }
 
 .processing-focus > span {
   align-items: center;
-  background: #1e2b27;
-  border-radius: 8px;
-  color: #f7fbf8;
+  background: var(--console);
+  border-radius: var(--r-2);
+  color: var(--console-ink);
   display: inline-flex;
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 800;
   height: 64px;
   justify-content: center;
   width: 64px;
@@ -983,26 +1242,25 @@ textarea:focus-visible {
 }
 
 .processing-focus p {
-  color: var(--muted);
+  color: var(--ink-muted);
   line-height: 1.45;
-  margin: 5px 0 0;
+  margin: var(--s1) 0 0;
 }
 
 .processing-milestones {
   display: grid;
-  gap: 10px;
+  gap: var(--s3);
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 16px;
 }
 
 .processing-milestone {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 7px;
+  gap: var(--s2);
   min-height: 118px;
-  padding: 12px;
+  padding: var(--s3);
 }
 
 .processing-milestone strong,
@@ -1011,28 +1269,28 @@ textarea:focus-visible {
 }
 
 .processing-milestone small {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 12px;
   line-height: 1.35;
 }
 
 .processing-milestone.running .step-icon,
 .processing-milestone.done .step-icon {
-  background: rgb(31 79 69 / 12%);
-  color: var(--pine);
+  background: var(--teal-tint);
+  color: var(--accent-ink-tint);
 }
 
 .processing-milestone.warning .step-icon {
-  background: rgb(182 132 46 / 16%);
-  color: var(--brass);
+  background: var(--amber-tint);
+  color: var(--warn);
 }
 
 .stage-toolbar {
   align-items: center;
   display: grid;
-  gap: 14px;
+  gap: var(--s4);
   grid-template-columns: auto 1fr auto;
-  margin-bottom: 14px;
+  margin-bottom: var(--s4);
 }
 
 .stage-toolbar h1 {
@@ -1042,141 +1300,174 @@ textarea:focus-visible {
 
 .stage-toolbar p {
   font-size: 14px;
-  margin: 6px 0 0;
+  margin: var(--s2) 0 0;
 }
 
+/* Версия пакета — тёмная плашка: состояние, а не действие. */
 .version-pill {
-  background: rgb(31 79 69 / 10%);
-  border: 1px solid rgb(31 79 69 / 18%);
-  border-radius: 999px;
-  color: var(--pine);
-  font-size: 13px;
-  font-weight: 850;
-  padding: 8px 12px;
-}
-
-.stage-command-strip {
-  background: rgb(255 255 255 / 84%);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 10px 34px rgb(31 79 69 / 8%);
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(170px, 1fr)) minmax(190px, auto);
-  margin-bottom: 14px;
-  padding: 10px;
-}
-
-.command-metric,
-.command-action {
   align-items: center;
-  border-radius: 8px;
-  display: flex;
-  gap: 10px;
-  min-height: 54px;
-  padding: 10px 12px;
-}
-
-.command-metric {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  color: var(--muted);
-}
-
-.command-metric svg {
-  color: var(--pine);
+  background: var(--console);
+  border: 1px solid var(--console);
+  border-radius: var(--r-pill);
+  color: var(--console-ink);
+  display: inline-flex;
   flex: 0 0 auto;
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-height: 26px;
+  padding: 0 var(--s3);
+  white-space: nowrap;
 }
 
-.command-metric span,
-.command-metric strong {
-  display: block;
+/* --- Полоса метрик песни: состояние проекта до открытия вкладок --- */
+
+.metric-strip {
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin-bottom: var(--s4);
 }
 
-.command-metric strong {
+.metric-card {
+  align-content: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s4);
+  text-align: left;
+}
+
+.metric-card strong {
   color: var(--ink);
-  font-size: 18px;
-  line-height: 1;
+  font-family: var(--font-data);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
-.command-action {
-  background: var(--pine);
-  border: 1px solid var(--pine);
-  color: white;
+.metric-card span {
+  color: var(--ink-muted);
   font-size: 13px;
-  font-weight: 850;
-  justify-content: center;
+  line-height: 1.35;
 }
 
-.command-action.urgent {
-  background: var(--coral);
-  border-color: var(--coral-dark);
+/* Есть такты на проверку — янтарная рамка и янтарное число. */
+.metric-card.attention {
+  border-color: var(--warn-ink);
 }
 
-.command-action:hover:not(:disabled) {
-  box-shadow: 0 12px 26px rgb(31 79 69 / 16%);
-  transform: translateY(-1px);
+.metric-card.attention strong {
+  /*
+   * --warn на белом даёт 2.95:1 при норме 3 для крупного текста. Число —
+   * главный сигнал карточки, читаться должно с запасом.
+   */
+  color: var(--warn-ink);
+}
+
+/* Карточка выдачи — кнопка, поэтому у неё есть наведение и видимый фокус. */
+.metric-card.console-card {
+  align-content: space-between;
+  background: var(--console);
+  border-color: var(--console);
+  color: var(--console-ink);
+  min-height: 92px;
+  transition: background-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
+}
+
+/*
+ * Здесь ведёт подпись, а значение — строка «2/3 ссылок · ZIP»: набирать её
+ * теми же 28 px, что число метрики, значит гнать перенос уже на 190 px.
+ */
+.metric-card.console-card strong {
+  color: var(--console-ink);
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.metric-card.console-card span {
+  color: var(--console-ink-muted);
+}
+
+.metric-card.console-card:hover:not(:disabled) {
+  background: var(--console-panel);
+  box-shadow: var(--e-2);
+}
+
+.metric-card.console-card:focus-visible {
+  outline: var(--ring);
+  outline-color: var(--accent);
+  outline-offset: 2px;
+}
+
+/* Ссылки протухли — подпись янтарная, это состояние нельзя прятать. */
+.metric-card.console-card.stale span {
+  color: var(--console-warn-ink);
 }
 
 .plan-banner {
-  background: #1e2b27;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 8px;
-  color: #f7fbf8;
+  background: var(--console);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-2);
+  color: var(--console-ink);
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
   grid-template-columns: 1fr 1fr;
-  margin-bottom: 14px;
-  padding: 10px;
+  margin-bottom: var(--s4);
+  padding: var(--s3);
 }
 
 .plan-banner div {
   align-items: flex-start;
-  background: rgb(255 255 255 / 7%);
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 8px;
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-2);
   display: flex;
-  gap: 9px;
+  gap: var(--s2);
   line-height: 1.4;
-  padding: 10px;
+  padding: var(--s3);
 }
 
 .plan-banner svg {
-  color: #f1c57a;
+  color: var(--accent);
   flex: 0 0 auto;
 }
 
 .plan-banner span {
-  color: rgb(255 255 255 / 76%);
+  color: var(--console-ink-muted);
   font-size: 13px;
 }
 
 .plan-banner strong {
-  color: white;
+  color: var(--console-ink);
 }
 
 .access-summary {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .access-summary span,
 .pro-note {
   align-items: flex-start;
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--muted);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  color: var(--ink-muted);
   display: flex;
-  gap: 10px;
+  gap: var(--s3);
   line-height: 1.4;
-  padding: 12px;
+  padding: var(--s3);
 }
 
 .access-summary span {
   display: grid;
   font-size: 13px;
-  gap: 3px;
+  gap: var(--s1);
 }
 
 .access-summary b {
@@ -1184,16 +1475,16 @@ textarea:focus-visible {
 }
 
 .pro-note svg {
-  color: var(--coral-dark);
+  color: var(--danger-ink);
   flex: 0 0 auto;
 }
 
 .suggestion-row {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   color: var(--ink);
-  padding: 10px;
+  padding: var(--s3);
   text-align: left;
 }
 
@@ -1203,70 +1494,74 @@ textarea:focus-visible {
 }
 
 .suggestion-row small {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 12px;
-  margin-top: 4px;
+  margin-top: var(--s1);
 }
 
 .stage-panel {
-  padding: 18px;
+  padding: var(--s4);
 }
 
 .stage-panel h2 {
   font-size: 20px;
-  margin: 0 0 14px;
+  margin: 0 0 var(--s4);
 }
 
+/*
+ * Вкладки по бренд-буку: компактные плашки на вдавленной полосе, активная —
+ * приподнятая белая. Подсказка под названием была растянута на всю ширину
+ * экрана и спорила с полосой метрик за внимание; она уехала в title.
+ */
 .workspace-tabs {
-  background: #e6ece7;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: grid;
-  gap: 5px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-bottom: 14px;
-  padding: 5px;
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  display: flex;
+  gap: var(--s1);
+  margin-bottom: var(--s4);
+  padding: var(--s1);
 }
 
 .workspace-tab {
   background: transparent;
   border: 0;
-  border-radius: 6px;
-  color: var(--muted);
-  display: grid;
-  gap: 3px;
-  min-height: 52px;
-  padding: 9px 10px;
-  text-align: left;
-}
-
-.workspace-tab strong,
-.workspace-tab span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-radius: var(--r-pill);
+  /*
+   * --ink-muted на вдавленной полосе даёт 4.43:1 при норме 4.5 — норма не
+   * выполняется на волос, и это всё равно нарушение. --ink-2 даёт запас.
+   */
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: var(--control-xs);
+  padding: 0 var(--s4);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
   white-space: nowrap;
 }
 
-.workspace-tab strong {
-  color: var(--ink);
-  font-size: 13px;
+.workspace-tab span {
+  display: none;
 }
 
-.workspace-tab span {
-  font-size: 11px;
-  font-weight: 800;
+.workspace-tab:hover {
+  color: var(--ink);
 }
 
 .workspace-tab.active {
-  background: var(--paper-strong);
-  box-shadow: 0 8px 22px rgb(31 79 69 / 10%);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+  color: var(--ink);
+}
+
+.workspace-tab.active strong {
+  font-weight: 700;
 }
 
 .stage-view {
   align-items: start;
   display: grid;
-  gap: 14px;
+  gap: var(--s4);
 }
 
 .overview-view,
@@ -1291,24 +1586,24 @@ textarea:focus-visible {
 .export-side,
 .material-list-pane {
   display: grid;
-  gap: 12px;
+  gap: var(--s3);
 }
 
 .pane-title-row,
 .preview-header {
   align-items: flex-start;
   display: flex;
-  gap: 12px;
+  gap: var(--s3);
   justify-content: space-between;
 }
 
 .pane-title-row span {
-  background: #e6ece7;
-  border-radius: 999px;
-  color: var(--muted);
+  background: var(--surface-inset);
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
   font-size: 12px;
-  font-weight: 850;
-  padding: 5px 8px;
+  font-weight: 700;
+  padding: var(--s1) var(--s2);
 }
 
 .artifact-row {
@@ -1317,338 +1612,524 @@ textarea:focus-visible {
 }
 
 .artifact-row.active {
-  border-color: var(--pine);
-  box-shadow: inset 0 0 0 1px var(--pine);
+  border-color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px var(--accent-ink);
 }
 
 .artifact-row em {
-  color: var(--coral-dark);
+  color: var(--danger-ink);
   display: block;
   font-size: 12px;
   font-style: normal;
-  font-weight: 850;
-  margin-top: 8px;
+  font-weight: 700;
+  margin-top: var(--s2);
 }
 
 .access-label {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font-size: 11px;
-  font-weight: 900;
-  margin-top: 8px;
-  padding: 5px 8px;
+  font-weight: 800;
+  margin-top: var(--s2);
+  padding: var(--s1) var(--s2);
   width: max-content;
 }
 
-.access-label.free {
-  background: rgb(31 79 69 / 10%);
-  color: var(--pine);
+.access-label.assembled {
+  background: var(--teal-tint);
+  color: var(--accent-ink-tint);
 }
 
-.access-label.pro {
-  background: rgb(201 86 60 / 12%);
-  color: var(--coral-dark);
+.access-label.processing {
+  background: var(--red-tint);
+  color: var(--danger-ink);
 }
 
 .bundle-box,
 .subpanel {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: var(--s2);
+  padding: var(--s3);
 }
 
 .bundle-box span {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
   line-height: 1.45;
 }
 
 .preview-header h2 {
-  margin-bottom: 6px;
+  margin-bottom: var(--s2);
 }
 
 .preview-header p {
-  color: var(--muted);
+  color: var(--ink-muted);
   line-height: 1.45;
   margin: 0;
 }
 
+/*
+ * Плашки статусов. Каждое состояние — своя пара «подложка + обводка», иначе
+ * разные по смыслу статусы читаются как один. Обводка объявлена прозрачной
+ * в базе: рамка появляется только цветом и не двигает соседей в ряду.
+ *
+ * Отступы 6/9 — единственное место, где мы уходим со шкалы осознанно.
+ * Бренд-бук задаёт для пилюль 5–6 / 10–11 px, а рамка забирает недостающий
+ * пиксель: внешний габарит плашки остаётся прежним 7/10 и ряд не разъезжается.
+ */
 .status-badge {
-  border-radius: 999px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
   flex: 0 0 auto;
   font-size: 12px;
-  font-weight: 850;
-  padding: 7px 10px;
+  font-weight: 700;
+  padding: 6px 9px;
 }
 
+/* Готово — состояние файла, подтверждённый результат системы. */
 .status-badge.ready {
-  background: rgb(31 79 69 / 12%);
-  color: var(--pine);
+  background: var(--teal-tint);
+  border-color: var(--teal-tint-border);
+  color: var(--accent-ink-tint);
 }
 
-.status-badge.draft,
+/* Черновик — тоже состояние файла: собран, но не сверен. Обводка мягкая. */
+.status-badge.draft {
+  background: var(--amber-tint);
+  border-color: var(--amber-tint-border);
+  color: var(--warn-ink);
+}
+
+/*
+ * Нужна проверка — не состояние файла, а требуемое действие музыканта.
+ * Отличается от черновика сплошной янтарной обводкой на белом: действие
+ * пользователя должно быть видно в ряду плашек без наведения и в ч/б.
+ */
 .status-badge.needs_review {
-  background: rgb(182 132 46 / 16%);
-  color: #7b5a20;
+  background: var(--surface);
+  border-color: var(--warn);
+  color: var(--warn-ink);
 }
 
-.status-badge.rebuild_required,
+/* Пересобрать — материал разошёлся с версией, нужна пересборка. */
+.status-badge.rebuild_required {
+  background: var(--red-tint);
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
+}
+
+/*
+ * В очереди — материала ещё нет. Это нейтральное ожидание, а не авария:
+ * красный в системе закреплён за необратимым и здесь читался как ошибка.
+ */
 .status-badge.pending {
-  background: rgb(201 86 60 / 14%);
-  color: var(--coral-dark);
+  background: var(--canvas);
+  border-color: var(--line);
+  color: var(--ink-2);
 }
 
 .song-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 14px 0;
+  gap: var(--s2);
+  margin: var(--s4) 0;
 }
 
 .song-facts span {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
   font-size: 12px;
-  font-weight: 850;
-  padding: 7px 10px;
+  font-weight: 700;
+  padding: var(--s2) var(--s3);
 }
 
 .setup-summary-strip {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 10px;
-  margin: 12px 0;
-  padding: 12px;
+  gap: var(--s3);
+  margin: var(--s3) 0;
+  padding: var(--s3);
 }
 
 .setup-summary-strip div {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .setup-summary-strip span {
-  background: #f1f5f0;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
   font-size: 12px;
   font-weight: 800;
-  padding: 7px 10px;
+  padding: var(--s2) var(--s3);
 }
 
-.section-timeline {
-  background: #1e2b27;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 8px;
-  color: #f7fbf8;
-  display: flex;
-  gap: 3px;
-  min-height: 74px;
-  overflow: hidden;
-  padding: 6px;
-}
+/* --- Пультовая панель --------------------------------------------------
+ * Всё, что связано со звуком, живёт на одной графитовой поверхности:
+ * транспорт, форма песни, дорожки, аккорды. Светлая часть интерфейса
+ * остаётся под решения и текст. Раньше это были три отдельных светлых
+ * виджета (transport-bar, section-timeline, studio-track-stack).
+ * --------------------------------------------------------------------- */
 
-.section-segment {
-  background: rgb(255 255 255 / 7%);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 6px;
+.console-panel {
+  background: var(--console);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-2);
+  color: var(--console-ink);
   display: grid;
-  gap: 4px;
-  min-width: 86px;
-  padding: 10px;
+  gap: var(--s4);
+  padding: var(--s4);
 }
 
-.section-segment:nth-child(2n) {
-  background: rgb(182 132 46 / 18%);
+/* Иначе полосы и дорожки распирают панель по своему содержимому. */
+.console-panel > * {
+  min-width: 0;
 }
 
-.section-segment strong,
-.section-segment span {
+.console-transport {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.console-play {
+  align-items: center;
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: var(--control-md);
+  justify-content: center;
+  padding: 0;
+  width: var(--control-md);
+}
+
+.console-play:hover:not(:disabled) {
+  background: var(--teal-600-hover);
+}
+
+/* Графитовое кольцо на графите не видно — на пульте фокус светлый. */
+.console-play:focus-visible,
+.console-section:focus-visible,
+.track-controls button:focus-visible {
+  outline: var(--ring);
+  outline-color: var(--console-ink);
+  outline-offset: 2px;
+}
+
+.console-title {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.console-title strong {
+  color: var(--console-ink);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.section-segment strong {
-  font-size: 13px;
+.console-facts {
+  color: var(--console-ink-muted);
+  font-family: var(--font-data);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
 }
 
-.section-segment span {
-  color: #d4dfd8;
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.transport-bar {
-  align-items: center;
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(170px, auto) 1fr;
-  margin-top: 10px;
-  padding: 10px;
-}
-
-.transport-button {
-  align-items: center;
-  background: var(--pine);
-  border: 1px solid var(--pine);
-  border-radius: 8px;
-  color: white;
-  display: inline-flex;
-  font-size: 13px;
-  font-weight: 850;
-  gap: 8px;
-  justify-content: center;
-  min-height: 40px;
-  padding: 9px 12px;
-}
-
-.transport-metrics {
+.console-modes {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
+  gap: var(--s2);
+  margin-inline-start: auto;
 }
 
-.transport-metrics span {
-  align-items: center;
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  display: inline-flex;
-  font-size: 12px;
-  font-weight: 850;
-  gap: 5px;
-  min-height: 34px;
-  padding: 7px 10px;
-}
-
-.studio-track-stack {
-  background: #1e2b27;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 8px;
-  color: #f7fbf8;
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 12px;
-}
-
-.studio-head {
-  align-items: center;
+/* Волна: проигранная часть бирюзовая, остальное — линия пульта. */
+.console-wave {
+  align-items: flex-end;
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
+  gap: 2px;
+  height: 68px;
+  overflow: hidden;
 }
 
-.studio-head div {
-  align-items: center;
-  display: inline-flex;
-  gap: 8px;
+.console-wave i {
+  background: var(--console-line);
+  border-radius: 1px;
+  flex: 1 1 auto;
+  min-width: 3px;
 }
 
-.studio-head svg {
-  color: #f1c57a;
+.console-wave i.played {
+  background: var(--accent);
 }
 
-.studio-head span {
-  color: #d4dfd8;
-  font-size: 12px;
-  font-weight: 850;
+/* Форма песни: ширина сегмента — по числу тактов (flex-grow из разметки). */
+.console-sections {
+  display: flex;
+  gap: 2px;
 }
 
-.studio-track-list {
+.console-section {
+  background: var(--console-panel);
+  border: 0;
+  border-radius: 0;
+  color: var(--console-ink-muted);
   display: grid;
-  gap: 8px;
+  flex-basis: 0;
+  flex-shrink: 1;
+  gap: 2px;
+  min-height: var(--control-md);
+  min-width: 56px;
+  padding: var(--s2) var(--s3);
+  text-align: left;
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
 }
 
-.studio-track-row {
-  align-items: center;
-  background: rgb(255 255 255 / 7%);
-  border: 1px solid rgb(255 255 255 / 9%);
-  border-radius: 8px;
+.console-section:first-child {
+  border-end-start-radius: var(--r-2);
+  border-start-start-radius: var(--r-2);
+}
+
+.console-section:last-child {
+  border-end-end-radius: var(--r-2);
+  border-start-end-radius: var(--r-2);
+}
+
+.console-section strong,
+.console-section span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-section strong {
+  color: var(--console-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.console-section span {
+  color: inherit;
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.console-section:hover:not(.active) {
+  background: var(--console-line);
+  color: var(--console-ink);
+}
+
+.console-section.active {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.console-section.active strong {
+  color: var(--ink);
+}
+
+.console-tracks {
   display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(110px, 0.7fr) minmax(120px, 1fr) auto;
-  min-height: 54px;
-  padding: 9px;
+  gap: var(--s2);
+}
+
+.console-track-row {
+  align-items: center;
+  background: var(--console-panel);
+  border-radius: var(--r-2);
+  display: grid;
+  gap: var(--s3);
+  /*
+   * Каждая дорожка — отдельный грид, поэтому колонки выравниваются только
+   * фиксированной шириной. С `auto` ярлык команды («усилить» против «трек
+   * без баса») растягивал последнюю колонку по-своему в каждой строке,
+   * полосы уверенности выходили разной длины, а проценты не собирались в
+   * колонку — партии становилось нечем сравнивать.
+   */
+  grid-template-columns: minmax(150px, 1.2fr) 3fr 46px 216px;
+  padding: var(--s2) var(--s3);
+}
+
+.track-name {
+  min-width: 0;
 }
 
 .track-name strong,
 .track-name span {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .track-name strong {
-  font-size: 13px;
+  color: var(--console-ink);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .track-name span {
-  color: #d4dfd8;
-  font-size: 11px;
-  font-weight: 800;
-  margin-top: 3px;
+  color: var(--console-ink-quiet);
+  font-size: 12px;
+  margin-top: 2px;
 }
 
 .track-confidence {
-  background: rgb(255 255 255 / 12%);
-  border-radius: 999px;
+  background: var(--console-line);
+  border-radius: var(--r-pill);
   display: block;
-  height: 10px;
+  height: 6px;
+  min-width: 0;
   overflow: hidden;
 }
 
 .track-confidence b {
-  background: linear-gradient(90deg, var(--pine-2), #f1c57a, var(--coral));
+  border-radius: var(--r-pill);
   display: block;
-  height: 100%;
+  height: 6px;
+}
+
+.track-confidence b.high {
+  background: var(--accent);
+}
+
+.track-confidence b.mid {
+  background: var(--console-warn-ink);
+}
+
+.track-confidence b.low {
+  background: var(--console-danger-ink);
+}
+
+/*
+ * Процент — второй сигнал уверенности помимо цвета. Требование доступности:
+ * дальтонизм и чёрно-белая печать партий. Полоса без числа не читается.
+ */
+.track-percent {
+  color: var(--console-ink-muted);
+  font-family: var(--font-data);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+  text-align: right;
+}
+
+.track-percent.high {
+  color: var(--accent);
+}
+
+.track-percent.mid {
+  color: var(--console-warn-ink);
+}
+
+.track-percent.low {
+  color: var(--console-danger-ink);
 }
 
 .track-controls {
   display: flex;
-  gap: 6px;
+  gap: var(--s1);
 }
 
 .track-controls button {
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 7px;
-  color: #f7fbf8;
+  align-items: center;
+  background: var(--console-line);
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  color: var(--console-ink-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-family: var(--font-data);
   font-size: 12px;
-  font-weight: 900;
-  min-height: 32px;
-  padding: 7px 9px;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
+  width: 30px;
 }
 
-.track-controls button:last-child {
-  background: #f1c57a;
-  border-color: #f1c57a;
-  color: #1e2b27;
+.track-controls button:hover:not(:disabled) {
+  color: var(--console-ink);
+}
+
+/* Ярлык команды директору — моноширинный, строчными. */
+.track-controls .track-command {
+  background: transparent;
+  border-color: var(--console-line);
+  padding: 0 var(--s3);
+  text-transform: lowercase;
+  white-space: nowrap;
+  width: auto;
+}
+
+.track-controls .track-command:hover:not(:disabled) {
+  background: var(--console-line);
+  color: var(--console-ink);
+}
+
+.console-chords {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.chord-chip {
+  background: var(--console-line);
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  color: var(--console-ink);
+  font-family: var(--font-data);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 10px;
+}
+
+/* Аккорд под вопросом отличается рамкой и знаком «?», а не только цветом. */
+.chord-chip.uncertain {
+  background: transparent;
+  border-color: var(--console-warn-ink);
+  color: var(--console-warn-ink);
+}
+
+.console-hint {
+  color: var(--console-ink-quiet);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .mock-score {
   display: grid;
-  gap: 10px;
-  margin-top: 16px;
+  gap: var(--s3);
+  margin-top: var(--s4);
 }
 
 .score-line,
 .suggestion-card {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: var(--s4);
 }
 
 .score-line strong,
@@ -1660,63 +2141,63 @@ textarea:focus-visible {
 
 .score-line span,
 .suggestion-card p {
-  color: var(--muted);
+  color: var(--ink-muted);
   line-height: 1.45;
-  margin: 6px 0 0;
+  margin: var(--s2) 0 0;
 }
 
 .chord-strip,
 .bundle-preview,
 .waveform-preview,
 .piano-roll {
-  background: #1e2b27;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 8px;
-  color: #f7fbf8;
-  margin-top: 12px;
-  padding: 14px;
+  background: var(--console);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-2);
+  color: var(--console-ink);
+  margin-top: var(--s3);
+  padding: var(--s4);
 }
 
 .chord-strip,
 .bundle-preview {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .chord-strip span,
 .bundle-preview span {
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 6px;
+  background: var(--console-panel);
+  border: 1px solid var(--console-line);
+  border-radius: var(--r-1);
   font-size: 13px;
-  padding: 7px 9px;
+  padding: var(--s2);
 }
 
 .waveform-preview,
 .piano-roll {
   display: grid;
-  gap: 12px;
+  gap: var(--s3);
 }
 
 .wave-row,
 .midi-row {
   align-items: center;
   display: grid;
-  gap: 12px;
+  gap: var(--s3);
   grid-template-columns: 88px 1fr;
 }
 
 .wave-row span,
 .midi-row span {
-  color: #d4dfd8;
+  color: var(--console-ink-muted);
   font-size: 12px;
   font-weight: 800;
 }
 
 .wave-row i {
-  background: linear-gradient(90deg, var(--brass), var(--coral));
-  border-radius: 999px;
+  background: var(--accent);
+  border-radius: var(--r-pill);
   display: block;
   height: 18px;
 }
@@ -1727,8 +2208,8 @@ textarea:focus-visible {
 }
 
 .midi-row::before {
-  background: rgb(255 255 255 / 10%);
-  border-radius: 999px;
+  background: var(--console-line);
+  border-radius: var(--r-pill);
   content: "";
   display: block;
   grid-column: 2;
@@ -1736,8 +2217,8 @@ textarea:focus-visible {
 }
 
 .midi-row i {
-  background: var(--brass);
-  border-radius: 5px;
+  background: var(--warn);
+  border-radius: var(--r-1);
   display: block;
   grid-column: 2;
   height: 20px;
@@ -1746,14 +2227,14 @@ textarea:focus-visible {
 
 .empty-preview {
   align-items: center;
-  background: var(--paper-strong);
-  border: 1px dashed var(--border-strong);
-  border-radius: 8px;
-  color: var(--muted);
+  background: var(--surface);
+  border: 1px dashed var(--steel-border-strong);
+  border-radius: var(--r-2);
+  color: var(--ink-muted);
   display: flex;
-  gap: 10px;
-  margin-top: 16px;
-  padding: 18px;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  padding: var(--s4);
 }
 
 .subpanel h3 {
@@ -1762,7 +2243,7 @@ textarea:focus-visible {
 }
 
 .subpanel.compact {
-  background: var(--paper-strong);
+  background: var(--surface);
 }
 
 .constraint-grid,
@@ -1770,38 +2251,38 @@ textarea:focus-visible {
 .retention-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .constraint-grid span,
 .assignment-list span,
 .retention-grid span {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
   font-size: 12px;
   font-weight: 800;
   line-height: 1.3;
-  padding: 7px 10px;
+  padding: var(--s2) var(--s3);
 }
 
 .assignment-list span {
-  background: #f1f5f0;
+  background: var(--canvas);
 }
 
 .version-list,
 .review-list,
 .recipient-list {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .version-row {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: var(--s3);
   text-align: left;
 }
 
@@ -1811,128 +2292,146 @@ textarea:focus-visible {
 }
 
 .version-row small {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 12px;
-  margin-top: 4px;
+  margin-top: var(--s1);
 }
 
 .version-row.active {
-  border-color: var(--pine);
+  border-color: var(--accent-ink);
 }
 
 .change-list {
-  color: var(--muted);
+  color: var(--ink-muted);
   line-height: 1.45;
   margin: 0;
-  padding-left: 18px;
+  padding-left: var(--s4);
 }
 
 .review-item {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: var(--s3);
 }
 
 .review-item p {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
   line-height: 1.45;
-  margin: 6px 0 10px;
+  margin: var(--s2) 0 var(--s3);
 }
 
 .review-item small {
-  color: var(--muted);
+  color: var(--ink-muted);
   display: block;
   font-size: 12px;
-  margin-top: 9px;
+  margin-top: var(--s2);
 }
 
 .review-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--s2);
 }
 
 .suggestions-grid {
   display: grid;
-  gap: 10px;
+  gap: var(--s3);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .review-actions button,
 .suggestion-card button,
+/* secondary — белая, граница steel-border-strong, 13.5/600. */
 .secondary-action {
-  background: #e6ece7;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--steel-border-strong);
+  border-radius: var(--r-2);
   color: var(--ink);
-  font-size: 12px;
-  font-weight: 850;
-  min-height: 34px;
-  padding: 7px 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  min-height: var(--control-xs);
+  padding: 7px var(--s3);
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
+}
+
+.secondary-action:hover:not(:disabled) {
+  background: var(--canvas);
+  border-color: var(--ink);
+}
+
+/* danger — белая с красной границей, текст red-700. */
+.secondary-action.danger {
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
+}
+
+.secondary-action.danger:hover:not(:disabled) {
+  background: var(--red-tint);
+  border-color: var(--danger-ink);
 }
 
 .pro-action {
   align-items: center;
   display: inline-flex;
-  gap: 7px;
+  gap: var(--s2);
   justify-content: center;
 }
 
 .secondary-action.danger {
-  background: rgb(201 86 60 / 10%);
-  border-color: rgb(201 86 60 / 22%);
-  color: var(--coral-dark);
+  background: var(--red-tint);
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
 }
 
 .suggestion-card button {
-  margin-top: 12px;
+  margin-top: var(--s3);
 }
 
 .chat-box {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--s3);
+  padding: var(--s3);
 }
 
 .chat-box label {
   display: grid;
-  gap: 8px;
+  gap: var(--s2);
 }
 
 .chat-box label span {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .chat-box textarea {
-  background: var(--paper-strong);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   color: var(--ink);
   min-height: 82px;
-  padding: 10px;
+  padding: var(--s3);
   resize: vertical;
 }
 
 .session-note {
-  background: #f7f9f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   color: var(--ink);
   min-height: 80px;
-  padding: 10px;
+  padding: var(--s3);
   resize: vertical;
   width: 100%;
 }
 
 .privacy-note {
-  color: var(--muted);
+  color: var(--ink-muted);
   font-size: 13px;
   line-height: 1.45;
   margin: 0;
@@ -1941,7 +2440,7 @@ textarea:focus-visible {
 .recipient-row {
   align-items: flex-start;
   display: grid;
-  gap: 9px;
+  gap: var(--s2);
   grid-template-columns: auto 1fr;
 }
 
@@ -1951,26 +2450,26 @@ textarea:focus-visible {
 }
 
 .recipient-row small {
-  color: var(--muted);
+  color: var(--ink-muted);
   line-height: 1.35;
-  margin-top: 3px;
+  margin-top: var(--s1);
 }
 
 .mock-links,
 .history-row {
   display: grid;
-  gap: 6px;
+  gap: var(--s2);
 }
 
 .mock-links span,
 .history-row {
-  background: #f1f5f0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--muted);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  color: var(--ink-muted);
   font-size: 12px;
   line-height: 1.4;
-  padding: 9px;
+  padding: var(--s2);
 }
 
 .history-row strong,
@@ -1980,28 +2479,17 @@ textarea:focus-visible {
 
 .history-row strong {
   color: var(--ink);
-  margin-bottom: 4px;
+  margin-bottom: var(--s1);
 }
 
 @media (max-width: 980px) {
   .app-shell {
-    padding: 14px;
-  }
-
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .topbar-plan {
-    flex-wrap: wrap;
-    gap: 10px;
+    --page-pad: var(--s4);
   }
 
   .home-hero,
   .home-support-row,
   .setup-layout,
-  .stage-command-strip,
   .plan-banner,
   .access-model,
   .overview-view,
@@ -2016,11 +2504,10 @@ textarea:focus-visible {
   .job-card,
   .setup-view,
   .stage-panel {
-    padding: 22px;
+    padding: var(--s6);
   }
 
-  .processing-milestones,
-  .transport-bar {
+  .processing-milestones {
     grid-template-columns: 1fr;
   }
 
@@ -2040,26 +2527,130 @@ textarea:focus-visible {
   .preview-header {
     display: grid;
   }
+}
 
-  .transport-metrics {
-    justify-content: flex-start;
+/* --- Планшет и телефон: пульт и шапка перестраиваются --- */
+@media (max-width: 720px) {
+  .app-shell {
+    --page-pad: var(--s3);
   }
 
-  .studio-head {
-    align-items: flex-start;
-    flex-direction: column;
+  /* Навигация уезжает на свою строку и скроллится, подписи не режем. */
+  .app-nav {
+    flex-basis: 100%;
+    order: 3;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
   }
 
-  .studio-track-row {
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-nav-item {
+    min-height: var(--control-md);
+    scroll-snap-align: start;
+  }
+
+  .metric-strip {
     grid-template-columns: 1fr;
   }
 
-  .track-controls {
-    flex-wrap: wrap;
+  .metric-card {
+    padding: var(--s3);
   }
 
-  .section-timeline {
+  .metric-card.console-card {
+    min-height: var(--control-lg);
+  }
+
+  .console-panel {
+    gap: var(--s3);
+    padding: var(--s3);
+  }
+
+  .console-modes {
+    margin-inline-start: 0;
+    width: 100%;
+  }
+
+  /* 64 столбика по 3 px не помещаются в 360 px — сужаем шаг, а не режем волну. */
+  .console-wave {
+    gap: 1px;
+    height: 56px;
+  }
+
+  .console-wave i {
+    min-width: 2px;
+  }
+
+  /* Форма песни листается по горизонтали внутри панели, страница не едет. */
+  .console-sections {
     overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .console-section {
+    flex-basis: 128px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  /*
+   * Дорожка в три строки. В двух строках полоса делила место с кнопками и
+   * сжималась до ~70 px — главный сигнал переставал читаться. Полоса
+   * получает свою строку целиком.
+   */
+  .console-track-row {
+    gap: var(--s2) var(--s3);
+    grid-template-areas:
+      "name percent"
+      "bar bar"
+      "controls controls";
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .track-controls {
+    justify-content: flex-start;
+  }
+
+  .track-name {
+    grid-area: name;
+  }
+
+  .track-confidence {
+    grid-area: bar;
+  }
+
+  .track-percent {
+    grid-area: percent;
+  }
+
+  .track-controls {
+    grid-area: controls;
+  }
+
+  /* Тач-цель на мобильном — не меньше 44 px. */
+  .track-controls button {
+    height: var(--control-md);
+    width: var(--control-md);
+  }
+
+  .track-controls .track-command {
+    width: auto;
+  }
+
+  .btn,
+  .btn-sm,
+  .btn-xs {
+    min-height: var(--control-md);
+  }
+
+  .chat-bubble,
+  .chat-actions {
+    max-width: 90%;
   }
 }
 
@@ -2076,7 +2667,7 @@ textarea:focus-visible {
 
   .home-job-grid {
     display: flex;
-    gap: 8px;
+    gap: var(--s2);
     overflow-x: auto;
     padding-bottom: 2px;
     scroll-snap-type: x proximity;
@@ -2094,39 +2685,16 @@ textarea:focus-visible {
   }
 
   .stage-toolbar {
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: var(--s3);
+    margin-bottom: var(--s3);
   }
 
   .version-pill {
-    font-size: 12px;
-    padding: 6px 9px;
+    padding: 0 var(--s2);
   }
 
-  .stage-command-strip {
-    gap: 8px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-bottom: 10px;
-    padding: 8px;
-  }
-
-  .command-metric,
-  .command-action {
-    gap: 8px;
-    min-height: 48px;
-    padding: 8px;
-  }
-
-  .command-metric {
-    font-size: 12px;
-  }
-
-  .command-metric strong {
-    font-size: 16px;
-  }
-
-  .command-action {
-    grid-column: 1 / -1;
+  .metric-card strong {
+    font-size: 24px;
   }
 
   .workspace-tabs {
@@ -2151,5 +2719,1072 @@ textarea:focus-visible {
   .processing-focus {
     align-items: flex-start;
     grid-template-columns: 1fr;
+  }
+
+  .processing-error {
+    grid-template-columns: auto 1fr;
+  }
+
+  .processing-error button {
+    grid-column: 1 / -1;
+  }
+
+  .cost-estimate-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Обработка: ошибки, предупреждения, оценка --- */
+
+.processing-focus.failed {
+  border-color: var(--danger);
+}
+
+.processing-milestone.error {
+  border-color: var(--danger);
+}
+
+.processing-error {
+  align-items: center;
+  background: var(--red-tint);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-2);
+  color: var(--danger-ink);
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: auto 1fr auto;
+  padding: var(--s4);
+}
+
+.processing-error strong {
+  display: block;
+}
+
+.processing-error p {
+  color: var(--ink);
+  font-size: 13px;
+  margin: var(--s1) 0 0;
+}
+
+.processing-warnings {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--r-2);
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+}
+
+.processing-warnings strong {
+  align-items: center;
+  color: var(--warn);
+  display: flex;
+  gap: var(--s2);
+}
+
+.processing-warnings span {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.cost-estimate {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4);
+}
+
+.cost-estimate.compact {
+  gap: var(--s2);
+  padding: var(--s3);
+}
+
+.cost-estimate-head {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.cost-estimate-head strong {
+  flex: 1;
+}
+
+.cost-chip {
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  font-weight: 700;
+  padding: var(--s1) var(--s2);
+}
+
+.cost-chip.low {
+  background: var(--teal-tint);
+  color: var(--accent-ink-tint);
+}
+
+.cost-chip.medium {
+  background: var(--amber-tint);
+  color: var(--warn-ink);
+}
+
+.cost-chip.high {
+  background: var(--red-tint);
+  color: var(--danger-ink);
+}
+
+.cost-estimate-metrics {
+  display: grid;
+  gap: var(--s2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cost-estimate-metrics span {
+  color: var(--ink-muted);
+  display: grid;
+  font-size: 11px;
+  gap: 2px;
+}
+
+.cost-estimate-metrics b {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.cost-estimate-notes {
+  display: grid;
+  gap: var(--s1);
+}
+
+.cost-estimate-notes span {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+/* --- Ошибки формы и недоступные действия --- */
+
+.drop-zone.invalid {
+  border-color: var(--danger);
+}
+
+.field-error {
+  align-items: center;
+  color: var(--danger-ink);
+  display: flex;
+  font-size: 13px;
+  gap: var(--s2);
+  margin: 0;
+}
+
+.action-hint {
+  color: var(--ink-muted);
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
+}
+
+.inline-warning {
+  align-items: center;
+  background: var(--amber-tint);
+  border: 1px solid var(--amber-tint-border);
+  border-radius: var(--r-2);
+  color: var(--warn-ink);
+  display: flex;
+  font-size: 13px;
+  gap: var(--s3);
+  padding: var(--s3);
+}
+
+/* --- Диалог с AI-директором --- */
+
+.chat-log {
+  display: grid;
+  gap: var(--s2);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.chat-empty {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.chat-message {
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s3);
+}
+
+.chat-message.director {
+  background: var(--canvas);
+  border-color: var(--line);
+}
+
+.chat-message.user {
+  background: var(--surface);
+}
+
+.chat-message strong {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chat-message.director strong {
+  color: var(--accent-ink);
+}
+
+.chat-message p {
+  font-size: 13px;
+  margin: 0;
+}
+
+.review-comment {
+  border-left: 2px solid var(--steel-border-strong);
+  color: var(--ink-muted);
+  font-size: 12px;
+  margin: var(--s2) 0 0;
+  padding-left: var(--s2);
+}
+
+.mock-links span.stale {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+}
+
+.mock-links span.stale b {
+  color: var(--danger-ink);
+  text-decoration: none;
+}
+
+.processing-disclaimer {
+  color: var(--ink-muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.mock-links-caption {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.no-analysis {
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px dashed var(--steel-border-strong);
+  border-radius: var(--r-2);
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: auto 1fr;
+  padding: var(--s6);
+}
+
+.no-analysis strong {
+  display: block;
+  margin-bottom: var(--s2);
+}
+
+.no-analysis p {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin: 0 0 var(--s3);
+  max-width: 62ch;
+}
+
+/* --- Дизайн-система: числа песни --- */
+
+/*
+ * Требование системы: BPM, тональность, размер, тайм-код, проценты, вес файла
+ * и номер версии набираются моноширинным с табличными цифрами. Иначе значения
+ * прыгают при обновлении и колонки не выравниваются.
+ */
+.song-facts span,
+.cost-estimate-metrics b,
+.artifact-row small,
+.constraint-grid span,
+.mock-links span {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Дизайн-система: фокус и отключённое состояние --- */
+
+/* Требование системы: видимый фокус на каждом контроле, 2px графит, offset 2. */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible {
+  outline: var(--ring);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* --- Кнопки: иерархия действий бренд-бука -----------------------------
+ * Графит — главное действие шага, и он на экране один. Бирюза подтверждает
+ * результат системы. Контур — вторичное. Красный — необратимое.
+ * Высоты берём из токенов: 48 / 44 / 38 / 34 (--control-*).
+ * --------------------------------------------------------------------- */
+
+.btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: var(--s2);
+  justify-content: center;
+  min-height: var(--control-md);
+  padding: 0 var(--s4);
+  text-align: center;
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease),
+    box-shadow var(--t-base) var(--ease), color var(--t-base) var(--ease);
+}
+
+.btn:focus-visible {
+  outline: var(--ring);
+  outline-offset: 2px;
+}
+
+.btn-lg {
+  min-height: var(--control-lg);
+  padding: 0 var(--s6);
+}
+
+.btn-sm {
+  font-size: 13.5px;
+  min-height: var(--control-sm);
+  padding: 0 var(--s3);
+}
+
+.btn-xs {
+  font-size: 13px;
+  min-height: var(--control-xs);
+  padding: 0 var(--s3);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 700;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+  box-shadow: var(--e-2);
+}
+
+/* На бирюзе белый текст не читается — здесь графитовый. */
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: var(--teal-600-hover);
+  border-color: var(--teal-600-hover);
+}
+
+.btn-outline {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--canvas);
+  border-color: var(--steel-border-strong);
+}
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--red-tint);
+  border-color: var(--danger-ink);
+}
+
+.btn-danger.solid {
+  background: var(--danger-ink);
+  border-color: var(--danger-ink);
+  color: var(--surface);
+}
+
+.btn-danger.solid:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/*
+ * Выключенная кнопка — серая заливка и приглушённый текст, а не полупрозрачный
+ * призрак: состояние должно читаться, а не растворяться.
+ */
+.btn:disabled {
+  background: var(--canvas);
+  border-color: var(--line);
+  box-shadow: none;
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
+.btn-accent:disabled,
+.btn-primary:disabled {
+  background: var(--canvas);
+  border-color: var(--line);
+  color: var(--ink-muted);
+}
+
+/* --- Разговор с директором: переписка, а не список карточек --- */
+
+.director-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.chat-bubble {
+  border-radius: var(--r-3);
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 78%;
+  padding: var(--s3) var(--s4);
+  text-wrap: pretty;
+}
+
+.chat-bubble p {
+  margin: 0;
+}
+
+.chat-bubble.from-user {
+  align-self: flex-end;
+  background: var(--console);
+  color: var(--console-ink);
+}
+
+.chat-bubble.from-director {
+  align-self: flex-start;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.chat-actions {
+  align-self: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  max-width: 78%;
+}
+
+/* Ярлыки команд директору — моноширинные, строчными. */
+.chat-actions button,
+.chat-actions .mono-chip {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  color: var(--ink-2);
+  display: inline-flex;
+  font-family: var(--font-data);
+  font-size: 12px;
+  min-height: var(--control-sm);
+  padding: 0 var(--s3);
+  text-transform: lowercase;
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease),
+    color var(--t-base) var(--ease);
+}
+
+.chat-actions button:hover:not(:disabled) {
+  background: var(--canvas);
+  border-color: var(--steel-border-strong);
+  color: var(--ink);
+}
+
+/*
+ * Возврат к открытой песне на главном экране. Уход из рабочей области её не
+ * удаляет, но без этой строки к ней нечем вернуться.
+ */
+.resume-row {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--e-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  justify-content: space-between;
+  margin-bottom: var(--s4);
+  padding: var(--s4);
+}
+
+.resume-row strong {
+  display: block;
+  font-size: 17px;
+  margin-top: var(--s1);
+}
+
+/*
+ * Веха, которая не выполняется. Пунктир рисуется через --steel-border-strong:
+ * это токен dashed по дизайн-системе, а --line на белой карточке даёт контраст
+ * около 1.3:1 и пунктир физически не виден. Фон --canvas, а не --surface,
+ * иначе пропущенная веха ничем не отличается от стоящей в очереди.
+ */
+.processing-milestone.skipped {
+  background: var(--canvas);
+  border: 1px dashed var(--steel-border-strong);
+  box-shadow: none;
+  color: var(--ink-muted);
+}
+
+.processing-milestone.skipped .step-icon {
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
+.processing-milestone.skipped small {
+  font-variant-numeric: normal;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+/*
+ * Подтверждение необратимого действия. Затемнение, белая карточка,
+ * обязательный чекбокс. Красная заливка на подтверждающей кнопке — по
+ * системе красный означает необратимое, и это ровно тот случай.
+ */
+.dialog-scrim {
+  align-items: center;
+  background: var(--scrim);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--s4);
+  position: fixed;
+  z-index: 50;
+}
+
+.dialog-card {
+  background: var(--surface);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-3);
+  max-width: 460px;
+  padding: var(--s8);
+  width: 100%;
+}
+
+.dialog-card h2 {
+  font-size: 22px;
+  margin: 0 0 var(--s3);
+}
+
+.dialog-card p {
+  color: var(--ink-muted);
+  margin: 0 0 var(--s4);
+}
+
+.dialog-ack {
+  align-items: flex-start;
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+  display: flex;
+  gap: var(--s3);
+  margin-bottom: var(--s6);
+  padding: var(--s3);
+}
+
+.dialog-ack input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+}
+
+/*
+ * Выбор предложений директора для сборки одной версией. Чекбокс стоит
+ * рядом с заголовком, а не под текстом: пользователь отмечает решение, а не
+ * читает до конца, чтобы найти, где отметить.
+ */
+.suggestion-pick {
+  align-items: flex-start;
+  cursor: pointer;
+  display: flex;
+  gap: var(--s3);
+}
+
+.suggestion-pick input {
+  flex: 0 0 auto;
+  margin-top: var(--s1);
+}
+
+/*
+ * Тосты. Живут шесть секунд, с действием — десять; одновременно не больше
+ * двух. Успех несёт «Отменить»: подтверждение без пути назад бесполезно,
+ * когда действие только что создало новую версию.
+ */
+.toast-stack {
+  bottom: var(--s6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  max-width: min(440px, calc(100vw - var(--s8)));
+  position: fixed;
+  right: var(--s6);
+  z-index: 60;
+}
+
+.toast {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--e-3);
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+}
+
+.toast-icon {
+  align-items: center;
+  border-radius: var(--r-1);
+  display: flex;
+  flex: 0 0 auto;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.toast.success .toast-icon {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.toast.attention .toast-icon {
+  background: var(--warn);
+  color: var(--surface);
+}
+
+.toast.error .toast-icon {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.toast-body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toast-body strong {
+  font-size: 14px;
+}
+
+.toast-body span {
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+
+.toast-close {
+  background: transparent;
+  border: 0;
+  color: var(--ink-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+  line-height: 0;
+  padding: var(--s1);
+}
+
+@media (max-width: 720px) {
+  .toast-stack {
+    bottom: var(--s3);
+    left: var(--s3);
+    max-width: none;
+    right: var(--s3);
+  }
+}
+
+/*
+ * Состав: люди с ограничениями. Ограничение стоит в строке рядом с именем,
+ * а не сноской под списком — по бренд-буку это часть данных.
+ */
+.lineup-list {
+  display: grid;
+  gap: var(--s2);
+}
+
+.musician-row {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: 40px minmax(140px, 1.4fr) minmax(0, 1fr) auto;
+  padding: var(--s3) var(--s4);
+}
+
+.musician-avatar {
+  align-items: center;
+  background: var(--console);
+  border-radius: var(--r-pill);
+  color: var(--console-ink);
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.musician-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.musician-instrument {
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+
+.musician-constraint {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .musician-row {
+    grid-template-areas:
+      "avatar body"
+      "constraint level";
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .musician-avatar {
+    grid-area: avatar;
+  }
+
+  .musician-body {
+    grid-area: body;
+  }
+
+  .musician-constraint {
+    grid-area: constraint;
+  }
+}
+
+/*
+ * Уровень сложности как выдача. Сегментированный переключатель: активный
+ * сегмент — графитовая заливка, потому что это выбор, а не подтверждение
+ * результата системы.
+ */
+.level-picker {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  margin-top: var(--s4);
+  padding: var(--s4);
+}
+
+.level-picker h3 {
+  margin: 0 0 var(--s3);
+}
+
+.level-switch {
+  background: var(--surface-inset);
+  border-radius: var(--r-pill);
+  display: flex;
+  gap: var(--s1);
+  padding: var(--s1);
+}
+
+.level-option {
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: var(--ink-muted);
+  cursor: pointer;
+  flex: 1 1 0;
+  font-weight: 600;
+  min-height: var(--control-xs);
+  padding: 0 var(--s3);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.level-option.active {
+  background: var(--console);
+  color: var(--console-ink);
+}
+
+.level-detail {
+  background: var(--canvas);
+  border-radius: var(--r-2);
+  margin-top: var(--s3);
+  padding: var(--s4);
+}
+
+.level-detail strong {
+  display: block;
+  margin-bottom: var(--s2);
+}
+
+.level-detail p {
+  color: var(--ink-muted);
+  margin: 0 0 var(--s3);
+}
+
+.level-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+/*
+ * Инструменты и постраничность списка материалов. Подвал говорит, сколько
+ * строк из скольких видно: без этого страница читается как весь пакет.
+ */
+.pane-tools {
+  display: flex;
+  gap: var(--s2);
+}
+
+.pane-tools .active {
+  background: var(--surface-inset);
+}
+
+.pane-footer {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: var(--s2);
+  justify-content: space-between;
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+}
+
+.pager {
+  align-items: center;
+  display: flex;
+  gap: var(--s2);
+}
+
+.pager-position {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.artifact-format {
+  font-family: var(--font-data);
+  font-style: normal;
+}
+
+/*
+ * Плашка причины у пустого состояния. Моноширинная, прописными: класс
+ * проблемы читается до абзаца, а не вычитывается из него.
+ */
+.empty-reason {
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  display: inline-block;
+  font-family: var(--font-data);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--s2);
+  padding: var(--s1) var(--s2);
+  text-transform: uppercase;
+}
+
+.empty-reason.attention {
+  background: var(--amber-tint);
+  border-color: var(--amber-tint-border);
+  color: var(--warn-ink);
+}
+
+.empty-reason.error {
+  background: var(--red-tint);
+  border-color: var(--red-tint-border);
+  color: var(--danger-ink);
+}
+
+.empty-reason.neutral {
+  background: var(--canvas);
+  color: var(--ink-muted);
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+/*
+ * Тач-цели на узком экране. Дизайн-система требует 44 px: пункты навигации,
+ * вкладки и мелкие кнопки на десктопе 34 px, пальцем в них не попасть.
+ */
+@media (max-width: 720px) {
+  .app-nav-item,
+  .workspace-tab,
+  .btn-xs,
+  .level-option {
+    min-height: var(--control-md);
+  }
+
+  .overview-next button,
+  .empty-actions button,
+  .pane-tools button {
+    min-height: var(--control-md);
+  }
+}
+
+/*
+ * Тач-цели на устройствах с пальцем вместо мыши. Медиазапрос по ширине не
+ * покрывает планшет и ноутбук с сенсорным экраном: там ширина большая, а
+ * попадать всё равно пальцем.
+ */
+@media (pointer: coarse) {
+  .app-nav-item,
+  .workspace-tab,
+  .level-option,
+  .btn-xs,
+  .text-button {
+    min-height: var(--control-md);
+  }
+}
+
+/* Стандартный чекбокс 13 px — цель меньше половины нормы. */
+input[type="checkbox"],
+input[type="radio"] {
+  height: 20px;
+  width: 20px;
+}
+
+@media (max-width: 720px) {
+  .text-button {
+    min-height: var(--control-md);
+  }
+}
+
+/* Свой комментарий к сомнительному месту. */
+.review-note {
+  display: flex;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.review-note label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.review-note input {
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  min-height: var(--control-xs);
+  padding: 0 var(--s3);
+  width: 100%;
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/*
+ * Список песен. Появился вместе с хранением: до него пункт навигации вел бы
+ * на экран, который всегда пуст.
+ */
+.songs-screen {
+  margin: 0 auto;
+  max-width: min(920px, 100%);
+}
+
+.songs-list {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+
+.song-row {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  display: grid;
+  gap: var(--s3);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: var(--s3) var(--s4);
+}
+
+.song-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.song-body span {
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+
+.songs-screen .privacy-note {
+  margin-top: var(--s4);
+}
+
+@media (max-width: 720px) {
+  .song-row {
+    grid-template-areas:
+      "body body"
+      "open remove";
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .song-body {
+    grid-area: body;
   }
 }

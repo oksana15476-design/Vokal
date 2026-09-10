@@ -4,6 +4,8 @@ import {
   directorActionResults,
   processingGoals,
 } from "../domain/mockData";
+import { formatDuration } from "./audioFile";
+import { currentConsent } from "../domain/consent";
 import type {
   ArtifactStatus,
   ArtifactType,
@@ -14,10 +16,19 @@ import type {
   ReviewStatus,
   Scenario,
   SetupSnapshot,
+  SongAnalysis,
   UploadProjectInput,
 } from "../domain/types";
 
 const now = () => new Date().toISOString();
+
+const reviewStatusLabels: Record<ReviewStatus, string> = {
+  needs_review: "нужно проверить",
+  checked: "проверено",
+  fixed: "исправлено",
+  uncertain: "сомнительно",
+  accepted_for_rehearsal: "принято для репетиции",
+};
 
 const cloneProject = (project: Project): Project => JSON.parse(JSON.stringify(project)) as Project;
 
@@ -46,17 +57,33 @@ export const createProjectFromDemo = (projectId: string): Project => {
   return copy;
 };
 
+export const supportedUploadExtensions = ["mp3", "wav", "flac", "m4a"] as const;
+export const maxUploadBytes = 50 * 1024 * 1024;
+
+const extensionOf = (fileName: string) => fileName.split(".").pop()?.toLowerCase() ?? "";
+
+export const validateUploadFile = (file: { name: string; size: number }): string | null => {
+  const extension = extensionOf(file.name);
+
+  if (!supportedUploadExtensions.includes(extension as (typeof supportedUploadExtensions)[number])) {
+    return `Формат .${extension || "?"} не поддерживается. Подойдут MP3, WAV, FLAC или M4A.`;
+  }
+
+  if (file.size > maxUploadBytes) {
+    return `Файл больше ${Math.round(maxUploadBytes / 1024 / 1024)} МБ. Для прототипа возьмите файл покороче.`;
+  }
+
+  return null;
+};
+
 const extensionToFormat = (fileName: string): "MP3" | "WAV" | "FLAC" | "M4A" => {
-  const extension = fileName.split(".").pop()?.toLowerCase();
+  const extension = extensionOf(fileName);
 
   if (extension === "wav") return "WAV";
   if (extension === "flac") return "FLAC";
   if (extension === "m4a") return "M4A";
   return "MP3";
 };
-
-const getSetupValue = (snapshot: SetupSnapshot | undefined, label: string, fallback: string) =>
-  snapshot?.fields.find((field) => field.label === label)?.value || fallback;
 
 const estimateFromSetup = (scenario: Scenario, snapshot: SetupSnapshot | undefined): CostEstimate => {
   const highComplexitySignals = ["сложнее", "ансамб", "концерт", "плотнее", "сцен"];
@@ -71,44 +98,85 @@ const estimateFromSetup = (scenario: Scenario, snapshot: SetupSnapshot | undefin
     tier: complexity === "high" ? "multi_version" : "fast_draft",
     complexity,
     credits: complexity === "high" ? 10 : complexity === "medium" ? 7 : 4,
-    runtime: complexity === "high" ? "8-12 минут" : complexity === "medium" ? "5-7 минут" : "3-5 минут",
-    notes: ["Расчет моковый.", "Учтены цель обработки и настройки сценария."],
+    notes: ["Оценка демонстрационная.", "Учтены цель обработки и настройки сценария."],
   };
 };
+
+const titleFromFileName = (fileName: string) => fileName.replace(/\.[^.]+$/, "") || fileName;
+
+/**
+ * Разбора у загруженного файла нет и подставлять чужой нельзя: пользователь
+ * увидит тональность и аккорды другой песни. Пустой разбор честнее.
+ */
+const emptyAnalysis = (fileName: string, durationSeconds: number): SongAnalysis => ({
+  source: "none",
+  title: titleFromFileName(fileName),
+  artist: "",
+  bpm: 0,
+  key: "",
+  meter: "",
+  duration: formatDuration(durationSeconds),
+  genre: "",
+  sections: [],
+  chords: [],
+  confidenceByPart: {},
+  summary: "Звук не анализируется. Форма, аккорды и партии появятся с настоящей обработкой.",
+});
 
 export const createProjectFromUpload = (input: UploadProjectInput): Project => {
   const base = cloneProject(input.scenario === "band" ? demoProjects[0] : demoProjects[1]);
   const goal = getGoal(input.goalId);
+  const facts = input.facts;
+  // Разбор по подписям заменён типами: см. `ProjectSetup` в domain/types.ts.
+  const bandSetup = input.setup?.kind === "band" ? input.setup : undefined;
+  const lessonSetup = input.setup?.kind === "lesson" ? input.setup : undefined;
 
   return {
     ...base,
     id: `project-upload-${Date.now()}`,
-    name: `${input.fileName}: моковая подготовка`,
+    name: `${titleFromFileName(input.fileName)}: подготовка`,
+    // Состав демо-группы на своем файле — та же подмена, что чужой разбор:
+    // этих людей пользователь не заводил.
+    musicians: [],
     scenario: input.scenario,
     processingGoal: goal,
     upload: {
       id: `upload-${Date.now()}`,
       fileName: input.fileName,
       format: extensionToFormat(input.fileName),
-      durationSeconds: 214,
-      quality: "medium",
-      sourceNote: "Локальная моковая запись: файл не отправлен на сервер.",
+      durationSeconds: facts?.durationSeconds ?? 0,
+      quality: facts?.quality ?? "medium",
+      sourceNote: "Файл остается на устройстве и никуда не отправляется.",
+      sizeBytes: facts?.sizeBytes,
+      sampleRate: facts?.sampleRate,
+      channels: facts?.channels,
     },
+    analysis: emptyAnalysis(input.fileName, facts?.durationSeconds ?? 0),
+    reviewIssues: [],
+    reviewComments: [],
+    stagePack: { ...base.stagePack, artifacts: [] },
+    directorSuggestions: [],
+    chat: [],
+    assignments: [],
+    // Получатели и пакеты приходили от демо-группы: на своем файле пользователь
+    // видел чужих музыкантов по именам.
+    shareRecipients: [],
+    exportBundles: [],
     bandLineup:
       input.scenario === "band"
         ? {
             leadVocal: true,
-            vocalRange: getSetupValue(input.setupSnapshot, "Диапазон вокала", base.bandLineup?.vocalRange ?? "A2-E4"),
-            guitars: Number.parseInt(getSetupValue(input.setupSnapshot, "Гитаристов", String(base.bandLineup?.guitars ?? 1)), 10) || 1,
+            vocalRange: bandSetup?.vocalRange || base.bandLineup?.vocalRange || "A2-E4",
+            guitars: bandSetup?.guitars || base.bandLineup?.guitars || 1,
             guitarTuning: base.bandLineup?.guitarTuning ?? "Standard E",
             capo: base.bandLineup?.capo ?? "нет",
-            bass: getSetupValue(input.setupSnapshot, "Бас", "4 струны").includes("5") ? "5 strings" : "4 strings",
-            keys: getSetupValue(input.setupSnapshot, "Клавиши", "да").toLowerCase() !== "нет",
-            keysCanCoverLayers: /layer|сло/i.test(getSetupValue(input.setupSnapshot, "Клавиши", "слои")),
-            drums: getSetupValue(input.setupSnapshot, "Барабаны", "да").toLowerCase() !== "нет",
+            bass: (bandSetup?.bass ?? "4 струны").includes("5") ? "5 strings" : "4 strings",
+            keys: (bandSetup?.keys ?? "да").toLowerCase() !== "нет",
+            keysCanCoverLayers: /layer|сло/i.test(bandSetup?.keys ?? "слои"),
+            drums: (bandSetup?.drums ?? "да").toLowerCase() !== "нет",
             backingVocals: base.bandLineup?.backingVocals ?? false,
             musicianLevel: base.bandLineup?.musicianLevel ?? "middle",
-            targetStyle: getSetupValue(input.setupSnapshot, "Стиль версии", base.bandLineup?.targetStyle ?? "рабочая версия"),
+            targetStyle: bandSetup?.targetStyle || base.bandLineup?.targetStyle || "рабочая версия",
           }
         : undefined,
     studentProfile:
@@ -123,10 +191,10 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
               chordKnowledge: "базовые аккорды",
               homeInstrument: "домашний инструмент",
             }),
-            instrument: getSetupValue(input.setupSnapshot, "Инструмент ученика", base.studentProfile?.instrument ?? "гитара"),
-            level: getSetupValue(input.setupSnapshot, "Уровень", base.studentProfile?.level ?? "начальный").includes("силь")
+            instrument: lessonSetup?.instrument || base.studentProfile?.instrument || "гитара",
+            level: (lessonSetup?.level ?? base.studentProfile?.level ?? "начальный").includes("силь")
               ? "сильный"
-              : getSetupValue(input.setupSnapshot, "Уровень", base.studentProfile?.level ?? "начальный").includes("сред")
+              : (lessonSetup?.level ?? base.studentProfile?.level ?? "начальный").includes("сред")
                 ? "средний"
                 : "начальный",
           }
@@ -134,11 +202,11 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
     lesson:
       input.scenario === "education"
         ? {
-            goal: getSetupValue(input.setupSnapshot, "Цель урока", base.lesson?.goal ?? "разобрать песню"),
-            homeworkFormat: getSetupValue(input.setupSnapshot, "Кому выдать", base.lesson?.homeworkFormat ?? "ученику"),
-            desiredDifficulty: getSetupValue(input.setupSnapshot, "Сложность результата", "проще оригинала").includes("слож")
+            goal: lessonSetup?.lessonGoal || base.lesson?.goal || "разобрать песню",
+            homeworkFormat: base.lesson?.homeworkFormat ?? "ученику",
+            desiredDifficulty: (lessonSetup?.difficulty ?? "проще оригинала").includes("слож")
               ? "сложнее оригинала"
-              : getSetupValue(input.setupSnapshot, "Сложность результата", "проще оригинала").includes("близ")
+              : (lessonSetup?.difficulty ?? "проще оригинала").includes("близ")
                 ? "близко к оригиналу"
                 : "проще оригинала",
           }
@@ -151,7 +219,7 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
         createdAt: now(),
         createdBy: "Пользователь",
         status: "draft",
-        changes: ["Создан моковый проект из выбранного файла."],
+        changes: ["Проект создан из выбранного файла."],
       },
     ],
     currentVersionId: "uploaded-draft",
@@ -163,16 +231,19 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
         title: input.scenario === "band" ? "Состав группы" : "Учебная задача",
         fields: [],
       },
+    // Записываем ровно то, что человек видел на экране. До этого записывался
+    // другой текст: запись свидетельствовала о том, чего он не читал.
     legalConsent: {
       accepted: input.acceptedConsent,
-      text: "Материал используется для приватной репетиции, урока или внутренней подготовки.",
+      versionId: currentConsent().id,
+      text: currentConsent().text,
       acceptedAt: input.acceptedConsent ? now() : undefined,
     },
     changeLog: [
       {
         id: `change-upload-${Date.now()}`,
         title: "Создан проект из файла",
-        description: "Файл сохранен как моковая запись без реальной загрузки.",
+        description: "Файл прочитан в браузере и остался на устройстве.",
         createdAt: now(),
         actor: "Пользователь",
       },
@@ -206,7 +277,16 @@ const markArtifact = (
   return "needs_review";
 };
 
-export const applyDirectorAction = (project: Project, actionId: DirectorActionId): Project => {
+/**
+ * Применяет действие директора. `userCommand` — то, чем пользователь его
+ * вызвал: команда попадает в переписку рядом с ответом, иначе разговор
+ * получается односторонним и непонятно, на что директор отвечает.
+ */
+export const applyDirectorAction = (
+  project: Project,
+  actionId: DirectorActionId,
+  userCommand?: string,
+): Project => {
   const result = getDirectorActionResult(actionId);
   const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
   const versionId = `${actionId}-${project.versions.length + 1}`;
@@ -215,7 +295,11 @@ export const applyDirectorAction = (project: Project, actionId: DirectorActionId
     ...project,
     currentVersionId: versionId,
     versions: [
-      ...project.versions,
+      ...project.versions.map((version) =>
+        version.id === project.currentVersionId && !version.artifactsSnapshot
+          ? { ...version, artifactsSnapshot: project.stagePack.artifacts.map((artifact) => ({ ...artifact })) }
+          : version,
+      ),
       {
         id: versionId,
         label: result.versionLabel,
@@ -252,12 +336,179 @@ export const applyDirectorAction = (project: Project, actionId: DirectorActionId
     ],
     chat: [
       ...project.chat,
+      ...(userCommand?.trim()
+        ? [
+            {
+              id: `chat-${actionId}-${Date.now()}-user`,
+              author: "user" as const,
+              text: userCommand.trim(),
+              createdAt: now(),
+            },
+          ]
+        : []),
       {
         id: `chat-${actionId}-${Date.now()}`,
-        author: "director",
+        author: "director" as const,
         text: `${result.historyTitle}. Я создал новую версию и отметил материалы, которые нужно проверить или пересобрать.`,
         createdAt: now(),
       },
+    ],
+  };
+};
+
+/**
+ * Ответ директора на команду, которую он не разобрал. Пишет в переписку и
+ * саму команду, и честный ответ: разбора языка в продукте нет, поэтому
+ * выполнять непонятое как что-то похожее — значит врать о результате.
+ */
+/**
+ * Собирает одну версию сразу из нескольких предложений директора.
+ *
+ * По одному предложению за раз получалось по версии на каждое: три правки —
+ * три шага истории и три отката, хотя решение было одно. Бренд-бук ровно про
+ * это: «Собрать версию v5 из двух вариантов».
+ *
+ * Снимок материалов покидаемой версии делается один раз и до правок —
+ * иначе откат вернул бы уже изменённое состояние.
+ */
+export const applyDirectorActions = (
+  project: Project,
+  actionIds: DirectorActionId[],
+  userCommand?: string,
+): Project => {
+  if (actionIds.length === 0) {
+    return project;
+  }
+  if (actionIds.length === 1) {
+    return applyDirectorAction(project, actionIds[0], userCommand);
+  }
+
+  const results = actionIds.map((actionId) => getDirectorActionResult(actionId));
+  const currentVersion = project.versions.find((version) => version.id === project.currentVersionId);
+  const versionId = `combined-${project.versions.length + 1}`;
+  const changes = results.flatMap((result) => result.changes);
+  const staleTypes = [...new Set(results.flatMap((result) => result.staleArtifactTypes))];
+  const historyTitle = `Собрана версия из ${actionIds.length} предложений`;
+
+  return {
+    ...project,
+    currentVersionId: versionId,
+    versions: [
+      ...project.versions.map((version) =>
+        version.id === project.currentVersionId && !version.artifactsSnapshot
+          ? { ...version, artifactsSnapshot: project.stagePack.artifacts.map((artifact) => ({ ...artifact })) }
+          : version,
+      ),
+      {
+        id: versionId,
+        label: results[0].versionLabel,
+        kind: results[0].versionKind,
+        parentVersionId: currentVersion?.id,
+        createdAt: now(),
+        createdBy: "AI-директор",
+        status: "needs_review" as const,
+        changes,
+      },
+    ],
+    stagePack: {
+      ...project.stagePack,
+      versionId,
+      artifacts: project.stagePack.artifacts.map((artifact) => ({
+        ...artifact,
+        isStale: artifact.isStale || staleTypes.includes(artifact.type),
+        status: markArtifact(artifact.status, staleTypes, artifact.type),
+      })),
+    },
+    exportBundles: project.exportBundles.map((bundle) => ({
+      ...bundle,
+      status: staleTypes.includes("zip") ? ("stale" as const) : bundle.status,
+    })),
+    changeLog: [
+      {
+        id: `change-combined-${Date.now()}`,
+        title: historyTitle,
+        description: changes.join(" "),
+        createdAt: now(),
+        actor: "AI-директор",
+      },
+      ...project.changeLog,
+    ],
+    chat: [
+      ...project.chat,
+      ...(userCommand?.trim()
+        ? [
+            {
+              id: `chat-combined-${Date.now()}-user`,
+              author: "user" as const,
+              text: userCommand.trim(),
+              createdAt: now(),
+            },
+          ]
+        : []),
+      {
+        id: `chat-combined-${Date.now()}-director`,
+        author: "director" as const,
+        text: `${historyTitle}. Правки сведены в один шаг: откатить их можно вместе, а не по очереди.`,
+        createdAt: now(),
+      },
+    ],
+  };
+};
+
+export const addUnderstoodNothingReply = (project: Project, userCommand: string): Project => ({
+  ...project,
+  chat: [
+    ...project.chat,
+    {
+      id: `chat-unmatched-${Date.now()}-user`,
+      author: "user" as const,
+      text: userCommand,
+      createdAt: now(),
+    },
+    {
+      id: `chat-unmatched-${Date.now()}-director`,
+      author: "director" as const,
+      text:
+        "Не разобрал команду. Пока понимаю только простые формулировки: транспонировать, " +
+        "усилить припев, объединить гитары, упростить барабаны, собрать трек без баса, " +
+        "перенести струнные на клавиши. Или выберите предложение карточкой выше.",
+      createdAt: now(),
+    },
+  ],
+});
+
+export const rollbackToVersion = (project: Project, versionId: string): Project => {
+  const target = project.versions.find((version) => version.id === versionId);
+  if (!target || versionId === project.currentVersionId) {
+    return project;
+  }
+
+  const restoredArtifacts = target.artifactsSnapshot ?? project.stagePack.artifacts;
+  const hasStale = restoredArtifacts.some((artifact) => artifact.isStale);
+
+  return {
+    ...project,
+    currentVersionId: versionId,
+    stagePack: {
+      ...project.stagePack,
+      versionId,
+      artifacts: restoredArtifacts.map((artifact) => ({ ...artifact })),
+    },
+    exportBundles: project.exportBundles.map((bundle) => ({
+      ...bundle,
+      status: hasStale ? "stale" : "ready",
+    })),
+    changeLog: [
+      {
+        id: `change-rollback-${versionId}-${Date.now()}`,
+        title: `Откат к версии «${target.label}»`,
+        description: target.artifactsSnapshot
+          ? "Материалы вернулись к состоянию этой версии."
+          : "Для этой версии снимок материалов не сохранялся, показан текущий набор.",
+        createdAt: now(),
+        actor: "Пользователь",
+      },
+      ...project.changeLog,
     ],
   };
 };
@@ -278,11 +529,37 @@ export const updateReviewIssue = (project: Project, issueId: string, status: Rev
       id: `comment-${issueId}-${Date.now()}`,
       issueId,
       author: "Пользователь",
-      text: `Статус изменен на ${status}.`,
+      text: `Статус изменен на «${reviewStatusLabels[status]}».`,
       createdAt: now(),
     },
   ],
 });
+
+/**
+ * Свой комментарий к сомнительному месту. До этого в переписку по месту
+ * попадали только автоматические записи о смене статуса: почему решили
+ * именно так, записать было негде, и на репетиции это выяснялось заново.
+ */
+export const addReviewComment = (project: Project, issueId: string, text: string): Project => {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return project;
+  }
+
+  return {
+    ...project,
+    reviewComments: [
+      ...project.reviewComments,
+      {
+        id: `comment-own-${issueId}-${Date.now()}`,
+        issueId,
+        author: "Пользователь",
+        text: trimmed,
+        createdAt: now(),
+      },
+    ],
+  };
+};
 
 export const createShareLinks = (project: Project, recipientIds: string[]): Project => {
   const newLinks = recipientIds.map((recipientId) => {
@@ -307,7 +584,7 @@ export const createShareLinks = (project: Project, recipientIds: string[]): Proj
       {
         id: `change-share-${Date.now()}`,
         title: "Материалы выданы",
-        description: `Созданы моковые ссылки: ${newLinks.length}.`,
+        description: `Создано демо-ссылок: ${newLinks.length}.`,
         createdAt: now(),
         actor: "Пользователь",
       },
@@ -351,7 +628,7 @@ export const deleteProjectSource = (project: Project): Project => ({
   dataRetention: {
     ...project.dataRetention,
     sourceDeleted: true,
-    retentionNote: "Исходный файл удален из мокового проекта. Результаты пока сохранены.",
+    retentionNote: "Исходный файл удален. Результаты пока сохранены.",
   },
   changeLog: [
     {

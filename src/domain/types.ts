@@ -33,6 +33,27 @@ export interface Upload {
   durationSeconds: number;
   quality: "good" | "medium" | "low";
   sourceNote: string;
+  /** Факты из декодированного аудио. У демо отсутствуют: файла нет. */
+  sizeBytes?: number;
+  sampleRate?: number;
+  channels?: number;
+}
+
+/**
+ * Человек в составе. Заведён отдельной сущностью, потому что ограничения
+ * принадлежат людям, а не группе: диапазон — вокалиста, число струн —
+ * басиста, уровень — каждого свой. В плоском `BandLineup` этого не выразить,
+ * и директор предлагал транспонирование, не зная, чей это диапазон.
+ */
+export interface Musician {
+  id: string;
+  name: string;
+  role: "вокал" | "гитара" | "бас" | "клавиши" | "барабаны" | "бэк-вокал";
+  /** Чем играет: «5 струн · E1», «2 слоя · Nord Stage». */
+  instrumentNote: string;
+  /** Что ограничивает: диапазон, строй, каподастр. Данные, а не примечание. */
+  constraint: string;
+  level: "начинающий" | "средний" | "продвинутый";
 }
 
 export interface BandLineup {
@@ -105,9 +126,16 @@ export interface ArrangementVersion {
   createdBy: string;
   status: "draft" | "needs_review" | "approved" | "distributed";
   changes: string[];
+  /** Состояние материалов на момент выхода из версии. Позволяет откатиться назад. */
+  artifactsSnapshot?: Artifact[];
 }
 
-export type ProcessingStepStatus = "queued" | "running" | "done" | "warning" | "error";
+/**
+ * `skipped` — шаг не выполняется на этом пути, и результата у него не будет.
+ * Отдельный статус нужен, чтобы не выдавать несделанное за «готово»: на пути
+ * загрузки звук не обрабатывается вовсе.
+ */
+export type ProcessingStepStatus = "queued" | "running" | "done" | "warning" | "error" | "skipped";
 
 export interface ProcessingStep {
   id: string;
@@ -140,6 +168,12 @@ export interface ChordEvent {
 }
 
 export interface SongAnalysis {
+  /**
+   * Откуда взят разбор. `demo` — данные подготовлены заранее; `none` — разбора
+   * нет, потому что звук не анализируется. Промежуточного состояния нет:
+   * подставлять чужой разбор к своему файлу нельзя.
+   */
+  source: "demo" | "none";
   title: string;
   artist: string;
   bpm: number;
@@ -293,9 +327,44 @@ export interface CostEstimate {
   tier: "fast_draft" | "accurate" | "multi_version";
   complexity: "low" | "medium" | "high";
   credits: number;
-  runtime: string;
   notes: string[];
+  /**
+   * Ожидаемого времени здесь намеренно нет: обработки не существует, а любое
+   * число рядом со словом «минут» читается как обещание срока и нарушает
+   * поправку спеки от 2026-09-09. Вернуть вместе с настоящим ModelRouter.
+   */
 }
+
+/**
+ * Настройка, введённая пользователем на экране уточнений.
+ *
+ * Отдельный тип, а не `Record<string, string>` с подписями: раньше сервис
+ * искал значения по русским подписям («Диапазон вокала»), и переименование
+ * подписи копирайтером молча заменяло настройку пользователя умолчанием.
+ * Ошибка тихая — ни исключения, ни пустого поля, просто чужое значение.
+ *
+ * `SetupSnapshot` остаётся, но только для показа: это то, что пользователь
+ * видит в сводке, а не то, из чего считается аранжировка.
+ */
+export interface BandSetup {
+  kind: "band";
+  vocalRange: string;
+  guitars: number;
+  bass: string;
+  keys: string;
+  drums: string;
+  targetStyle: string;
+}
+
+export interface LessonSetup {
+  kind: "lesson";
+  instrument: string;
+  level: string;
+  lessonGoal: string;
+  difficulty: string;
+}
+
+export type ProjectSetup = BandSetup | LessonSetup;
 
 export interface SetupSnapshot {
   scenario: Scenario;
@@ -308,6 +377,14 @@ export interface SetupSnapshot {
 
 export interface LegalConsent {
   accepted: boolean;
+  /**
+   * Версия формулировки, которую человек принял. Без неё запись «согласие
+   * получено» остаётся без предмета: текст на экране меняется, а по чему
+   * читать старое согласие — неизвестно. Задним числом не восстанавливается.
+   */
+  versionId: string;
+  /** Точный текст на момент принятия. Дублирует версию намеренно: запись
+   *  должна читаться, даже если модуль версий когда-нибудь потеряют. */
   text: string;
   acceptedAt?: string;
 }
@@ -325,6 +402,8 @@ export interface Project {
   processingGoal: ProcessingGoal;
   upload: Upload;
   bandLineup?: BandLineup;
+  /** Кто играет. Пусто в сценарии урока и у проектов без состава. */
+  musicians: Musician[];
   studentProfile?: StudentProfile;
   teacherProfile?: TeacherProfile;
   classGroup?: ClassGroup;
@@ -354,5 +433,16 @@ export interface UploadProjectInput {
   goalId: ProcessingGoalId;
   fileName: string;
   acceptedConsent: boolean;
+  /** Показывается пользователю в сводке. Из него ничего не вычисляется. */
   setupSnapshot?: SetupSnapshot;
+  /** Введённые значения. Именно из них строится аранжировка. */
+  setup?: ProjectSetup;
+  /** Факты из декодированного файла. Отсутствуют, если декодирование не удалось. */
+  facts?: {
+    durationSeconds: number;
+    sampleRate: number;
+    channels: number;
+    sizeBytes: number;
+    quality: Upload["quality"];
+  };
 }

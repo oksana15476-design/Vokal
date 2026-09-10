@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { processingMilestones, processingStepIds } from "../domain/mockData";
 import {
   applyDirectorAction,
+  applyDirectorActions,
   addSessionNote,
   createProjectFromDemo,
   createProjectFromUpload,
@@ -9,7 +11,9 @@ import {
   deleteProjectSource,
   listDemoProjects,
   rebuildExportBundle,
+  rollbackToVersion,
   updateReviewIssue,
+  validateUploadFile,
 } from "./mockServices";
 
 describe("mock services", () => {
@@ -31,6 +35,15 @@ describe("mock services", () => {
       goalId: "lesson-analysis",
       fileName: "lesson-song.mp3",
       acceptedConsent: true,
+      // Значения приходят типами. Снимок остается рядом, но только для
+      // показа: из него больше ничего не вычисляется (B5).
+      setup: {
+        kind: "lesson",
+        instrument: "фортепиано",
+        level: "сильный",
+        lessonGoal: "подготовить школьный концерт",
+        difficulty: "сложнее оригинала",
+      },
       setupSnapshot: {
         scenario: "education",
         title: "Учебная задача",
@@ -138,5 +151,277 @@ describe("mock services", () => {
 
     expect(updated.versions[updated.versions.length - 1].kind).toBe("after-lesson");
     expect(updated.changeLog[0].title).toContain("После урока");
+  });
+});
+
+describe("processing milestones", () => {
+  it("covers every processing step exactly once", () => {
+    const covered = processingMilestones.flatMap((milestone) => milestone.stepIds);
+
+    expect([...covered].sort()).toEqual([...processingStepIds].sort());
+  });
+
+  it("references only real step ids", () => {
+    for (const milestone of processingMilestones) {
+      for (const stepId of milestone.stepIds) {
+        expect(processingStepIds).toContain(stepId);
+      }
+    }
+  });
+});
+
+describe("upload validation", () => {
+  it("rejects an unsupported format", () => {
+    expect(validateUploadFile({ name: "notes.txt", size: 1000 })).toContain("не поддерживается");
+  });
+
+  it("rejects a file over the size limit", () => {
+    expect(validateUploadFile({ name: "song.wav", size: 80 * 1024 * 1024 })).toContain("больше");
+  });
+
+  it("accepts every supported format", () => {
+    for (const name of ["song.mp3", "song.WAV", "song.flac", "song.m4a"]) {
+      expect(validateUploadFile({ name, size: 5 * 1024 * 1024 })).toBeNull();
+    }
+  });
+
+  // Качество больше не выводится из размера файла: размер говорит о битрейте
+  // контейнера и ничего не говорит о самой записи. Правила — в audioFile.test.ts.
+});
+
+describe("cost estimate", () => {
+  it("is attached to an uploaded project", () => {
+    const project = createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "song.mp3",
+      acceptedConsent: true,
+    });
+
+    expect(project.costEstimate.credits).toBeGreaterThan(0);
+    expect(["low", "medium", "high"]).toContain(project.costEstimate.complexity);
+    // Срока в оценке быть не должно: обработки нет, обещать нечего.
+    expect(JSON.stringify(project.costEstimate)).not.toMatch(/минут|секунд|час/i);
+  });
+});
+
+describe("version rollback", () => {
+  it("restores the artifact state the version was left in", () => {
+    const project = createProjectFromDemo("band-demo");
+    const baseVersionId = project.currentVersionId;
+    const scoreBefore = project.stagePack.artifacts.find((artifact) => artifact.type === "score");
+    expect(scoreBefore?.isStale).toBe(false);
+
+    const changed = applyDirectorAction(project, "boost-chorus");
+    expect(changed.stagePack.artifacts.find((artifact) => artifact.type === "score")?.isStale).toBe(true);
+
+    const rolledBack = rollbackToVersion(changed, baseVersionId);
+
+    expect(rolledBack.currentVersionId).toBe(baseVersionId);
+    expect(rolledBack.stagePack.versionId).toBe(baseVersionId);
+    expect(rolledBack.stagePack.artifacts.find((artifact) => artifact.type === "score")?.isStale).toBe(false);
+    expect(rolledBack.exportBundles.every((bundle) => bundle.status === "ready")).toBe(true);
+    expect(rolledBack.changeLog[0].title).toContain("Откат");
+  });
+
+  it("ignores a rollback to the current or unknown version", () => {
+    const project = createProjectFromDemo("band-demo");
+
+    expect(rollbackToVersion(project, project.currentVersionId)).toBe(project);
+    expect(rollbackToVersion(project, "no-such-version")).toBe(project);
+  });
+});
+
+describe("review comments", () => {
+  it("records a readable status change", () => {
+    const project = createProjectFromDemo("band-demo");
+    const issue = project.reviewIssues[0];
+    const updated = updateReviewIssue(project, issue.id, "accepted_for_rehearsal");
+
+    expect(updated.reviewComments[updated.reviewComments.length - 1].text).toContain("принято для репетиции");
+  });
+});
+
+describe("загруженный проект не наследует чужой разбор", () => {
+  const upload = (facts?: Parameters<typeof createProjectFromUpload>[0]["facts"]) =>
+    createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "moya-pesnya.mp3",
+      acceptedConsent: true,
+      facts,
+    });
+
+  it("не показывает тональность, темп и аккорды демо-песни", () => {
+    const project = upload();
+    const demo = createProjectFromDemo("band-demo");
+
+    expect(project.analysis.source).toBe("none");
+    expect(project.analysis.chords).toHaveLength(0);
+    expect(Object.keys(project.analysis.confidenceByPart)).toHaveLength(0);
+    expect(project.analysis.sections).toHaveLength(0);
+    expect(project.analysis.key).not.toBe(demo.analysis.key);
+    expect(project.analysis.bpm).not.toBe(demo.analysis.bpm);
+  });
+
+  it("берет длительность и качество из фактов, а не из константы", () => {
+    const project = upload({
+      durationSeconds: 222.7,
+      sampleRate: 48000,
+      channels: 1,
+      sizeBytes: 4_000_000,
+      quality: "low",
+    });
+
+    expect(project.upload.durationSeconds).toBeCloseTo(222.7);
+    expect(project.upload.sampleRate).toBe(48000);
+    expect(project.upload.channels).toBe(1);
+    expect(project.upload.sizeBytes).toBe(4_000_000);
+    expect(project.upload.quality).toBe("low");
+    // Регресс: раньше здесь стояла зашитая константа 214.
+    expect(project.upload.durationSeconds).not.toBe(214);
+  });
+
+  it("называет проект по имени файла, а не по названию демо-песни", () => {
+    const project = upload();
+
+    expect(project.analysis.title).toBe("moya-pesnya");
+    expect(project.analysis.title).not.toContain("Late Train");
+  });
+
+  it("не оставляет сомнительных тактов от чужой песни", () => {
+    expect(upload().reviewIssues).toHaveLength(0);
+  });
+
+  it("демо-проекты сохраняют свой разбор", () => {
+    const demo = createProjectFromDemo("band-demo");
+
+    expect(demo.analysis.source).toBe("demo");
+    expect(demo.analysis.chords.length).toBeGreaterThan(0);
+    expect(demo.analysis.key).toBe("Gm");
+  });
+});
+
+describe("откат на глубину, а не на шаг (B74)", () => {
+  it("возвращает материалы любой версии, а не только предыдущей", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const firstVersionId = demo.currentVersionId;
+    const namesAtStart = demo.stagePack.artifacts.map((artifact) => `${artifact.id}:${artifact.status}`);
+
+    const v2 = applyDirectorAction(demo, "merge-guitars");
+    const v3 = applyDirectorAction(v2, "boost-chorus");
+    const v4 = applyDirectorAction(v3, "simplify-drums");
+    expect(v4.versions.length).toBe(demo.versions.length + 3);
+
+    // Откат через две версии назад, а не на шаг.
+    const back = rollbackToVersion(v4, firstVersionId);
+    expect(back.currentVersionId).toBe(firstVersionId);
+    expect(back.stagePack.artifacts.map((artifact) => `${artifact.id}:${artifact.status}`)).toEqual(namesAtStart);
+  });
+
+  it("не теряет промежуточные версии после отката", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const v2 = applyDirectorAction(demo, "merge-guitars");
+    const v3 = applyDirectorAction(v2, "boost-chorus");
+
+    const back = rollbackToVersion(v3, demo.currentVersionId);
+    // Ветка вперед должна остаться доступной: иначе откат — это удаление.
+    expect(back.versions.map((version) => version.id)).toEqual(v3.versions.map((version) => version.id));
+  });
+});
+
+describe("сборка версии сразу из нескольких предложений (B98)", () => {
+  it("создает одну версию, а не по версии на предложение", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const before = demo.versions.length;
+
+    const next = applyDirectorActions(demo, ["merge-guitars", "simplify-drums", "boost-chorus"]);
+
+    // Три предложения — один шаг истории, а не три.
+    expect(next.versions.length).toBe(before + 1);
+    expect(next.changeLog.length).toBe(demo.changeLog.length + 1);
+  });
+
+  it("сводит правки всех выбранных предложений в одну версию", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const merged = applyDirectorActions(demo, ["merge-guitars", "simplify-drums"]);
+    const single = applyDirectorAction(demo, "merge-guitars");
+    const other = applyDirectorAction(demo, "simplify-drums");
+
+    const changes = merged.versions[merged.versions.length - 1].changes;
+    for (const change of single.versions[single.versions.length - 1].changes) {
+      expect(changes).toContain(change);
+    }
+    for (const change of other.versions[other.versions.length - 1].changes) {
+      expect(changes).toContain(change);
+    }
+  });
+
+  it("помечает устаревшим все, что задело хотя бы одно предложение", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const merged = applyDirectorActions(demo, ["merge-guitars", "simplify-drums"]);
+
+    const staleIds = (project: typeof demo) =>
+      project.stagePack.artifacts.filter((artifact) => artifact.isStale).map((artifact) => artifact.id);
+
+    for (const actionId of ["merge-guitars", "simplify-drums"] as const) {
+      for (const id of staleIds(applyDirectorAction(demo, actionId))) {
+        expect(staleIds(merged)).toContain(id);
+      }
+    }
+  });
+
+  it("сохраняет снимок материалов покидаемой версии ровно один раз", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    const merged = applyDirectorActions(demo, ["merge-guitars", "simplify-drums", "boost-chorus"]);
+
+    const left = merged.versions.find((version) => version.id === demo.currentVersionId)!;
+    expect(left.artifactsSnapshot).toBeDefined();
+    // Снимок — состояние ДО правок, иначе откат вернет то же самое.
+    expect(left.artifactsSnapshot!.map((artifact) => artifact.isStale)).toEqual(
+      demo.stagePack.artifacts.map((artifact) => artifact.isStale),
+    );
+  });
+
+  it("пустой список ничего не меняет", () => {
+    const demo = listDemoProjects().find((project) => project.scenario === "band")!;
+    expect(applyDirectorActions(demo, [])).toBe(demo);
+  });
+});
+
+describe("настройка передается типами, а не подписями (B5)", () => {
+  it("не теряет настройку пользователя при переименовании подписи", () => {
+    const withSetup = createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "moya-pesnya.mp3",
+      acceptedConsent: true,
+      setup: { kind: "band", vocalRange: "C3-A4", guitars: 2, bass: "5 струн", keys: "нет", drums: "да", targetStyle: "плотнее" },
+      // Снимок нужен только для показа. Переименование подписи в нем — это
+      // работа копирайтера, а не потеря данных: раньше сервис искал значения
+      // по русским подписям и молча подставлял умолчание.
+      setupSnapshot: {
+        scenario: "band",
+        title: "Состав группы",
+        fields: [{ label: "Диапазон вокалиста", value: "C3-A4" }],
+      },
+    });
+
+    expect(withSetup.bandLineup?.vocalRange).toBe("C3-A4");
+    expect(withSetup.bandLineup?.guitars).toBe(2);
+    expect(withSetup.bandLineup?.bass).toBe("5 strings");
+    expect(withSetup.bandLineup?.keys).toBe(false);
+  });
+
+  it("работает без настройки вовсе", () => {
+    const bare = createProjectFromUpload({
+      scenario: "band",
+      goalId: "band-rehearsal",
+      fileName: "moya-pesnya.mp3",
+      acceptedConsent: true,
+    });
+
+    expect(bare.bandLineup).toBeDefined();
+    expect(bare.bandLineup?.guitars).toBeGreaterThan(0);
   });
 });

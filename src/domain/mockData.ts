@@ -1,3 +1,4 @@
+import { currentConsent } from "./consent";
 import type {
   ArrangementVersion,
   Artifact,
@@ -5,6 +6,7 @@ import type {
   DirectorActionId,
   DirectorActionResult,
   DirectorSuggestion,
+  Musician,
   ProcessingGoal,
   ProcessingJob,
   ProcessingStep,
@@ -267,15 +269,25 @@ const baseSteps: ProcessingStep[] = [
   { id: "structure", label: "Структура песни", status: "queued", detail: "Собираем intro, куплеты, припевы, bridge и coda." },
   { id: "chords", label: "Аккорды", status: "queued", detail: "Строим черновую аккордовую сетку." },
   { id: "midi", label: "MIDI-черновики", status: "queued", detail: "Переводим важные аудиослои в MIDI-партии." },
-  { id: "notation", label: "MusicXML и PDF", status: "queued", detail: "Готовим моковые ноты и карточки страниц." },
+  { id: "notation", label: "MusicXML и PDF", status: "queued", detail: "Готовим ноты и карточки страниц." },
   { id: "director", label: "Ревью AI-директора", status: "queued", detail: "Ищем проблемы состава, уровня и выдачи материалов." },
 ];
 
+export const processingStepIds: string[] = baseSteps.map((step) => step.id);
+
+export const processingMilestones: Array<{ label: string; detail: string; stepIds: string[] }> = [
+  { label: "Аудио", detail: "файл, громкость, слои", stepIds: ["normalize", "stems"] },
+  { label: "Форма", detail: "BPM, тональность, части песни", stepIds: ["tempo", "structure", "chords"] },
+  { label: "Партии", detail: "MIDI, ноты, материалы", stepIds: ["midi", "notation"] },
+  { label: "Ревью", detail: "что проверить руками", stepIds: ["director"] },
+];
+
 const bandAnalysis: SongAnalysis = {
+  source: "demo",
   title: "Late Train Home",
   artist: "Demo Cover",
   bpm: 104,
-  key: "G minor",
+  key: "Gm",
   meter: "4/4",
   duration: "3:42",
   genre: "pop/rock",
@@ -307,10 +319,11 @@ const bandAnalysis: SongAnalysis = {
 };
 
 const lessonAnalysis: SongAnalysis = {
+  source: "demo",
   title: "Warm Lights",
   artist: "Demo Lesson",
   bpm: 92,
-  key: "C major",
+  key: "C",
   meter: "4/4",
   duration: "2:58",
   genre: "acoustic pop",
@@ -338,10 +351,11 @@ const lessonAnalysis: SongAnalysis = {
 };
 
 const ensembleAnalysis: SongAnalysis = {
+  source: "demo",
   title: "School Hall",
   artist: "Demo Ensemble",
   bpm: 118,
-  key: "D major",
+  key: "D",
   meter: "4/4",
   duration: "3:16",
   genre: "school concert pop",
@@ -376,7 +390,7 @@ const readyProcessing = (id: string): ProcessingJob => ({
     ...step,
     status: index === 3 ? "warning" : "done",
   })),
-  warnings: ["Секция bridge содержит паузу и может потребовать ручной проверки.", "Гитарный stem плотный: TAB будет черновиком."],
+  warnings: ["Секция bridge содержит паузу и может потребовать ручной проверки.", "Гитарный аудиослой плотный: TAB будет черновиком."],
   progressPercent: 100,
 });
 
@@ -384,7 +398,9 @@ export const createQueuedProcessing = (id: string): ProcessingJob => ({
   id,
   status: "queued",
   steps: baseSteps.map((step) => ({ ...step })),
-  warnings: ["Результат будет черновиком для проверки музыкантом."],
+  // Пусто намеренно. На пути загрузки обработки нет, и обещать, что
+  // «результат будет черновиком», значит обещать результат.
+  warnings: [],
   progressPercent: 0,
 });
 
@@ -549,6 +565,60 @@ const artifacts = (scenario: Scenario): Artifact[] => [
     : []),
 ];
 
+// Состав группы: те же люди, что в получателях, но с ограничениями. Имена
+// отображаемые, не документные — см. docs/DATA_MAP.md.
+const bandMusicians: Musician[] = [
+  { id: "vocalist-1", name: "Оксана", role: "вокал", instrumentNote: "ведущий вокал", constraint: "диапазон A2-G4", level: "продвинутый" },
+  { id: "guitarist-1", name: "Илья", role: "гитара", instrumentNote: "электрогитара, строй E", constraint: "играет один за две партии", level: "средний" },
+  { id: "bassist-1", name: "Марк", role: "бас", instrumentNote: "5 струн, нижняя E1", constraint: "слэп не играет", level: "средний" },
+  { id: "keys-1", name: "Лена", role: "клавиши", instrumentNote: "2 слоя, Nord Stage", constraint: "закрывает струнные оригинала", level: "продвинутый" },
+  { id: "drummer-1", name: "Даня", role: "барабаны", instrumentNote: "акустическая установка", constraint: "без двойной педали", level: "начинающий" },
+];
+
+const ensembleMusicians: Musician[] = [
+  { id: "student-1", name: "Аня", role: "гитара", instrumentNote: "акустическая гитара", constraint: "читает простые ноты", level: "начинающий" },
+  { id: "student-2", name: "Миша", role: "клавиши", instrumentNote: "цифровое пианино", constraint: "октава без растяжки", level: "начинающий" },
+  { id: "student-3", name: "Соня", role: "барабаны", instrumentNote: "перкуссия", constraint: "без установки", level: "средний" },
+];
+
+/**
+ * Три учебных уровня. По бренд-буку одна песня превращается в три учебных
+ * материала, а переключатель — часть выдачи ученику, а не настройка в
+ * глубине. Тексты описывают, что меняется в партии, а не «сложность 3 из 5».
+ */
+export const lessonLevels: Array<{
+  id: "начинающий" | "средний" | "продвинутый";
+  label: string;
+  title: string;
+  detail: string;
+  facts: string[];
+}> = [
+  {
+    id: "начинающий",
+    label: "Начинающий",
+    title: "Облегченная версия",
+    detail:
+      "Гармония сведена к основным трезвучиям, переходы упрощены, филлы убраны. Бас держит тонику и пятую ступень.",
+    facts: ["упрощена", "без филлов", "32 такта"],
+  },
+  {
+    id: "средний",
+    label: "Средний",
+    title: "Средняя версия",
+    detail:
+      "Оригинальная гармония, упрощены только переходы и филлы. Барабаны без двойной педали, бас без слэпа.",
+    facts: ["оригинал", "без слэпа", "64 такта"],
+  },
+  {
+    id: "продвинутый",
+    label: "Продвинутый",
+    title: "Версия для сильного ученика",
+    detail:
+      "Гармония и ритм как в оригинале, добавлены проходящие ноты и вариация в припеве. Требует уверенного чтения.",
+    facts: ["оригинал", "вариации", "64 такта"],
+  },
+];
+
 const bandRecipients: ShareRecipient[] = [
   { id: "vocalist-1", name: "Оксана", role: "vocalist", material: "Вокал + текст", status: "opened" },
   { id: "guitarist-1", name: "Илья", role: "guitarist", material: "Гитара + TAB", status: "not_issued" },
@@ -568,8 +638,10 @@ const cost = (complexity: CostEstimate["complexity"], credits: number): CostEsti
   tier: complexity === "high" ? "multi_version" : "fast_draft",
   complexity,
   credits,
-  runtime: complexity === "high" ? "8-12 минут" : "3-5 минут",
-  notes: ["Расчет моковый.", "В будущем цена зависит от длительности, аудиослоев, партий и повторной обработки."],
+  notes: [
+    "Оценка демонстрационная.",
+    "Сложность зависит от длительности, аудиослоев, партий и повторной обработки.",
+  ],
 });
 
 export const demoProjects: Project[] = [
@@ -603,13 +675,14 @@ export const demoProjects: Project[] = [
     analysis: bandAnalysis,
     stagePack: { id: "stage-band-demo", versionId: "band-main", artifacts: artifacts("band") },
     reviewIssues: [
-      { id: "issue-guitar-21", title: "Проверить гитарный акцент", sectionId: "chorus-1", bar: 21, part: "Гитара", reason: "Stem содержит две гитары, TAB может смешивать партии.", status: "needs_review", confidence: 0.62 },
+      { id: "issue-guitar-21", title: "Проверить гитарный акцент", sectionId: "chorus-1", bar: 21, part: "Гитара", reason: "Аудиослой содержит две гитары, TAB может смешивать партии.", status: "needs_review", confidence: 0.62 },
       { id: "issue-bridge-37", title: "Пауза перед bridge", sectionId: "bridge", bar: 37, part: "Вся группа", reason: "Найдено резкое падение энергии и возможная остановка.", status: "uncertain", confidence: 0.58 },
     ],
     reviewComments: [],
     directorSuggestions: directorSuggestions.filter((suggestion) => suggestion.scenario !== "education"),
     chat: [{ id: "chat-1", author: "director", text: "Я нашел две гитарные партии и струнный слой в припеве. Для вашего состава лучше сделать концертную версию.", createdAt: "2026-09-09T12:04:00+04:00" }],
     changeLog: [{ id: "change-1", title: "Создан Stage Pack", description: "Подготовлены партии, аудиослои, MIDI и первые предупреждения.", createdAt: "2026-09-09T12:05:00+04:00", actor: "AI-директор" }],
+    musicians: bandMusicians,
     shareRecipients: bandRecipients,
     shareLinks: [],
     exportBundles: [{ id: "zip-band", label: "Stage Pack ZIP", filesCount: 14, status: "ready" }],
@@ -625,7 +698,7 @@ export const demoProjects: Project[] = [
         { label: "Стиль версии", value: "плотнее и сценически" },
       ],
     },
-    legalConsent: { accepted: true, text: "Материал используется для приватной репетиции или внутренней подготовки.", acceptedAt: "2026-09-09T12:00:00+04:00" },
+    legalConsent: { accepted: true, versionId: currentConsent().id, text: currentConsent().text, acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Исходник и результаты можно удалить из проекта." },
   },
   {
@@ -653,6 +726,7 @@ export const demoProjects: Project[] = [
     directorSuggestions: directorSuggestions.filter((suggestion) => suggestion.scenario !== "band"),
     chat: [{ id: "chat-lesson-1", author: "director", text: "Для урока лучше оставить куплет и припев, а сложный переход вынести в отдельное упражнение.", createdAt: "2026-09-09T12:06:00+04:00" }],
     changeLog: [{ id: "change-lesson-1", title: "Создана Easy-версия", description: "Сокращена форма и подготовлена домашка.", createdAt: "2026-09-09T12:07:00+04:00", actor: "AI-директор" }],
+    musicians: [],
     shareRecipients: educationRecipients,
     shareLinks: [],
     exportBundles: [{ id: "zip-lesson", label: "Пакет урока", filesCount: 8, status: "ready" }],
@@ -668,7 +742,7 @@ export const demoProjects: Project[] = [
         { label: "Кому выдать", value: "ученику и преподавателю" },
       ],
     },
-    legalConsent: { accepted: true, text: "Материал используется для приватного урока и домашней практики.", acceptedAt: "2026-09-09T12:00:00+04:00" },
+    legalConsent: { accepted: true, versionId: currentConsent().id, text: currentConsent().text, acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Учебные материалы можно удалить после урока." },
   },
   {
@@ -702,6 +776,7 @@ export const demoProjects: Project[] = [
     directorSuggestions: directorSuggestions.filter((suggestion) => suggestion.scenario !== "band"),
     chat: [{ id: "chat-ensemble-1", author: "director", text: "Материал хорошо ложится на ансамбль. Я бы отдельно выдал роли и сделал крупный сценический вид припева.", createdAt: "2026-09-09T12:09:00+04:00" }],
     changeLog: [{ id: "change-ensemble-1", title: "Создана ансамблевая версия", description: "Материал разложен на учеников и отмечена coda.", createdAt: "2026-09-09T12:10:00+04:00", actor: "AI-директор" }],
+    musicians: ensembleMusicians,
     shareRecipients: educationRecipients,
     shareLinks: [],
     exportBundles: [{ id: "zip-ensemble", label: "Пакет ансамбля", filesCount: 11, status: "ready" }],
@@ -717,7 +792,7 @@ export const demoProjects: Project[] = [
         { label: "Кому выдать", value: "ансамблю и преподавателю" },
       ],
     },
-    legalConsent: { accepted: true, text: "Материал используется для приватной школьной подготовки.", acceptedAt: "2026-09-09T12:00:00+04:00" },
+    legalConsent: { accepted: true, versionId: currentConsent().id, text: currentConsent().text, acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Материалы можно удалить после концерта." },
   },
 ];
