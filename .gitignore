@@ -31,3 +31,11 @@ tmp/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Бэкенд: окружение и кеши инструментов
+server/.venv/
+server/**/__pycache__/
+server/.pytest_cache/
+server/.ruff_cache/
+server/.mypy_cache/
+*.py[cod]
