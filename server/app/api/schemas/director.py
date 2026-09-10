@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import Field, field_validator
 
@@ -28,6 +29,31 @@ from app.api.schemas.enums import (
     VersionKind,
 )
 from app.api.schemas.versions import ArrangementVersionOut
+
+#: Закрытый список кодов действий в порядке объявления. Нужен не схеме, а
+#: тексту отказа: клиент, приславший незнакомый код, должен прочитать в ответе,
+#: что именно поддерживается, а не догадываться по документации.
+SUPPORTED_ACTION_IDS: tuple[str, ...] = tuple(item.value for item in DirectorActionId)
+
+
+def _known_action(value: Any) -> Any:
+    """Код действия из закрытого списка — или отказ с перечнем поддерживаемых.
+
+    Проверка стоит **до** приведения к перечислению: иначе наружу уходит
+    сообщение генератора схемы, а не наше. Разница не косметическая. Правило
+    продукта здесь одно: команду, которой нет, не подменяют похожей, — и отказ
+    обязан показать, из чего выбирать, чтобы у клиента не осталось соблазна
+    угадывать.
+    """
+    if isinstance(value, DirectorActionId):
+        return value
+    if isinstance(value, str) and value in SUPPORTED_ACTION_IDS:
+        return value
+    raise ValueError(
+        "Такого действия нет. Директор выполняет только эти команды: "
+        + ", ".join(SUPPORTED_ACTION_IDS)
+        + "."
+    )
 
 
 class DirectorSuggestionOut(ApiModel):
@@ -57,6 +83,8 @@ class DirectorActionRequest(ApiModel):
     )
     comment: str | None = Field(default=None, max_length=2000)
 
+    _check_action = field_validator("action_id", mode="before")(_known_action)
+
 
 class DirectorActionBatchRequest(ApiModel):
     """Сборка одной версии сразу из нескольких действий."""
@@ -69,6 +97,16 @@ class DirectorActionBatchRequest(ApiModel):
     base_version_id: str
     label: str | None = Field(default=None, max_length=200, description="Подпись будущей версии")
     comment: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("action_ids", mode="before")
+    @classmethod
+    def _all_known(cls, value: Any) -> Any:
+        # Незнакомый код в середине пакета останавливает весь пакет: применить
+        # половину и промолчать про остальное — худший из исходов, потому что
+        # пользователь не узнает, что именно с песней сделали.
+        if isinstance(value, list):
+            return [_known_action(item) for item in value]
+        return value
 
     @field_validator("action_ids")
     @classmethod

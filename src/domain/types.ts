@@ -244,7 +244,18 @@ export interface ReviewIssue {
   part: string;
   reason: string;
   status: ReviewStatus;
-  confidence: number;
+  /**
+   * Уверенность 0..1, либо `null` — посчитать ее нечем.
+   *
+   * Обнуляемость не украшение и не запас на будущее: сервер объявил поле
+   * обнуляемым и объяснил, что пусто оно ровно тогда, когда расчет
+   * невозможен (`ReviewIssueOut.confidence` в `docs/api/openapi.json`).
+   * Подставить сюда `0` значило бы показать «0%» — это читается как
+   * «точно неверно», а не как «не считали». Ложь дороже пропуска.
+   */
+  confidence: number | null;
+  /** Почему уверенности нет. Заполнено ровно тогда, когда пусто число. */
+  confidenceNote?: string | null;
 }
 
 export interface ReviewComment {

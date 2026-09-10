@@ -120,15 +120,37 @@ class ChangeLogEntryOut(ApiModel):
 
 
 class ProjectCreateRequest(ApiModel):
-    """Создание проекта из загруженного файла."""
+    """Создание песни.
 
-    upload_id: str = Field(
-        description="Загрузка, из которой создается проект. Файл должен быть уже принят."
+    `uploadId` необязателен, и это разрыв круга, из-за которого продукт раньше
+    не запускался вовсе: строка загрузки требует песни (`uploads.project_id`
+    NOT NULL), а создание песни требовало принятой загрузки. Первым нельзя было
+    создать ни то, ни другое. Теперь песня заводится первой и пустой, а файл
+    приходит в нее вторым запросом (`POST /api/uploads` с `projectId`).
+
+    Почему разрыв именно с этой стороны, а не через nullable
+    `uploads.project_id`: строка загрузки без песни — это объект в хранилище,
+    за который никто не отвечает. Его некому показать, некому удалить по
+    запросу и не с чем связать согласие. Пустая песня, наоборот, — состояние,
+    которое пользователь и так видит на экране: он завел песню и еще не выбрал
+    файл.
+    """
+
+    upload_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Принятая загрузка, вокруг которой оформляется песня. Пусто — песня "
+            "создается без файла, и файл приходит в нее отдельным запросом."
+        ),
     )
     name: str | None = Field(
         default=None,
         max_length=200,
-        description="Название проекта. Пусто — соберется из имени файла.",
+        description=(
+            "Название песни. Пусто — соберется из имени файла, поэтому без "
+            "`uploadId` название обязательно."
+        ),
     )
     scenario: Scenario
     goal_id: ProcessingGoalId
@@ -158,6 +180,15 @@ class ProjectCreateRequest(ApiModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def _name_when_no_file(self) -> ProjectCreateRequest:
+        # Название собирается из имени файла. Без файла собирать его не из
+        # чего, а назвать песню «Без названия» за пользователя — это придумать
+        # за него данные, которые он потом будет искать в списке.
+        if self.upload_id is None and not (self.name or "").strip():
+            raise ValueError("Без загрузки название песни обязательно: собрать его не из чего.")
+        return self
+
 
 class ProjectPatchRequest(ApiModel):
     """Правка карточки проекта. Пока только название."""
@@ -172,7 +203,12 @@ class ProjectOut(ApiModel):
     name: str
     scenario: Scenario
     processing_goal: ProcessingGoalOut
-    upload: UploadOut
+    upload: UploadOut | None = Field(
+        description=(
+            "Исходник песни. `null` — файла еще нет: песня заведена, файл не загружен. "
+            "Это состояние продукта, а не потеря данных."
+        ),
+    )
     band_lineup: BandLineupOut | None = None
     musicians: list[MusicianOut] = Field(
         description="Кто играет. Пусто в сценарии урока и у проектов без состава."
@@ -184,9 +220,17 @@ class ProjectOut(ApiModel):
     assignments: list[AssignmentOut]
     versions: list[ArrangementVersionOut]
     current_version_id: str | None = None
-    processing: ProcessingJobOut
+    processing: ProcessingJobOut | None = Field(
+        description=(
+            "Состояние обработки. `null` — обработку не запускали. Пустое задание с пустым "
+            "идентификатором сюда не подставляется: по такому идентификатору клиент пошел бы "
+            "спрашивать статус и получил бы 404."
+        ),
+    )
     analysis: SongAnalysisOut
-    stage_pack: StagePackOut
+    stage_pack: StagePackOut | None = Field(
+        description="Пакет к репетиции. `null` — версии аранжировки еще нет, собирать нечего.",
+    )
     review_issues: list[ReviewIssueOut]
     review_comments: list[ReviewCommentOut]
     director_suggestions: list[DirectorSuggestionOut]

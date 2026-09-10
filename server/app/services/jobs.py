@@ -14,18 +14,34 @@
 
 Очереди у нас нет, и синхронно гонять обработку звука внутри HTTP-запроса
 нельзя. Поэтому запуск задания **создает план и фиксирует его**, а не
-выполняет работу. Сегодня это ничего не меняет: выполнять нечего, ни один шаг
-не подключен. Когда появится первый настоящий провайдер, вместе с ним обязана
-появиться очередь — иначе запрос будет держать соединение весь разбор песни.
+выполняет работу. Когда появится первый настоящий провайдер, вместе с ним
+обязана появиться очередь — иначе запрос будет держать соединение весь разбор
+песни.
+
+Второе правило: **статус двигают переходы, а не присвоение**. Раньше статус
+писался туда, куда его положил вызывающий, и задание могло уехать из
+«готово» обратно в «в очереди», а из «в очереди» — сразу в «готово», минуя
+работу. Теперь допустимые пары перечислены в `ALLOWED_TRANSITIONS`, а
+недопустимая отвечает отказом `invalid_job_transition` **до** записи в базу.
+Переход в тот же статус тоже недопустим: повторная запись ничего не меняет и
+прячет ошибку вызывающего.
+
+Третье: **задание не заводится, пока обрабатывать нечем**. Ни один шаг
+конвейера не подключен, и задание в этих условиях рождалось сразу «готовым»
+со стопроцентным прогрессом — экран показывал зеленую галочку за работу,
+которой не было, а повтор был недостижим (`retry_job` требует статус
+`error`). Вместо муляжа запуск отвечает `501` и называет, чего не хватает.
 """
 
 from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from dataclasses import replace
 
 from sqlalchemy import select
 
+from app.api.not_implemented import CONTRACT_DOC, NOT_IMPLEMENTED_CODE
 from app.api.schemas.enums import JobStatus, ProcessingGoalId, ProcessingStepStatus
 from app.api.schemas.jobs import ProcessingJobOut, ProcessingStepOut
 from app.db import enums, models
@@ -38,6 +54,7 @@ from app.db.repositories import (
     Repositories,
 )
 from app.pipeline import AudioRef, PipelineRun, build_default_pipeline
+from app.pipeline.orchestrator import PipelineOrchestrator
 from app.services.projects import ProjectRefusal
 
 #: Через сколько миллисекунд спрашивать статус снова. Интервал называет сервер,
@@ -60,12 +77,39 @@ STEP_OK: frozenset[enums.JobStepStatus] = frozenset(
     {enums.JobStepStatus.DONE, enums.JobStepStatus.WARNING}
 )
 
-#: Что показывается над материалами, когда выполнять нечего. Без этой строки
-#: «готово» и прогресс 100 читались бы как «песня разобрана», хотя звук никто
-#: не трогал.
-NOTHING_RUNS_WARNING = (
-    "Обработка звука не выполняется: ни один шаг пока не подключен. "
-    "Материалы не собираются, разбор остается пустым."
+#: Статус, в котором задание рождается. Единственный: работа еще не начиналась,
+#: и любой другой статус на старте — это отчет о несделанном.
+INITIAL_STATUS = enums.JobStatus.QUEUED
+
+#: Допустимые переходы статуса задания. Все, чего здесь нет, — отказ.
+#:
+#: Смысл каждой строки:
+#: `queued` — либо взяли в работу, либо не смогли даже начать;
+#: `running` — работа кончилась одним из трех исходов;
+#: `ready` и `warning` — конец пути: повторная обработка это новое задание,
+#: а не воскрешение старого, иначе история запусков теряется;
+#: `error` — упавшее задание возвращается в очередь повтором, и только так.
+ALLOWED_TRANSITIONS: dict[enums.JobStatus, frozenset[enums.JobStatus]] = {
+    enums.JobStatus.QUEUED: frozenset({enums.JobStatus.RUNNING, enums.JobStatus.ERROR}),
+    enums.JobStatus.RUNNING: frozenset(
+        {enums.JobStatus.READY, enums.JobStatus.WARNING, enums.JobStatus.ERROR}
+    ),
+    enums.JobStatus.READY: frozenset(),
+    enums.JobStatus.WARNING: frozenset(),
+    enums.JobStatus.ERROR: frozenset({enums.JobStatus.QUEUED}),
+}
+
+#: Чего не хватает, чтобы обработка заработала. Идет прямо в `details.missing`
+#: отказа: по этому перечню видно, чей это батч, а не «когда-нибудь потом».
+PIPELINE_MISSING = (
+    "провайдеры шагов конвейера (app/pipeline/providers.py: подключено ноль из восьми)",
+    "исполнитель заданий: очередь и воркер (в pyproject нет ни celery, ни arq, ни dramatiq)",
+)
+
+#: Ответ на запуск обработки, пока выполнять нечего.
+NOTHING_RUNS_MESSAGE = (
+    "Обработка звука не выполняется: ни один шаг конвейера не подключен. "
+    "Задание не заводится, чтобы не показывать «готово» за несделанную работу."
 )
 
 
@@ -100,10 +144,21 @@ def audio_ref_for(upload: models.Upload) -> AudioRef | None:
     )
 
 
-def plan_run(run_id: str, upload: models.Upload | None) -> PipelineRun:
-    """Собрать задание конвейера и один раз решить, какие шаги выполняются."""
-    orchestrator = build_default_pipeline()
-    return orchestrator.create_run(run_id, audio_ref_for(upload) if upload else None)
+def plan_run(
+    run_id: str,
+    upload: models.Upload | None,
+    *,
+    orchestrator: PipelineOrchestrator | None = None,
+) -> PipelineRun:
+    """Собрать задание конвейера и один раз решить, какие шаги выполняются.
+
+    `orchestrator` подставляется снаружи, когда набор адаптеров отличается от
+    продуктового: сегодня это тесты пути «шаг подключен», завтра — сборка с
+    первым настоящим провайдером. Умолчание остается честным состоянием
+    продукта: не подключено ничего.
+    """
+    resolved = orchestrator or build_default_pipeline()
+    return resolved.create_run(run_id, audio_ref_for(upload) if upload else None)
 
 
 async def _persist_run(
@@ -114,9 +169,10 @@ async def _persist_run(
     idempotency_key: str,
 ) -> tuple[models.Job, list[models.JobStep]]:
     snapshot = run.snapshot()
+    # Сюда доходит только план, в котором есть что выполнять: пустой отсеян в
+    # `start_job` отказом, а не записан заданием с прогрессом 100.
+    check_initial_status(enums.JobStatus(snapshot.status.value))
     warnings = list(snapshot.warnings)
-    if snapshot.nothing_runs:
-        warnings.insert(0, NOTHING_RUNS_WARNING)
 
     credits = None
     if isinstance(project.cost_estimate, dict):
@@ -228,6 +284,74 @@ async def owned_job(repos: Repositories, job_id: str, user_id: str) -> models.Jo
     return job
 
 
+# --- правила переходов -------------------------------------------------------
+
+
+def _transition_message(current: enums.JobStatus, target: enums.JobStatus) -> str:
+    """Текст отказа. Разный, потому что причины разные, и обе видит человек."""
+    if current is target:
+        return (
+            "Задание уже в этом состоянии. Повторная запись статуса ничего не меняет "
+            "и прячет ошибку вызывающего."
+        )
+    if not ALLOWED_TRANSITIONS[current]:
+        return (
+            "Задание уже завершено: вернуть его в работу нельзя. "
+            "Повторная обработка — это новый запуск, а не воскрешение старого."
+        )
+    return f"Из состояния «{current.value}» задание не переходит в «{target.value}»."
+
+
+def check_transition(current: enums.JobStatus, target: enums.JobStatus) -> None:
+    """Пропустить допустимый переход и отказать в остальных.
+
+    Отказ, а не молчаливое присвоение: статус задания — это то, что показано
+    пользователю, и запись «готово» поверх «упало» стирает сам факт сбоя.
+    Проверка идет **до** записи, поэтому отказ не оставляет следа.
+    """
+    if target in ALLOWED_TRANSITIONS[current]:
+        return
+    raise JobRefusal(
+        409,
+        "invalid_job_transition",
+        _transition_message(current, target),
+        details={"from": current.value, "to": target.value},
+    )
+
+
+def check_initial_status(status: enums.JobStatus) -> None:
+    """Задание рождается только в очереди.
+
+    Любой другой статус на старте — отчет о работе, которой не было: `ready`
+    без единого выполненного шага читается экраном как разобранная песня.
+    """
+    if status is INITIAL_STATUS:
+        return
+    raise JobRefusal(
+        409,
+        "invalid_job_start",
+        f"Задание не может начаться в состоянии «{status.value}»: работа еще не шла.",
+        details={"status": status.value, "expected": INITIAL_STATUS.value},
+    )
+
+
+async def transition_job(
+    repos: Repositories,
+    *,
+    job: models.Job,
+    target: enums.JobStatus,
+    patch: JobPatch | None = None,
+) -> models.Job:
+    """Перевести задание в новый статус, если переход допустим.
+
+    `patch` несет то, что меняется вместе со статусом (прогресс, счетчик
+    повторов, код ошибки). Статус в нем не задается: его называет `target`, и
+    двух источников статуса в одной записи быть не должно.
+    """
+    check_transition(job.status, target)
+    return await repos.jobs.update(job.id, replace(patch or JobPatch(), status=target))
+
+
 # --- правила прогресса -------------------------------------------------------
 
 
@@ -293,12 +417,14 @@ async def start_job(
     goal_id: ProcessingGoalId | None,
     force_restart: bool,
     idempotency_key: str | None,
+    orchestrator: PipelineOrchestrator | None = None,
 ) -> tuple[models.Job, list[models.JobStep]]:
     """Завести задание обработки для песни.
 
-    Отказывает в четырех случаях, и каждый называет себя: цель не от этого
-    сценария, задание уже идет, результат уже есть (нужен явный перезапуск),
-    ключ повтора занят чужим заданием.
+    Отказывает в шести случаях, и каждый называет себя: цель не от этого
+    сценария, файла у песни еще нет, задание уже идет, результат уже есть
+    (нужен явный перезапуск), ключ повтора занят чужим заданием, выполнять
+    нечего — ни один шаг конвейера не подключен.
     """
     if goal_id is not None:
         expected = "band-" if project.scenario is enums.Scenario.BAND else "lesson-"
@@ -314,6 +440,17 @@ async def start_job(
                 project.id,
                 ProjectPatch(processing_goal_id=enums.ProcessingGoalId(goal_id.value)),
             )
+
+    if upload is None or not upload.storage_key:
+        # Песня заводится раньше файла (`app/services/projects.py`), поэтому
+        # «песни без исходника» теперь бывают. Задание над пустотой создавать
+        # нельзя: оно тут же оказалось бы завершенным, ничего не сделав.
+        raise JobRefusal(
+            409,
+            "source_missing",
+            "Файл этой песни еще не загружен: обрабатывать нечего.",
+            details={"projectId": str(project.id)},
+        )
 
     if idempotency_key:
         existing = await repos.jobs.get_by_idempotency_key(idempotency_key)
@@ -344,7 +481,21 @@ async def start_job(
             details={"jobId": str(running.id), "status": running.status.value},
         )
 
-    run = plan_run(str(uuid.uuid4()), upload)
+    run = plan_run(str(uuid.uuid4()), upload, orchestrator=orchestrator)
+    if run.nothing_runs:
+        # Ни один шаг не выполняется. Записать такое задание значит завести
+        # запись со статусом «готово» и прогрессом 100 над нетронутым звуком.
+        raise JobRefusal(
+            501,
+            NOT_IMPLEMENTED_CODE,
+            NOTHING_RUNS_MESSAGE,
+            details={
+                "endpoint": "POST /api/projects/{project_id}/jobs",
+                "missing": list(PIPELINE_MISSING),
+                "docs": CONTRACT_DOC,
+            },
+        )
+
     # Ключ повтора обязателен в базе. Без заголовка он собирается из
     # идентификатора задания: своего ключа клиент не назвал, и придумывать
     # ему устойчивый — значит склеить два разных запуска в один.
@@ -369,6 +520,8 @@ async def retry_job(
     обещать работу, которой не будет.
     """
     if job.status is not enums.JobStatus.ERROR:
+        # Отдельный отказ до проверки перехода: «повторять нечего» объясняет
+        # больше, чем «из ready нельзя в queued», хотя запрещает то же самое.
         raise JobRefusal(
             409,
             "job_not_failed",
@@ -398,10 +551,11 @@ async def retry_job(
         )
 
     refreshed = await steps_of(repos, job)
-    updated = await repos.jobs.update(
-        job.id,
-        JobPatch(
-            status=enums.JobStatus.QUEUED,
+    updated = await transition_job(
+        repos,
+        job=job,
+        target=enums.JobStatus.QUEUED,
+        patch=JobPatch(
             progress_percent=progress_from_steps(refreshed),
             retry_count=job.retry_count + 1,
             error_code=None,

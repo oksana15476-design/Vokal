@@ -139,8 +139,17 @@ def test_ready_ok_with_live_database(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_unknown_route_uses_error_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Неизвестный адрес отвечает 404 в общей модели ошибки.
+
+    Пример адреса менялся. Раньше здесь стоял `/api/projects` — он и правда
+    был неизвестен, пока роутер не подключался в `app/main.py`. После
+    подключения адрес стал настоящим и начал честно отвечать `501`, а тест
+    покраснел, хотя проверяемое им поведение не менялось. Теперь берется
+    адрес, которого нет ни в одном роутере, — тогда проверка переживет
+    появление новых ручек.
+    """
     with TestClient(build_app(monkeypatch)) as client:
-        response = client.get("/api/projects", headers={"X-Request-ID": "rid-404"})
+        response = client.get("/api/такого-адреса-нет", headers={"X-Request-ID": "rid-404"})
 
     assert response.status_code == 404
     body = response.json()

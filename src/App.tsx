@@ -36,6 +36,7 @@ import type {
   ProcessingGoalId,
   ProcessingStep,
   Project,
+  ReviewIssue,
   ReviewStatus,
   Scenario,
 } from "./domain/types";
@@ -151,6 +152,18 @@ const setupLabelByKey: Record<string, string> = {
 };
 
 const formatConfidence = (value: number) => `${Math.round(value * 100)}%`;
+
+/**
+ * Уверенность места проверки: число в процентах либо причина, почему его нет.
+ *
+ * Правило бренда — уверенность называется числом, а не только полосой. Когда
+ * числа нет, честнее сказать «не посчитали и вот почему», чем показать «0%»:
+ * ноль процентов читается как «точно неверно» и уводит с репетиции не туда.
+ */
+const formatIssueConfidence = (issue: ReviewIssue): string =>
+  issue.confidence === null
+    ? (issue.confidenceNote ?? "точность не посчитана")
+    : formatConfidence(issue.confidence);
 
 /**
  * Пороги уверенности задаёт дизайн-система (docs/design/tokens.json,
@@ -1959,7 +1972,7 @@ function StagePackShell({
 
                   <ReviewNote issueId={issue.id} onSubmit={submitReviewComment} />
                   <small>
-                    {issue.part} · {formatConfidence(issue.confidence)} · {reviewStatusCopy[issue.status]}
+                    {issue.part} · {formatIssueConfidence(issue)} · {reviewStatusCopy[issue.status]}
                   </small>
                   {project.reviewComments
                     .filter((comment) => comment.issueId === issue.id)

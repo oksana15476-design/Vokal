@@ -87,36 +87,49 @@ export const musicianRoleLabels: Record<WireMusicianRole, Musician["role"]> = {
   backing_vocal: "бэк-вокал",
 };
 
-export const musicianLevelLabels: Record<WireMusicianLevel, Musician["level"]> = {
-  beginner: "начинающий",
-  middle: "средний",
-  advanced: "продвинутый",
-};
+export const musicianLevelLabels: Record<WireMusicianLevel, Musician["level"]> =
+  {
+    beginner: "начинающий",
+    middle: "средний",
+    advanced: "продвинутый",
+  };
 
 export const bassStringsLabels: Record<WireBassStrings, BandLineup["bass"]> = {
   "4_strings": "4 strings",
   "5_strings": "5 strings",
 };
 
-export const studentLevelLabels: Record<WireStudentLevel, StudentProfile["level"]> = {
+export const studentLevelLabels: Record<
+  WireStudentLevel,
+  StudentProfile["level"]
+> = {
   starter: "начальный",
   middle: "средний",
   strong: "сильный",
 };
 
-export const notationReadingLabels: Record<WireNotationReading, StudentProfile["notationReading"]> = {
+export const notationReadingLabels: Record<
+  WireNotationReading,
+  StudentProfile["notationReading"]
+> = {
   none: "не читает",
   simple: "простые ноты",
   confident: "уверенно",
 };
 
-export const teacherFormatLabels: Record<WireTeacherFormat, TeacherProfile["format"]> = {
+export const teacherFormatLabels: Record<
+  WireTeacherFormat,
+  TeacherProfile["format"]
+> = {
   individual: "индивидуальный урок",
   group: "группа",
   school_ensemble: "школьный ансамбль",
 };
 
-export const lessonDifficultyLabels: Record<WireLessonDifficulty, Lesson["desiredDifficulty"]> = {
+export const lessonDifficultyLabels: Record<
+  WireLessonDifficulty,
+  Lesson["desiredDifficulty"]
+> = {
   easier: "проще оригинала",
   original_like: "близко к оригиналу",
   harder: "сложнее оригинала",
@@ -150,7 +163,9 @@ export const toDomainBandLineup = (wire: WireBandLineup): BandLineup => ({
   targetStyle: wire.targetStyle,
 });
 
-export const toDomainStudentProfile = (wire: WireStudentProfile): StudentProfile => ({
+export const toDomainStudentProfile = (
+  wire: WireStudentProfile,
+): StudentProfile => ({
   name: wire.name,
   instrument: wire.instrument,
   level: studentLevelLabels[wire.level],
@@ -160,7 +175,9 @@ export const toDomainStudentProfile = (wire: WireStudentProfile): StudentProfile
   homeInstrument: wire.homeInstrument,
 });
 
-export const toDomainTeacherProfile = (wire: WireTeacherProfile): TeacherProfile => ({
+export const toDomainTeacherProfile = (
+  wire: WireTeacherProfile,
+): TeacherProfile => ({
   name: wire.name,
   format: teacherFormatLabels[wire.format],
   focus: wire.focus,
@@ -202,7 +219,9 @@ export const toDomainArtifact = (wire: WireArtifact): Artifact => ({
   preview: wire.preview ?? { kind: "text", title: wire.name, lines: [] },
 });
 
-export const toDomainVersion = (wire: WireArrangementVersion): ArrangementVersion => ({
+export const toDomainVersion = (
+  wire: WireArrangementVersion,
+): ArrangementVersion => ({
   id: wire.id,
   label: wire.label,
   kind: wire.kind,
@@ -230,10 +249,16 @@ export const toDomainReviewIssue = (wire: WireReviewIssue): ReviewIssue => ({
   part: wire.part,
   reason: wire.reason,
   status: wire.status,
-  confidence: wire.confidence,
+  // `?? null` не выдумывает значение: и отсутствие поля, и явный `null`
+  // означают одно — считать было нечем. Причина едет рядом, иначе на экране
+  // осталась бы пустота без объяснения.
+  confidence: wire.confidence ?? null,
+  confidenceNote: wire.confidenceNote ?? null,
 });
 
-export const toDomainReviewComment = (wire: WireReviewComment): ReviewComment => ({
+export const toDomainReviewComment = (
+  wire: WireReviewComment,
+): ReviewComment => ({
   id: wire.id,
   issueId: wire.issueId,
   author: wire.author,
@@ -248,7 +273,9 @@ export const toDomainChatMessage = (wire: WireChatMessage): ChatMessage => ({
   createdAt: wire.createdAt,
 });
 
-export const toDomainChangeLogEntry = (wire: WireChangeLogEntry): ChangeLogEntry => ({
+export const toDomainChangeLogEntry = (
+  wire: WireChangeLogEntry,
+): ChangeLogEntry => ({
   id: wire.id,
   title: wire.title,
   description: wire.description,
@@ -256,7 +283,9 @@ export const toDomainChangeLogEntry = (wire: WireChangeLogEntry): ChangeLogEntry
   actor: wire.actor,
 });
 
-export const toDomainSuggestion = (wire: WireDirectorSuggestion): DirectorSuggestion => ({
+export const toDomainSuggestion = (
+  wire: WireDirectorSuggestion,
+): DirectorSuggestion => ({
   id: wire.id,
   title: wire.title,
   description: wire.description,
@@ -265,7 +294,9 @@ export const toDomainSuggestion = (wire: WireDirectorSuggestion): DirectorSugges
   impact: wire.impact,
 });
 
-export const toDomainRecipient = (wire: WireShareRecipient): ShareRecipient => ({
+export const toDomainRecipient = (
+  wire: WireShareRecipient,
+): ShareRecipient => ({
   id: wire.id,
   name: wire.name,
   role: wire.role,
@@ -377,56 +408,120 @@ export interface ProjectView {
  * `docs/DELETION_AND_RETENTION_DESIGN.md`. Поэтому ссылки уходят в `extras`
  * как есть, а домен ждет правки.
  */
-export const toProjectView = (wire: WireProject): ProjectView => ({
-  project: {
-    id: wire.id,
-    name: wire.name,
-    scenario: wire.scenario,
-    processingGoal: wire.processingGoal,
-    upload: toDomainUpload(wire.upload),
-    bandLineup: wire.bandLineup ? toDomainBandLineup(wire.bandLineup) : undefined,
-    musicians: wire.musicians.map(toDomainMusician),
-    studentProfile: wire.studentProfile ? toDomainStudentProfile(wire.studentProfile) : undefined,
-    teacherProfile: wire.teacherProfile ? toDomainTeacherProfile(wire.teacherProfile) : undefined,
-    classGroup: wire.classGroup ? toDomainClassGroup(wire.classGroup) : undefined,
-    lesson: wire.lesson ? toDomainLesson(wire.lesson) : undefined,
-    assignments: wire.assignments.map(toDomainAssignment),
-    versions: wire.versions.map(toDomainVersion),
-    currentVersionId: wire.currentVersionId ?? "",
-    processing: toDomainJob(wire.processing),
-    analysis: toDomainAnalysis(wire.analysis),
-    stagePack: toDomainStagePack(wire.stagePack),
-    reviewIssues: wire.reviewIssues.map(toDomainReviewIssue),
-    reviewComments: [
-      ...wire.reviewComments.map(toDomainReviewComment),
-      // Комментарии приходят и вложенными в место проверки: сервер отдает их
-      // рядом с местом, домен держит плоским списком.
-      // Поле необязательно в контракте: сервер может не прислать вложенные
-      // комментарии вовсе. Руками написанный тип объявлял его обязательным.
-      ...wire.reviewIssues.flatMap((issue) => (issue.comments ?? []).map(toDomainReviewComment)),
-    ],
-    directorSuggestions: wire.directorSuggestions.map(toDomainSuggestion),
-    chat: wire.chat.map(toDomainChatMessage),
-    changeLog: wire.changeLog.map(toDomainChangeLogEntry),
-    shareRecipients: wire.shareRecipients.map(toDomainRecipient),
-    shareLinks: [],
-    exportBundles: wire.exportBundles.map(toDomainExportBundle),
-    costEstimate: toDomainCostEstimate(wire.costEstimate),
-    setupSnapshot: wire.setupSnapshot,
-    legalConsent: toDomainConsent(wire.legalConsent),
-    dataRetention: {
-      sourceDeleted: wire.dataRetention.sourceDeleted,
-      resultsDeleted: wire.dataRetention.resultsDeleted,
-      retentionNote: wire.dataRetention.retentionNote,
+/**
+ * Проект, который домен фронтенда пока не умеет показать.
+ *
+ * Сервер объявил три поля обнуляемыми и объяснил каждое: `upload = null` —
+ * песня заведена, файл еще не загружен; `processing = null` — обработку не
+ * запускали; `stagePack = null` — версии аранжировки еще нет, собирать нечего.
+ * Домен (`src/domain/types.ts`) требует все три, и 35 мест в `App.tsx` читают
+ * их без проверки.
+ *
+ * Выдумать здесь пустую загрузку — значит показать пользователю файл, которого
+ * он не загружал. Это ровно то, что запрещает правило перевода в шапке файла.
+ * Поэтому перевод отказывается и называет недостающее: отказ на границе
+ * читается, а `undefined` в глубине интерфейса — нет.
+ *
+ * Снимается это не здесь: домен и экраны должны научиться состоянию «песня
+ * заведена, файла нет». Отдельная работа, занесена в `docs/BACKLOG.md`.
+ */
+export class ProjectNotRepresentable extends Error {
+  readonly missing: string[];
+
+  constructor(projectId: string, missing: string[]) {
+    super(
+      `Проект ${projectId} нельзя показать: сервер не прислал ${missing.join(", ")}. ` +
+        "Интерфейс пока не умеет показывать песню без этих частей.",
+    );
+    this.name = "ProjectNotRepresentable";
+    this.missing = missing;
+  }
+}
+
+const missingParts = (wire: WireProject): string[] => {
+  const missing: string[] = [];
+  if (wire.upload === null) missing.push("исходник песни");
+  if (wire.processing === null) missing.push("состояние обработки");
+  if (wire.stagePack === null) missing.push("пакет к репетиции");
+  return missing;
+};
+
+/** Можно ли показать проект доменом. Дает вызывающему выбор до отказа. */
+export const canShowProject = (wire: WireProject): boolean =>
+  missingParts(wire).length === 0;
+
+export const toProjectView = (wire: WireProject): ProjectView => {
+  const missing = missingParts(wire);
+  if (missing.length > 0) throw new ProjectNotRepresentable(wire.id, missing);
+
+  // Сужение выписано отдельно: через `missingParts` TypeScript типы не
+  // сужает, а `!` в трех местах спрятал бы проверку от читателя.
+  const { upload, processing, stagePack } = wire;
+  if (upload === null || processing === null || stagePack === null) {
+    throw new ProjectNotRepresentable(wire.id, missingParts(wire));
+  }
+
+  return {
+    project: {
+      id: wire.id,
+      name: wire.name,
+      scenario: wire.scenario,
+      processingGoal: wire.processingGoal,
+      upload: toDomainUpload(upload),
+      bandLineup: wire.bandLineup
+        ? toDomainBandLineup(wire.bandLineup)
+        : undefined,
+      musicians: wire.musicians.map(toDomainMusician),
+      studentProfile: wire.studentProfile
+        ? toDomainStudentProfile(wire.studentProfile)
+        : undefined,
+      teacherProfile: wire.teacherProfile
+        ? toDomainTeacherProfile(wire.teacherProfile)
+        : undefined,
+      classGroup: wire.classGroup
+        ? toDomainClassGroup(wire.classGroup)
+        : undefined,
+      lesson: wire.lesson ? toDomainLesson(wire.lesson) : undefined,
+      assignments: wire.assignments.map(toDomainAssignment),
+      versions: wire.versions.map(toDomainVersion),
+      currentVersionId: wire.currentVersionId ?? "",
+      processing: toDomainJob(processing),
+      analysis: toDomainAnalysis(wire.analysis),
+      stagePack: toDomainStagePack(stagePack),
+      reviewIssues: wire.reviewIssues.map(toDomainReviewIssue),
+      reviewComments: [
+        ...wire.reviewComments.map(toDomainReviewComment),
+        // Комментарии приходят и вложенными в место проверки: сервер отдает их
+        // рядом с местом, домен держит плоским списком.
+        // Поле необязательно в контракте: сервер может не прислать вложенные
+        // комментарии вовсе. Руками написанный тип объявлял его обязательным.
+        ...wire.reviewIssues.flatMap((issue) =>
+          (issue.comments ?? []).map(toDomainReviewComment),
+        ),
+      ],
+      directorSuggestions: wire.directorSuggestions.map(toDomainSuggestion),
+      chat: wire.chat.map(toDomainChatMessage),
+      changeLog: wire.changeLog.map(toDomainChangeLogEntry),
+      shareRecipients: wire.shareRecipients.map(toDomainRecipient),
+      shareLinks: [],
+      exportBundles: wire.exportBundles.map(toDomainExportBundle),
+      costEstimate: toDomainCostEstimate(wire.costEstimate),
+      setupSnapshot: wire.setupSnapshot,
+      legalConsent: toDomainConsent(wire.legalConsent),
+      dataRetention: {
+        sourceDeleted: wire.dataRetention.sourceDeleted,
+        resultsDeleted: wire.dataRetention.resultsDeleted,
+        retentionNote: wire.dataRetention.retentionNote,
+      },
     },
-  },
-  extras: {
-    uploadState: wire.upload.state,
-    sourceState: wire.dataRetention.sourceState,
-    resultsState: wire.dataRetention.resultsState,
-    shareLinks: wire.shareLinks,
-    createdAt: wire.createdAt,
-    updatedAt: wire.updatedAt,
-    jobErrorCode: wire.processing.errorCode ?? null,
-  },
-});
+    extras: {
+      uploadState: upload.state,
+      sourceState: wire.dataRetention.sourceState,
+      resultsState: wire.dataRetention.resultsState,
+      shareLinks: wire.shareLinks,
+      createdAt: wire.createdAt,
+      updatedAt: wire.updatedAt,
+      jobErrorCode: processing.errorCode ?? null,
+    },
+  };
+};

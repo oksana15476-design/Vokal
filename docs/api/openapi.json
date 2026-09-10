@@ -532,7 +532,7 @@
           "обработка"
         ],
         "summary": "Запустить обработку",
-        "description": "Отвечает `202`: задание принято в очередь. Готовность спрашивается у адреса задания.",
+        "description": "Отвечает `202`: задание принято в очередь. Готовность спрашивается у адреса задания. Пока ни один шаг конвейера не подключен, запуск отвечает `501` и перечисляет, чего не хватает: задание, завершенное без единой выполненной работы, не заводится.",
         "operationId": "start_job_api_projects__project_id__jobs_post",
         "parameters": [
           {
@@ -667,7 +667,7 @@
           "обработка"
         ],
         "summary": "Статус задания",
-        "description": "Шаги со статусами и прогресс. Шаг со статусом `skipped` не будет выполнен вовсе — это отличается от «сделан» и показывается пользователю отдельно.",
+        "description": "Шаги со статусами и прогресс. Шаг со статусом `skipped` не будет выполнен вовсе — это отличается от «сделан» и показывается пользователю отдельно. Прогресс считается только по выполняемым шагам.",
         "operationId": "read_job_api_jobs__job_id__get",
         "parameters": [
           {
@@ -754,6 +754,7 @@
           "обработка"
         ],
         "summary": "Повторить упавшее задание",
+        "description": "Повторяется только упавшее задание: `error` -> `queued` — единственный переход обратно в работу. Завершенное задание в работу не возвращается, повторная обработка заводится новым запуском.",
         "operationId": "retry_job_api_jobs__job_id__retry_post",
         "parameters": [
           {
@@ -860,7 +861,7 @@
           "материалы"
         ],
         "summary": "Stage Pack целиком",
-        "description": "Материалы текущей версии, разбор песни и места, которые стоит проверить.",
+        "description": "Материалы текущей версии, разбор песни и места, которые стоит проверить. Материал без собранного файла готовым не показывается, а `warnings` называет, чего именно в пакете не хватает.",
         "operationId": "read_stage_pack_api_projects__project_id__stage_pack_get",
         "parameters": [
           {
@@ -1195,8 +1196,8 @@
         "tags": [
           "материалы"
         ],
-        "summary": "Ссылка на скачивание материала",
-        "description": "Ссылка ведет на наш адрес и живет минуты, а не дни. Прямая подписанная ссылка на объект хранилища клиенту не отдается: ее нельзя отозвать.",
+        "summary": "Файл материала",
+        "description": "Без параметров отвечает описанием: наш адрес, по которому придет файл, и как файл будет называться. С `content=true` отдает сам файл. Прямая подписанная ссылка на объект хранилища клиенту не отдается никогда: ее нельзя отозвать.",
         "operationId": "download_artifact_api_projects__project_id__artifacts__artifact_id__download_get",
         "parameters": [
           {
@@ -1224,6 +1225,18 @@
               "title": "Artifact Id"
             },
             "description": "Идентификатор материала"
+          },
+          {
+            "name": "content",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Отдать сам файл, а не описание выдачи.",
+              "default": false,
+              "title": "Content"
+            },
+            "description": "Отдать сам файл, а не описание выдачи."
           }
         ],
         "responses": {
@@ -1259,6 +1272,16 @@
           },
           "404": {
             "description": "Объект не найден или уже удален.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Состояние объекта изменилось: обновите данные и повторите.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1899,7 +1922,7 @@
           "версии"
         ],
         "summary": "Сделать версию текущей",
-        "description": "Переключение без создания новой версии: история при этом не меняется.",
+        "description": "Переключение без создания новой версии: история при этом не меняется. Если материалы версии сейчас в работе у более поздней, переключение отвечает `409` и указывает на откат — он остается в истории.",
         "operationId": "select_version_api_projects__project_id__versions__version_id__select_patch",
         "parameters": [
           {
@@ -2139,6 +2162,7 @@
           "проверка"
         ],
         "summary": "Места, которые стоит проверить",
+        "description": "Отбор по статусу необязателен. У песни без разбора список отвечает `501`: пустой список читался бы как «все в порядке».",
         "operationId": "list_issues_api_projects__project_id__review_issues_get",
         "parameters": [
           {
@@ -2363,6 +2387,7 @@
           "проверка"
         ],
         "summary": "Свой комментарий к месту",
+        "description": "Статус места при этом не меняется: комментарий — не проверка.",
         "operationId": "add_comment_api_projects__project_id__review_issues__issue_id__comments_post",
         "parameters": [
           {
@@ -3504,6 +3529,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Сервис временно недоступен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -3601,6 +3636,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Сервис временно недоступен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -3611,7 +3656,7 @@
           "удаление"
         ],
         "summary": "Состояние удаления",
-        "description": "Статус обеих операций. Пока хранилище не подтвердило удаление, состояние остается `purge_requested`, и интерфейс показывает «удаление выполняется».",
+        "description": "Статус обеих операций. Пока хранилище не подтвердило удаление, состояние остается `purge_requested`, и интерфейс показывает «удаление выполняется». Просроченный срок удаления виден полем `error`: неисполненное обещание удаления — инцидент, а не строка в логе.",
         "operationId": "deletion_status_api_projects__project_id__deletion_status_get",
         "parameters": [
           {
@@ -3697,8 +3742,8 @@
         "tags": [
           "проекты"
         ],
-        "summary": "Создать проект из загрузки",
-        "description": "Сценарий, цель и типизированная настройка обязаны сойтись между собой. Согласие принимается только с известной сервером версией формулировки.",
+        "summary": "Создать песню",
+        "description": "Сценарий, цель и типизированная настройка обязаны сойтись между собой. Согласие принимается только с известной сервером версией формулировки. `uploadId` необязателен: без него песня создается пустой, и файл приходит в нее отдельным запросом. Без `uploadId` название обязательно.",
         "operationId": "create_project_api_projects_post",
         "parameters": [
           {
@@ -4218,7 +4263,7 @@
               }
             ],
             "title": "Artifactssnapshot",
-            "description": "Состояние материалов на момент выхода из версии. По нему делается откат."
+            "description": "Материалы, с которыми создана версия. По ним делается откат. Пусто — материалы этой версии неизвестны, и откат пометит перенесенные к пересборке."
           },
           "isCurrent": {
             "type": "boolean",
@@ -4264,9 +4309,17 @@
             "title": "Url"
           },
           "expiresAt": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expiresat"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiresat",
+            "description": "Когда адрес перестанет работать сам. `null` — не перестанет: это не ключ доступа, права проверяются на каждом запросе, а закрывается адрес удалением результатов, а не таймером. Срок появится вместе с токеном выдачи по ссылке."
           },
           "fileName": {
             "type": "string",
@@ -4281,7 +4334,8 @@
                 "type": "null"
               }
             ],
-            "title": "Sizebytes"
+            "title": "Sizebytes",
+            "description": "Размер файла, если он известен. `null` — хранилище размера не сообщает, а вычитывать файл целиком ради числа под кнопкой незачем: размер приходит заголовком вместе с самим файлом."
           }
         },
         "additionalProperties": false,
@@ -4289,11 +4343,10 @@
         "required": [
           "artifactId",
           "url",
-          "expiresAt",
           "fileName"
         ],
         "title": "ArtifactDownloadOut",
-        "description": "Ссылка на скачивание одного материала.\n\nЖивет минуты, а не дни, и ведет на наш адрес с проверкой прав."
+        "description": "Выдача одного материала: куда идти за файлом и как он будет называться.\n\nАдрес ведет на наш эндпоинт с проверкой прав. Подписанная ссылка на объект\nхранилища сюда не попадает никогда, даже когда хранилище ее умеет: отозвать\nее нельзя, и `delete-results` перестал бы исполняться для всех, кому ссылку\nуже отправили (`docs/DELETION_AND_RETENTION_DESIGN.md`)."
       },
       "ArtifactFormat": {
         "type": "string",
@@ -6021,9 +6074,17 @@
       "ProjectCreateRequest": {
         "properties": {
           "uploadId": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Uploadid",
-            "description": "Загрузка, из которой создается проект. Файл должен быть уже принят."
+            "description": "Принятая загрузка, вокруг которой оформляется песня. Пусто — песня создается без файла, и файл приходит в нее отдельным запросом."
           },
           "name": {
             "anyOf": [
@@ -6036,7 +6097,7 @@
               }
             ],
             "title": "Name",
-            "description": "Название проекта. Пусто — соберется из имени файла."
+            "description": "Название песни. Пусто — соберется из имени файла, поэтому без `uploadId` название обязательно."
           },
           "scenario": {
             "$ref": "#/components/schemas/Scenario"
@@ -6082,14 +6143,13 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "uploadId",
           "scenario",
           "goalId",
           "setup",
           "consent"
         ],
         "title": "ProjectCreateRequest",
-        "description": "Создание проекта из загруженного файла."
+        "description": "Создание песни.\n\n`uploadId` необязателен, и это разрыв круга, из-за которого продукт раньше\nне запускался вовсе: строка загрузки требует песни (`uploads.project_id`\nNOT NULL), а создание песни требовало принятой загрузки. Первым нельзя было\nсоздать ни то, ни другое. Теперь песня заводится первой и пустой, а файл\nприходит в нее вторым запросом (`POST /api/uploads` с `projectId`).\n\nПочему разрыв именно с этой стороны, а не через nullable\n`uploads.project_id`: строка загрузки без песни — это объект в хранилище,\nза который никто не отвечает. Его некому показать, некому удалить по\nзапросу и не с чем связать согласие. Пустая песня, наоборот, — состояние,\nкоторое пользователь и так видит на экране: он завел песню и еще не выбрал\nфайл."
       },
       "ProjectListResponse": {
         "properties": {
@@ -6143,7 +6203,15 @@
             "$ref": "#/components/schemas/ProcessingGoalOut"
           },
           "upload": {
-            "$ref": "#/components/schemas/UploadOut"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UploadOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Исходник песни. `null` — файла еще нет: песня заведена, файл не загружен. Это состояние продукта, а не потеря данных."
           },
           "bandLineup": {
             "anyOf": [
@@ -6229,13 +6297,29 @@
             "title": "Currentversionid"
           },
           "processing": {
-            "$ref": "#/components/schemas/ProcessingJobOut"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessingJobOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Состояние обработки. `null` — обработку не запускали. Пустое задание с пустым идентификатором сюда не подставляется: по такому идентификатору клиент пошел бы спрашивать статус и получил бы 404."
           },
           "analysis": {
             "$ref": "#/components/schemas/SongAnalysisOut"
           },
           "stagePack": {
-            "$ref": "#/components/schemas/StagePackOut"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StagePackOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Пакет к репетиции. `null` — версии аранжировки еще нет, собирать нечего."
           },
           "reviewIssues": {
             "items": {
@@ -6583,10 +6667,30 @@
             "$ref": "#/components/schemas/ReviewStatus"
           },
           "confidence": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Confidence"
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence",
+            "description": "Уверенность: 0..1. Пусто — рассчитать ее нечем, причина в confidenceNote."
+          },
+          "confidenceNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidencenote",
+            "description": "Почему уверенности нет. Заполнено ровно тогда, когда пусто число."
           },
           "comments": {
             "items": {
@@ -6594,6 +6698,19 @@
             },
             "type": "array",
             "title": "Comments"
+          },
+          "confidencePercent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidencepercent",
+            "description": "Уверенность в процентах: то же число, что и рядом с полосой на экране",
+            "readOnly": true
           }
         },
         "additionalProperties": false,
@@ -6606,7 +6723,7 @@
           "part",
           "reason",
           "status",
-          "confidence"
+          "confidencePercent"
         ],
         "title": "ReviewIssueOut",
         "description": "Место, которое стоит проверить руками."

@@ -1,12 +1,27 @@
 """Выдача материалов: получатели, ссылки, архивы.
 
-Ссылка ведет на наш адрес и отзывается. Это требование
-`docs/DELETION_AND_RETENTION_DESIGN.md`, а не удобство: без отзыва кнопка
-«удалить результаты» не закрывает доступ, который уже выдан музыкантам и
-ученикам, и обещание становится ложным.
+Половина адресов здесь работает, половина честно отказывает, и граница проходит
+не по удобству, а по тому, есть ли под адресом слой данных.
+
+**Получатели работают.** Таблица `share_recipients` заведена, поэтому список,
+добавление и правка получателя ходят в базу и закрывают чужую песню.
+
+**Ссылки и архивы отвечают `501`.** Ссылка обязана иметь срок жизни и отзыв —
+это требование `docs/DELETION_AND_RETENTION_DESIGN.md`, а не удобство: без
+отзыва кнопка «удалить результаты» не закрывает доступ, который уже выдан
+музыкантам и ученикам, и обещание становится ложным. И срок, и отзыв — это
+состояние, а хранить его негде: таблиц `share_links` и `export_bundles` в схеме
+базы нет. Выдать ссылку «пока без отзыва» нельзя тем более: отзывать ее потом
+будет нечем, а материалы по ней уже разойдутся.
+
+Разбор недостающего — в `app/services/sharing.py`. Хранилище там не упомянуто
+намеренно: оно есть (`app/storage/`), и списывать отсутствие выдачи на него
+значит отправить работу не туда.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 from fastapi import APIRouter, Response
 
@@ -33,14 +48,38 @@ from app.api.schemas.sharing import (
     ShareRecipientOut,
     ShareRecipientUpdate,
 )
+from app.core.errors import error_response
+from app.db.repositories import Repositories
+from app.services import projects as projects_service
+from app.services import sharing as service
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["выдача"])
 
 
-SHARING_MISSING = (
-    "выдача ссылок с отзываемым токеном",
-    "объектное хранилище результатов",
+WIRING_MISSING = (
+    "единица работы базы (app/db/session.py, подключается через dependency_overrides)",
+    "авторизация (app/api/deps.py: current_user_id)",
 )
+
+
+def _not_wired(endpoint: str, session: Any, user_id: str | None) -> Response | None:
+    if session is None or user_id is None:
+        return not_implemented(
+            endpoint=endpoint,
+            message="Выдача не включена: нет единицы работы базы и входа в аккаунт.",
+            missing=WIRING_MISSING,
+        )
+    return None
+
+
+def _refusal(error: projects_service.ProjectRefusal) -> Response:
+    return error_response(error.status_code, error.code, error.message, details=error.details)
+
+
+async def _owned(repos: Repositories, project_id: str, user_id: str | None):
+    return await projects_service.owned_project(
+        repos, projects_service.entity_id(project_id), str(user_id)
+    )
 
 
 @router.get(
@@ -54,12 +93,17 @@ async def list_recipients(
     page: PageDep,
     session: SessionDep,
     user_id: UserDep,
-) -> Response:
-    return not_implemented(
-        endpoint="GET /api/projects/{project_id}/recipients",
-        message="Получателей нет: проекты пока не сохраняются на сервере.",
-        missing=SHARING_MISSING,
-    )
+) -> Response | ShareRecipientListResponse:
+    blocked = _not_wired("GET /api/projects/{project_id}/recipients", session, user_id)
+    if blocked is not None:
+        return blocked
+
+    repos = Repositories(session)
+    try:
+        project = await _owned(repos, project_id, user_id)
+        return await service.list_recipients(repos, project, limit=page.limit, offset=page.offset)
+    except projects_service.ProjectRefusal as error:
+        return _refusal(error)
 
 
 @router.post(
@@ -75,12 +119,19 @@ async def create_recipient(
     payload: ShareRecipientCreate,
     session: SessionDep,
     user_id: UserDep,
-) -> Response:
-    return not_implemented(
-        endpoint="POST /api/projects/{project_id}/recipients",
-        message="Добавлять получателя некуда: проекты пока не сохраняются на сервере.",
-        missing=SHARING_MISSING,
-    )
+) -> Response | ShareRecipientOut:
+    blocked = _not_wired("POST /api/projects/{project_id}/recipients", session, user_id)
+    if blocked is not None:
+        return blocked
+
+    repos = Repositories(session)
+    try:
+        project = await _owned(repos, project_id, user_id)
+        created = await service.create_recipient(repos, project, payload)
+    except projects_service.ProjectRefusal as error:
+        return _refusal(error)
+
+    return service.recipient_out(created)
 
 
 @router.patch(
@@ -95,12 +146,23 @@ async def update_recipient(
     payload: ShareRecipientUpdate,
     session: SessionDep,
     user_id: UserDep,
-) -> Response:
-    return not_implemented(
-        endpoint="PATCH /api/projects/{project_id}/recipients/{recipient_id}",
-        message="Менять некого: получателей на сервере пока нет.",
-        missing=SHARING_MISSING,
+) -> Response | ShareRecipientOut:
+    blocked = _not_wired(
+        "PATCH /api/projects/{project_id}/recipients/{recipient_id}", session, user_id
     )
+    if blocked is not None:
+        return blocked
+
+    repos = Repositories(session)
+    try:
+        project = await _owned(repos, project_id, user_id)
+        updated = await service.update_recipient(
+            repos, project, projects_service.entity_id(recipient_id), payload
+        )
+    except projects_service.ProjectRefusal as error:
+        return _refusal(error)
+
+    return service.recipient_out(updated)
 
 
 @router.get(
@@ -117,8 +179,8 @@ async def list_share_links(
 ) -> Response:
     return not_implemented(
         endpoint="GET /api/projects/{project_id}/share-links",
-        message="Ссылок нет: выдача материалов пока не работает.",
-        missing=SHARING_MISSING,
+        message="Ссылок нет: выдавать их пока нечем — хранить срок жизни и отзыв негде.",
+        missing=service.LINKS_MISSING,
     )
 
 
@@ -139,10 +201,15 @@ async def create_share_link(
     session: SessionDep,
     user_id: UserDep,
 ) -> Response:
+    # Отказ, а не ссылка «пока без отзыва». Выданное однажды нельзя догнать:
+    # материалы разойдутся, а отзывать их будет нечем.
     return not_implemented(
         endpoint="POST /api/projects/{project_id}/share-links",
-        message="Выдавать нечего: материалов и хранилища для них пока нет.",
-        missing=SHARING_MISSING,
+        message=(
+            "Ссылку выдать нельзя: у нее не может быть ни срока жизни, ни отзыва — "
+            "хранить их негде."
+        ),
+        missing=service.LINKS_MISSING,
     )
 
 
@@ -161,8 +228,8 @@ async def revoke_share_link(
 ) -> Response:
     return not_implemented(
         endpoint="DELETE /api/projects/{project_id}/share-links/{link_id}",
-        message="Отзывать нечего: ссылки пока не выдаются.",
-        missing=SHARING_MISSING,
+        message="Отзывать нечего: ссылки не выдаются, потому что хранить их негде.",
+        missing=service.LINKS_MISSING,
     )
 
 
@@ -180,8 +247,8 @@ async def list_export_bundles(
 ) -> Response:
     return not_implemented(
         endpoint="GET /api/projects/{project_id}/export-bundles",
-        message="Архивов нет: материалы пока не собираются.",
-        missing=SHARING_MISSING,
+        message="Архивов нет: собирать их не из чего и хранить негде.",
+        missing=service.BUNDLES_MISSING,
     )
 
 
@@ -201,8 +268,8 @@ async def create_export_bundle(
 ) -> Response:
     return not_implemented(
         endpoint="POST /api/projects/{project_id}/export-bundles",
-        message="Собирать нечего: материалы пока не создаются.",
-        missing=SHARING_MISSING,
+        message="Собирать нечего: файлов материалов пока не создается.",
+        missing=service.BUNDLES_MISSING,
     )
 
 
@@ -220,6 +287,6 @@ async def read_export_bundle(
 ) -> Response:
     return not_implemented(
         endpoint="GET /api/projects/{project_id}/export-bundles/{bundle_id}",
-        message="Архивов нет: материалы пока не собираются.",
-        missing=SHARING_MISSING,
+        message="Архивов нет: собирать их не из чего и хранить негде.",
+        missing=service.BUNDLES_MISSING,
     )

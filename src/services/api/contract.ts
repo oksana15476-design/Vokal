@@ -376,7 +376,11 @@ export const reviewIssueDecoder: Decoder<WireReviewIssue> = obj({
   part: str,
   reason: withDefault(str, ""),
   status: oneOf(reviewStatuses),
-  confidence: num,
+  confidence: nullable(num),
+  confidenceNote: nullable(str),
+  // Обязателен по контракту: правило бренда требует, чтобы уверенность
+  // называлась числом в процентах, а не только полосой.
+  confidencePercent: nullable(num),
   comments: withDefault(arr(reviewCommentDecoder), []),
 });
 

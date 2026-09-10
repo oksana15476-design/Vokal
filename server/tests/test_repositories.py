@@ -40,6 +40,7 @@ from app.db.repositories import (
 from app.db.retention import purge_objects, resolve_retention_until
 from app.db.seed import DEMO_PROJECT_KEYS, seed_demo_projects
 from app.db.session import session_scope
+from app.storage.retention import retention_until
 
 pytestmark = pytest.mark.asyncio
 
@@ -569,9 +570,33 @@ async def test_physical_purge_is_honestly_not_implemented() -> None:
     assert "хранилищ" in str(error.value).lower()
 
 
-async def test_retention_period_is_not_invented() -> None:
-    """Сроки хранения не выдуманы: в дизайн-доке они не заполнены."""
-    assert resolve_retention_until(_now()) is None
+async def test_retention_period_is_not_invented_here() -> None:
+    """Срок не выдуман на месте: он взят из единственного источника.
+
+    Посылка прежней проверки умерла. Она требовала `None` и ссылалась на
+    незаполненный дизайн-док; сроки с тех пор решены и лежат в
+    `app/storage/retention.py` с обоснованием по каждому. Требовать `None`
+    дальше — значит охранять отсутствие решения, которого уже нет.
+
+    Охраняемая ценность та же: величина не заводится здесь. Проверяем это
+    прямо — совпадением с источником, а не повторением числа. Число,
+    переписанное в тест руками, разойдется с источником ровно так же молча,
+    как разошлись когда-то два модуля сроков.
+    """
+    moment = _now()
+
+    assert resolve_retention_until(moment) == retention_until("results", moment)
+
+
+async def test_unknown_retention_kind_is_refused() -> None:
+    """Незнакомый род падает, а не берет срок наугад.
+
+    Молчаливое умолчание тут стоит дороже падения: срок, взятый наугад, либо
+    стирает оплаченный результат раньше разрешенного, либо хранит чужую
+    фонограмму дольше обещанного.
+    """
+    with pytest.raises(ValueError):
+        resolve_retention_until(_now(), kind="выдуманный-род")
 
 
 # --- Задача 10: демо-данные --------------------------------------------------

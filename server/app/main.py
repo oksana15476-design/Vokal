@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.router import API_PREFIX, api_router
 from app.core.config import Settings, get_settings
 from app.core.db import check_database, create_probe_engine
 from app.core.errors import error_response, register_error_handlers
@@ -129,12 +130,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     # --- Роутеры API -----------------------------------------------------
-    # Их приносит другой батч. Здесь только место подключения:
+    # Префикс не выписан строкой по месту, а взят из `app/api/router.py`: там
+    # он объявлен один раз. Сами роутеры несут собственные `/consent`,
+    # `/uploads`, `/projects`, и `/api` внутри них не повторяется — иначе
+    # адреса стали бы `/api/api/...`.
     #
-    #     from app.api.router import api_router
-    #     app.include_router(api_router, prefix="/api")
+    # Подключение идет после служебных адресов, но перекрыть их не может:
+    # все пути роутера лежат под `/api`, а `/health` и `/ready` — нет.
     #
-    # Пока роутеров нет, запрос к /api/... честно отвечает 404 в общем
-    # формате ошибки. Заглушек с правдоподобными данными тут нет намеренно.
+    # Что за этими адресами есть на самом деле: настоящий ответ дают только
+    # версии согласия и ограничения загрузки. Остальные отвечают `501` с
+    # разбором в `details.missing` — заглушек, изображающих готовность,
+    # в API нет намеренно.
+    app.include_router(api_router, prefix=API_PREFIX)
 
     return app

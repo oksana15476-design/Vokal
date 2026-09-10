@@ -155,7 +155,7 @@ export interface paths {
         put?: never;
         /**
          * Запустить обработку
-         * @description Отвечает `202`: задание принято в очередь. Готовность спрашивается у адреса задания.
+         * @description Отвечает `202`: задание принято в очередь. Готовность спрашивается у адреса задания. Пока ни один шаг конвейера не подключен, запуск отвечает `501` и перечисляет, чего не хватает: задание, завершенное без единой выполненной работы, не заводится.
          */
         post: operations["start_job_api_projects__project_id__jobs_post"];
         delete?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Статус задания
-         * @description Шаги со статусами и прогресс. Шаг со статусом `skipped` не будет выполнен вовсе — это отличается от «сделан» и показывается пользователю отдельно.
+         * @description Шаги со статусами и прогресс. Шаг со статусом `skipped` не будет выполнен вовсе — это отличается от «сделан» и показывается пользователю отдельно. Прогресс считается только по выполняемым шагам.
          */
         get: operations["read_job_api_jobs__job_id__get"];
         put?: never;
@@ -193,7 +193,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Повторить упавшее задание */
+        /**
+         * Повторить упавшее задание
+         * @description Повторяется только упавшее задание: `error` -> `queued` — единственный переход обратно в работу. Завершенное задание в работу не возвращается, повторная обработка заводится новым запуском.
+         */
         post: operations["retry_job_api_jobs__job_id__retry_post"];
         delete?: never;
         options?: never;
@@ -210,7 +213,7 @@ export interface paths {
         };
         /**
          * Stage Pack целиком
-         * @description Материалы текущей версии, разбор песни и места, которые стоит проверить.
+         * @description Материалы текущей версии, разбор песни и места, которые стоит проверить. Материал без собранного файла готовым не показывается, а `warnings` называет, чего именно в пакете не хватает.
          */
         get: operations["read_stage_pack_api_projects__project_id__stage_pack_get"];
         put?: never;
@@ -263,8 +266,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Ссылка на скачивание материала
-         * @description Ссылка ведет на наш адрес и живет минуты, а не дни. Прямая подписанная ссылка на объект хранилища клиенту не отдается: ее нельзя отозвать.
+         * Файл материала
+         * @description Без параметров отвечает описанием: наш адрес, по которому придет файл, и как файл будет называться. С `content=true` отдает сам файл. Прямая подписанная ссылка на объект хранилища клиенту не отдается никогда: ее нельзя отозвать.
          */
         get: operations["download_artifact_api_projects__project_id__artifacts__artifact_id__download_get"];
         put?: never;
@@ -404,7 +407,7 @@ export interface paths {
         head?: never;
         /**
          * Сделать версию текущей
-         * @description Переключение без создания новой версии: история при этом не меняется.
+         * @description Переключение без создания новой версии: история при этом не меняется. Если материалы версии сейчас в работе у более поздней, переключение отвечает `409` и указывает на откат — он остается в истории.
          */
         patch: operations["select_version_api_projects__project_id__versions__version_id__select_patch"];
         trace?: never;
@@ -436,7 +439,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Места, которые стоит проверить */
+        /**
+         * Места, которые стоит проверить
+         * @description Отбор по статусу необязателен. У песни без разбора список отвечает `501`: пустой список читался бы как «все в порядке».
+         */
         get: operations["list_issues_api_projects__project_id__review_issues_get"];
         put?: never;
         post?: never;
@@ -475,7 +481,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Свой комментарий к месту */
+        /**
+         * Свой комментарий к месту
+         * @description Статус места при этом не меняется: комментарий — не проверка.
+         */
         post: operations["add_comment_api_projects__project_id__review_issues__issue_id__comments_post"];
         delete?: never;
         options?: never;
@@ -649,7 +658,7 @@ export interface paths {
         };
         /**
          * Состояние удаления
-         * @description Статус обеих операций. Пока хранилище не подтвердило удаление, состояние остается `purge_requested`, и интерфейс показывает «удаление выполняется».
+         * @description Статус обеих операций. Пока хранилище не подтвердило удаление, состояние остается `purge_requested`, и интерфейс показывает «удаление выполняется». Просроченный срок удаления виден полем `error`: неисполненное обещание удаления — инцидент, а не строка в логе.
          */
         get: operations["deletion_status_api_projects__project_id__deletion_status_get"];
         put?: never;
@@ -674,8 +683,8 @@ export interface paths {
         get: operations["list_projects_api_projects_get"];
         put?: never;
         /**
-         * Создать проект из загрузки
-         * @description Сценарий, цель и типизированная настройка обязаны сойтись между собой. Согласие принимается только с известной сервером версией формулировки.
+         * Создать песню
+         * @description Сценарий, цель и типизированная настройка обязаны сойтись между собой. Согласие принимается только с известной сервером версией формулировки. `uploadId` необязателен: без него песня создается пустой, и файл приходит в нее отдельным запросом. Без `uploadId` название обязательно.
          */
         post: operations["create_project_api_projects_post"];
         delete?: never;
@@ -771,7 +780,7 @@ export interface components {
             changes: string[];
             /**
              * Artifactssnapshot
-             * @description Состояние материалов на момент выхода из версии. По нему делается откат.
+             * @description Материалы, с которыми создана версия. По ним делается откат. Пусто — материалы этой версии неизвестны, и откат пометит перенесенные к пересборке.
              */
             artifactsSnapshot?: components["schemas"]["ArtifactOut"][] | null;
             /**
@@ -788,9 +797,12 @@ export interface components {
         ArtifactAudience: "all" | "band" | "teacher" | "student" | "instrument";
         /**
          * ArtifactDownloadOut
-         * @description Ссылка на скачивание одного материала.
+         * @description Выдача одного материала: куда идти за файлом и как он будет называться.
          *
-         *     Живет минуты, а не дни, и ведет на наш адрес с проверкой прав.
+         *     Адрес ведет на наш эндпоинт с проверкой прав. Подписанная ссылка на объект
+         *     хранилища сюда не попадает никогда, даже когда хранилище ее умеет: отозвать
+         *     ее нельзя, и `delete-results` перестал бы исполняться для всех, кому ссылку
+         *     уже отправили (`docs/DELETION_AND_RETENTION_DESIGN.md`).
          */
         ArtifactDownloadOut: {
             /** Artifactid */
@@ -799,12 +811,15 @@ export interface components {
             url: string;
             /**
              * Expiresat
-             * Format: date-time
+             * @description Когда адрес перестанет работать сам. `null` — не перестанет: это не ключ доступа, права проверяются на каждом запросе, а закрывается адрес удалением результатов, а не таймером. Срок появится вместе с токеном выдачи по ссылке.
              */
-            expiresAt: string;
+            expiresAt?: string | null;
             /** Filename */
             fileName: string;
-            /** Sizebytes */
+            /**
+             * Sizebytes
+             * @description Размер файла, если он известен. `null` — хранилище размера не сообщает, а вычитывать файл целиком ради числа под кнопкой незачем: размер приходит заголовком вместе с самим файлом.
+             */
             sizeBytes?: number | null;
         };
         /**
@@ -1613,17 +1628,30 @@ export interface components {
         ProcessingStepStatus: "queued" | "running" | "done" | "warning" | "error" | "skipped";
         /**
          * ProjectCreateRequest
-         * @description Создание проекта из загруженного файла.
+         * @description Создание песни.
+         *
+         *     `uploadId` необязателен, и это разрыв круга, из-за которого продукт раньше
+         *     не запускался вовсе: строка загрузки требует песни (`uploads.project_id`
+         *     NOT NULL), а создание песни требовало принятой загрузки. Первым нельзя было
+         *     создать ни то, ни другое. Теперь песня заводится первой и пустой, а файл
+         *     приходит в нее вторым запросом (`POST /api/uploads` с `projectId`).
+         *
+         *     Почему разрыв именно с этой стороны, а не через nullable
+         *     `uploads.project_id`: строка загрузки без песни — это объект в хранилище,
+         *     за который никто не отвечает. Его некому показать, некому удалить по
+         *     запросу и не с чем связать согласие. Пустая песня, наоборот, — состояние,
+         *     которое пользователь и так видит на экране: он завел песню и еще не выбрал
+         *     файл.
          */
         ProjectCreateRequest: {
             /**
              * Uploadid
-             * @description Загрузка, из которой создается проект. Файл должен быть уже принят.
+             * @description Принятая загрузка, вокруг которой оформляется песня. Пусто — песня создается без файла, и файл приходит в нее отдельным запросом.
              */
-            uploadId: string;
+            uploadId?: string | null;
             /**
              * Name
-             * @description Название проекта. Пусто — соберется из имени файла.
+             * @description Название песни. Пусто — соберется из имени файла, поэтому без `uploadId` название обязательно.
              */
             name?: string | null;
             scenario: components["schemas"]["Scenario"];
@@ -1660,7 +1688,8 @@ export interface components {
             name: string;
             scenario: components["schemas"]["Scenario"];
             processingGoal: components["schemas"]["ProcessingGoalOut"];
-            upload: components["schemas"]["UploadOut"];
+            /** @description Исходник песни. `null` — файла еще нет: песня заведена, файл не загружен. Это состояние продукта, а не потеря данных. */
+            upload: components["schemas"]["UploadOut"] | null;
             bandLineup?: components["schemas"]["BandLineupOut"] | null;
             /**
              * Musicians
@@ -1677,9 +1706,11 @@ export interface components {
             versions: components["schemas"]["ArrangementVersionOut"][];
             /** Currentversionid */
             currentVersionId?: string | null;
-            processing: components["schemas"]["ProcessingJobOut"];
+            /** @description Состояние обработки. `null` — обработку не запускали. Пустое задание с пустым идентификатором сюда не подставляется: по такому идентификатору клиент пошел бы спрашивать статус и получил бы 404. */
+            processing: components["schemas"]["ProcessingJobOut"] | null;
             analysis: components["schemas"]["SongAnalysisOut"];
-            stagePack: components["schemas"]["StagePackOut"];
+            /** @description Пакет к репетиции. `null` — версии аранжировки еще нет, собирать нечего. */
+            stagePack: components["schemas"]["StagePackOut"] | null;
             /** Reviewissues */
             reviewIssues: components["schemas"]["ReviewIssueOut"][];
             /** Reviewcomments */
@@ -1819,10 +1850,23 @@ export interface components {
              */
             reason: string;
             status: components["schemas"]["ReviewStatus"];
-            /** Confidence */
-            confidence: number;
+            /**
+             * Confidence
+             * @description Уверенность: 0..1. Пусто — рассчитать ее нечем, причина в confidenceNote.
+             */
+            confidence?: number | null;
+            /**
+             * Confidencenote
+             * @description Почему уверенности нет. Заполнено ровно тогда, когда пусто число.
+             */
+            confidenceNote?: string | null;
             /** Comments */
             comments?: components["schemas"]["ReviewCommentOut"][];
+            /**
+             * Confidencepercent
+             * @description Уверенность в процентах: то же число, что и рядом с полосой на экране
+             */
+            readonly confidencePercent: number | null;
         };
         /**
          * ReviewIssueStatusUpdate
@@ -3286,7 +3330,10 @@ export interface operations {
     };
     download_artifact_api_projects__project_id__artifacts__artifact_id__download_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Отдать сам файл, а не описание выдачи. */
+                content?: boolean;
+            };
             header?: never;
             path: {
                 /** @description Идентификатор проекта */
@@ -3327,6 +3374,15 @@ export interface operations {
             };
             /** @description Объект не найден или уже удален. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Состояние объекта изменилось: обновите данные и повторите. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4941,6 +4997,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description Сервис временно недоступен. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     delete_results_api_projects__project_id__delete_results_post: {
@@ -5006,6 +5071,15 @@ export interface operations {
             };
             /** @description Адрес объявлен, реализации еще нет. В details.missing сказано, чего не хватает. */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Сервис временно недоступен. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

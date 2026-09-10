@@ -2,15 +2,25 @@
 
 Три вещи, объясняющие форму этого модуля.
 
-**Первое. Проект создается поверх строки, которая уже есть.** Строка `projects`
-заводится раньше проекта как продуктовой сущности: `uploads.project_id`
-обязателен (`app/db/models.py`), значит файл некуда положить, пока строки нет.
-До этого вызова у нее нет ни сценария, ни цели, ни согласия — это держатель
-файла, а не песня. Здесь песня и создается, отсюда `201`.
+**Первое. Песня заводится раньше файла, и этим разорван круг.** Раньше
+`uploads.project_id` был обязателен (`app/db/models.py`), а
+`ProjectCreateRequest.upload_id` — тоже обязателен: клиент не мог создать
+первым ни песню, ни загрузку, и первый же пользовательский сценарий был
+непроходим. Круг разрезан со стороны песни: `create_project` заводит строку
+`projects` сам, без файла, а файл приходит в нее вторым запросом
+(`POST /api/uploads` с `projectId`).
 
-Круг «загрузка требует проекта, проект требует загрузки» этим не расшит. Он
-записан в `app/api/routes/uploads.py` и вынесен владельцу: резать его надо с
-одной стороны, и выбор стороны — не молчаливая правка чужого батча.
+Почему с этой стороны, а не через nullable `uploads.project_id`: загрузка без
+песни — это объект в хранилище, за который никто не отвечает. Его нечем
+показать, некому удалить по запросу пользователя и не с чем связать согласие,
+а колонка `project_id` в базе перестала бы гарантировать, что у каждого файла
+есть хозяин. Пустая песня, наоборот, — обычное состояние экрана: песня
+заведена, файл еще не выбран. Схема базы при этом не менялась, и миграция не
+нужна.
+
+Второй путь создания сохранен: `adopt_upload` оформляет песню поверх строки,
+которая уже держит принятый файл. Так устроены демо-данные (`app/db/seed.py`),
+и так же будет выглядеть импорт со стороны.
 
 **Второе. Согласие пишется вместе с текстом.** Не только версия: запись должна
 читаться, даже если реестр версий когда-нибудь потеряют (`types.ts`).
@@ -60,6 +70,7 @@ from app.api.schemas.enums import (
     VersionKind,
     VersionStatus,
 )
+from app.api.schemas.jobs import ProcessingJobOut
 from app.api.schemas.people import (
     AssignmentOut,
     BandLineupOut,
@@ -85,6 +96,7 @@ from app.api.schemas.versions import ArrangementVersionOut
 from app.db import enums, models
 from app.db.repositories import (
     EntityNotFound,
+    ProjectCreate,
     ProjectPatch,
     Repositories,
     VersionCreate,
@@ -380,10 +392,129 @@ def _version_kind_for(scenario: enums.Scenario) -> enums.VersionKind:
 #: Подпись и запись первой версии. Те же, что на экране загрузки.
 FIRST_VERSION_LABEL = "Черновик"
 FIRST_VERSION_CHANGE = "Проект создан из выбранного файла."
+#: Запись версии у песни, заведенной до файла. Отдельная строка, а не общая:
+#: «создан из выбранного файла» там, где файла еще нет, — запись о том, чего
+#: не было, и история изменений начиналась бы с неправды.
+FIRST_VERSION_CHANGE_EMPTY = "Песня заведена. Файл еще не загружен."
 FIRST_VERSION_AUTHOR = "Пользователь"
 
 
+def _consent_text_or_refuse(payload: ProjectCreateRequest) -> str:
+    """Текст согласия по версии из запроса.
+
+    Схема это уже проверила. Повтор здесь — не перестраховка: сервис
+    вызывается и из тестов, и из будущего импорта, а согласие без текста
+    восстановить нечем.
+    """
+    consent_text = consent_text_by_id(payload.consent.version_id)
+    if consent_text is None:
+        raise ProjectRefusal(
+            422,
+            "unknown_consent_version",
+            "Неизвестная версия согласия.",
+            details={"versionId": payload.consent.version_id},
+        )
+    return consent_text
+
+
+def _snapshot_of(payload: ProjectCreateRequest) -> SetupSnapshot:
+    return payload.setup_snapshot or SetupSnapshot(
+        scenario=payload.scenario,
+        title="Состав группы" if payload.scenario is Scenario.BAND else "Учебная задача",
+        fields=[],
+    )
+
+
+async def _with_first_version(
+    repos: Repositories,
+    project: models.Project,
+    *,
+    scenario: enums.Scenario,
+    now: datetime,
+    change: str,
+) -> models.Project:
+    """Завести первую версию аранжировки и сделать ее текущей.
+
+    Одной транзакцией запроса вместе с самой песней: песня без версии и версия
+    без песни одинаково бесполезны.
+    """
+    version = await repos.versions.create(
+        VersionCreate(
+            project_id=project.id,
+            label=FIRST_VERSION_LABEL,
+            kind=_version_kind_for(scenario),
+            created_by=FIRST_VERSION_AUTHOR,
+            status=enums.VersionStatus.DRAFT,
+            created_at=now,
+            changes=[change],
+        )
+    )
+    return await repos.projects.update(project.id, ProjectPatch(current_version_id=version.id))
+
+
 async def create_project(
+    repos: Repositories,
+    *,
+    owner_id: uuid.UUID,
+    payload: ProjectCreateRequest,
+    now: datetime,
+) -> models.Project:
+    """Завести песню до файла.
+
+    Это и есть разрыв круга (см. докстринг модуля): строка `projects`
+    создается здесь, а не достается готовой. Файл приходит следующим запросом
+    в уже существующую песню.
+
+    Название обязательно и проверяется дважды — схемой и здесь. Без файла
+    собирать его не из чего, а подставить «Без названия» значит придумать за
+    пользователя данные, которые он потом будет искать в списке.
+    """
+    consent_text = _consent_text_or_refuse(payload)
+
+    owner = await repos.users.get(owner_id)
+    if owner is None:
+        # Иначе запрос упал бы на внешнем ключе и превратился в `500`
+        # «внутренняя ошибка». Причина при этом ровно одна и она внятная:
+        # такого пользователя нет.
+        raise ProjectRefusal(
+            401, "unauthorized", "Вход в аккаунт не распознан: такого пользователя нет."
+        )
+
+    name = (payload.name or "").strip()
+    if not name:
+        raise ProjectRefusal(
+            422,
+            "name_required",
+            "Без загрузки название песни обязательно: собрать его не из чего.",
+        )
+
+    snapshot = _snapshot_of(payload)
+    scenario = enums.Scenario(payload.scenario.value)
+    project = await repos.projects.create(
+        ProjectCreate(
+            user_id=owner_id,
+            name=name,
+            scenario=scenario,
+            processing_goal_id=enums.ProcessingGoalId(payload.goal_id.value),
+            last_opened_at=now,
+            setup=payload.setup.model_dump(by_alias=True, mode="json"),
+            setup_snapshot=snapshot.model_dump(by_alias=True, mode="json"),
+            cost_estimate=estimate_cost(payload.scenario, snapshot).model_dump(
+                by_alias=True, mode="json"
+            ),
+            consent_accepted=True,
+            consent_version_id=payload.consent.version_id,
+            consent_text=consent_text,
+            consent_accepted_at=now,
+        )
+    )
+    await repos.session.flush()
+    return await _with_first_version(
+        repos, project, scenario=scenario, now=now, change=FIRST_VERSION_CHANGE_EMPTY
+    )
+
+
+async def adopt_upload(
     repos: Repositories,
     *,
     upload: models.Upload,
@@ -391,29 +522,15 @@ async def create_project(
     payload: ProjectCreateRequest,
     now: datetime,
 ) -> models.Project:
-    """Оформить песню из принятой загрузки.
+    """Оформить песню поверх строки, которая уже держит принятый файл.
 
-    Пишет сценарий, цель, настройку, сводку, согласие и оценку стоимости,
-    заводит первую версию и делает ее текущей. Все — одной транзакцией
-    запроса: песня без версии и версия без песни одинаково бесполезны.
+    Второй путь создания. Он нужен там, где строка `projects` появилась не из
+    `create_project`: демо-данные (`app/db/seed.py`) и будущий импорт со
+    стороны. Пишет сценарий, цель, настройку, сводку, согласие и оценку
+    стоимости, заводит первую версию и делает ее текущей.
     """
-    consent_text = consent_text_by_id(payload.consent.version_id)
-    if consent_text is None:
-        # Схема это уже проверила. Повтор здесь — не перестраховка: сервис
-        # вызывается и из тестов, и из будущего импорта, а согласие без
-        # текста восстановить нечем.
-        raise ProjectRefusal(
-            422,
-            "unknown_consent_version",
-            "Неизвестная версия согласия.",
-            details={"versionId": payload.consent.version_id},
-        )
-
-    snapshot = payload.setup_snapshot or SetupSnapshot(
-        scenario=payload.scenario,
-        title="Состав группы" if payload.scenario is Scenario.BAND else "Учебная задача",
-        fields=[],
-    )
+    consent_text = _consent_text_or_refuse(payload)
+    snapshot = _snapshot_of(payload)
     scenario = enums.Scenario(payload.scenario.value)
     name = payload.name or f"{title_from_file_name(upload.file_name)}: подготовка"
 
@@ -439,18 +556,9 @@ async def create_project(
     project.consent_accepted_at = now
     await repos.session.flush()
 
-    version = await repos.versions.create(
-        VersionCreate(
-            project_id=project.id,
-            label=FIRST_VERSION_LABEL,
-            kind=_version_kind_for(scenario),
-            created_by=FIRST_VERSION_AUTHOR,
-            status=enums.VersionStatus.DRAFT,
-            created_at=now,
-            changes=[FIRST_VERSION_CHANGE],
-        )
+    return await _with_first_version(
+        repos, project, scenario=scenario, now=now, change=FIRST_VERSION_CHANGE
     )
-    return await repos.projects.update(project.id, ProjectPatch(current_version_id=version.id))
 
 
 # --- чтение ------------------------------------------------------------------
@@ -568,6 +676,20 @@ def stage_pack_out(version_id: uuid.UUID, artifacts: Sequence[models.Artifact]) 
         version_id=str(version_id),
         artifacts=[artifact_out(artifact) for artifact in artifacts],
     )
+
+
+def stage_pack_or_none(
+    version_id: uuid.UUID | None, artifacts: Sequence[models.Artifact]
+) -> StagePackOut | None:
+    """Пакет к репетиции или его отсутствие.
+
+    Раньше на месте отсутствия стоял объект с придуманным идентификатором
+    `pack-none` и пустой версией. Отличить его от настоящего пакета клиент не
+    мог, а идентификатор вел в никуда: запрос по нему не нашел бы ничего.
+    """
+    if version_id is None:
+        return None
+    return stage_pack_out(version_id, artifacts)
 
 
 def review_issue_out(
@@ -693,17 +815,18 @@ def _assignments_out(raw: list[Any] | None) -> list[AssignmentOut]:
     ]
 
 
-def upload_out(upload: models.Upload | None) -> UploadOut:
-    if upload is None:
-        # Песня без исходника — сломанные данные, а не состояние продукта:
-        # строка `uploads` заводится раньше песни. Показывать карточку не из
-        # чего, и придумывать пустую загрузку нельзя.
-        raise ProjectRefusal(
-            404,
-            "source_missing",
-            "У песни нет исходника: показать карточку не из чего.",
-        )
-    return uploads_service.to_out(upload)
+def upload_or_none(upload: models.Upload | None) -> UploadOut | None:
+    """Исходник песни или честное «его еще нет».
+
+    Раньше здесь стоял отказ `404 source_missing`. Он был верен, пока строка
+    `uploads` заводилась раньше песни, и стал ложью, как только порядок стал
+    обратным: песню, которую пользователь только что создал и видит в списке,
+    нельзя открывать ответом «не найдена».
+
+    Придуманной пустой загрузки тут по-прежнему нет: `null` говорит «файла еще
+    нет», а объект с нулевой длительностью говорил бы «файл есть, он пустой».
+    """
+    return uploads_service.to_out(upload) if upload is not None else None
 
 
 def legal_consent_out(project: models.Project) -> LegalConsentOut:
@@ -752,13 +875,18 @@ def cost_estimate_out(project: models.Project) -> CostEstimateOut:
     return estimate_cost(Scenario(project.scenario.value), setup_snapshot_out(project))
 
 
-def project_out(bundle: ProjectBundle, processing: Any) -> ProjectOut:
+def project_out(bundle: ProjectBundle, processing: ProcessingJobOut | None) -> ProjectOut:
     """Карточка песни целиком.
 
     Пустые списки предложений директора, разговора, ссылок, пакетов и истории
     изменений — не заглушки: этих сущностей в базе нет вовсе, и их батчи еще
     не собраны. Наполнить их выдумкой значило бы показать пользователю
     действия, которых он не совершал.
+
+    `processing` приходит сюда `None`, если обработку не запускали, и уходит
+    наружу тем же `None`. Задание-призрак со статусом «в очереди» и пустым
+    идентификатором тут не собирается: клиент отнес бы этот идентификатор на
+    адрес задания и получил бы `404`.
     """
     project = bundle.project
     current = project.current_version_id
@@ -782,7 +910,7 @@ def project_out(bundle: ProjectBundle, processing: Any) -> ProjectOut:
         name=project.name,
         scenario=Scenario(project.scenario.value),
         processing_goal=goal_out(project.processing_goal_id),
-        upload=upload_out(bundle.upload),
+        upload=upload_or_none(bundle.upload),
         band_lineup=_band_lineup_out(project.band_lineup),
         musicians=[musician_out(item) for item in bundle.musicians],
         student_profile=_student_profile_out(project.student_profile),
@@ -796,9 +924,7 @@ def project_out(bundle: ProjectBundle, processing: Any) -> ProjectOut:
         current_version_id=str(current) if current else None,
         processing=processing,
         analysis=analysis_out(project, bundle.upload),
-        stage_pack=stage_pack_out(pack_version, pack_artifacts)
-        if pack_version is not None
-        else StagePackOut(id="pack-none", version_id="", artifacts=[]),
+        stage_pack=stage_pack_or_none(pack_version, pack_artifacts),
         review_issues=[review_issue_out(issue, bundle.comments) for issue in bundle.issues],
         review_comments=[
             ReviewCommentOut(
@@ -837,7 +963,9 @@ def project_out(bundle: ProjectBundle, processing: Any) -> ProjectOut:
 
 
 def project_summary(
-    project: models.Project, upload: models.Upload | None, processing: Any
+    project: models.Project,
+    upload: models.Upload | None,
+    processing: ProcessingJobOut | None,
 ) -> ProjectSummary:
     return ProjectSummary(
         id=str(project.id),

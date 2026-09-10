@@ -1,8 +1,15 @@
 """Проекты.
 
-Проект создается из уже принятой загрузки, а не вместе с файлом: файл идет в
-хранилище отдельным запросом, и связывать две долгие операции в одну — значит
-терять обе при обрыве.
+Песня заводится до файла, а файл идет в хранилище отдельным запросом:
+связывать две долгие операции в одну — значит терять обе при обрыве. Этим же
+разорван круг, из-за которого продукт раньше не запускался: строка загрузки
+требует песни, а создание песни требовало принятой загрузки, и первым нельзя
+было создать ни то, ни другое. Обоснование выбора стороны — в докстринге
+`app/services/projects.py`.
+
+`uploadId` в теле создания остался необязательным входом для второго пути:
+песня оформляется поверх строки, которая уже держит принятый файл (демо-данные,
+будущий импорт).
 
 Согласие приходит здесь же и вместе с версией формулировки. Это не
 формальность: без версии запись «согласие получено» остается без предмета, и
@@ -27,7 +34,7 @@ from fastapi import APIRouter, Header, Query, Response
 from app.api.deps import PageDep, ProjectIdPath, SessionDep, UserDep
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
-from app.api.schemas.enums import JobStatus, Scenario
+from app.api.schemas.enums import Scenario
 from app.api.schemas.jobs import ProcessingJobOut
 from app.api.schemas.projects import (
     ProjectCreateRequest,
@@ -65,25 +72,20 @@ def _refusal(error: service.ProjectRefusal) -> Response:
     return error_response(error.status_code, error.code, error.message, details=error.details)
 
 
-async def _processing_of(repos: Repositories, project: Any) -> Any:
+async def _processing_of(repos: Repositories, project: Any) -> ProcessingJobOut | None:
     """Состояние обработки для карточки песни.
 
-    `ProjectOut.processing` обязателен по контракту, а задания может не быть
-    вовсе: песня создана, обработку никто не запускал. Идентификатор в этом
-    случае пустой — придумывать идентификатор несуществующего задания нельзя,
-    по нему клиент пойдет спрашивать статус и получит `404`.
+    Задания может не быть вовсе: песня создана, обработку никто не запускал.
+    Тогда здесь `None`, и в карточку уходит `null`.
+
+    Раньше на этом месте собиралось задание с пустым идентификатором и
+    статусом «в очереди». Оно выглядело как настоящее: экран показывал бы
+    ожидание обработки, которой никто не запускал, а по пустому идентификатору
+    клиент пошел бы на адрес задания и получил `404`.
     """
     job = await jobs_service.latest_job(repos, project.id)
     if job is None:
-        return ProcessingJobOut(
-            id="",
-            project_id=str(project.id),
-            status=JobStatus.QUEUED,
-            steps=[],
-            warnings=[],
-            progress_percent=0,
-            retry_count=0,
-        )
+        return None
     return jobs_service.job_out(job, await jobs_service.steps_of(repos, job))
 
 
@@ -91,10 +93,12 @@ async def _processing_of(repos: Repositories, project: Any) -> Any:
     "",
     response_model=ProjectOut,
     status_code=201,
-    summary="Создать проект из загрузки",
+    summary="Создать песню",
     description=(
         "Сценарий, цель и типизированная настройка обязаны сойтись между собой. "
-        "Согласие принимается только с известной сервером версией формулировки."
+        "Согласие принимается только с известной сервером версией формулировки. "
+        "`uploadId` необязателен: без него песня создается пустой, и файл приходит "
+        "в нее отдельным запросом. Без `uploadId` название обязательно."
     ),
     responses=errors(401, 403, 404, 409, 422, 501),
 )
@@ -118,17 +122,24 @@ async def create_project(
         return blocked
 
     repos = Repositories(session)
+    now = datetime.now(UTC)
     try:
-        upload, holder = await service.holder_for_upload(
-            repos, upload_id=payload.upload_id, user_id=str(user_id)
-        )
-        project = await service.create_project(
-            repos,
-            upload=upload,
-            holder=holder,
-            payload=payload,
-            now=datetime.now(UTC),
-        )
+        if payload.upload_id is None:
+            # Разрыв круга: песня заводится первой и пустой, файл приходит в
+            # нее следующим запросом.
+            project = await service.create_project(
+                repos,
+                owner_id=service.owner_id(str(user_id)),
+                payload=payload,
+                now=now,
+            )
+        else:
+            upload, holder = await service.holder_for_upload(
+                repos, upload_id=payload.upload_id, user_id=str(user_id)
+            )
+            project = await service.adopt_upload(
+                repos, upload=upload, holder=holder, payload=payload, now=now
+            )
         bundle = await service.load_bundle(repos, project)
         return service.project_out(bundle, await _processing_of(repos, project))
     except service.ProjectRefusal as error:
