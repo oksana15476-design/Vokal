@@ -118,19 +118,25 @@ def test_wrong_method_answers_method_not_allowed_envelope(client: TestClient) ->
 # --- Задача 10: заглушка обязана выглядеть заглушкой ---------------------
 
 
-def routes_of(client: TestClient) -> list[tuple[str, str]]:
-    pairs: list[tuple[str, str]] = []
-    for route in client.app.routes:  # type: ignore[attr-defined]
-        path = getattr(route, "path", None)
-        methods = getattr(route, "methods", None) or set()
-        if not path or not path.startswith("/api/"):
-            continue
-        for method in sorted(methods - {"HEAD", "OPTIONS"}):
-            pairs.append((method, path))
-    return pairs
+def routes_of(openapi: dict[str, Any]) -> list[tuple[str, str]]:
+    """Адреса берутся из схемы, а не из таблицы маршрутов.
+
+    Так проверяется именно опубликованный контракт: то, что описано в схеме,
+    обязано вести себя честно. Адрес, забытый в схеме, все равно всплывет —
+    отдельным тестом про префикс `/api`.
+    """
+    verbs = {"get", "post", "patch", "put", "delete"}
+    return [
+        (method.upper(), path)
+        for path, operations in openapi["paths"].items()
+        for method in operations
+        if method in verbs
+    ]
 
 
-def test_every_stub_endpoint_answers_not_implemented(client: TestClient) -> None:
+def test_every_stub_endpoint_answers_not_implemented(
+    client: TestClient, openapi: dict[str, Any]
+) -> None:
     """Ни один адрес без реализации не отвечает `200` выдуманными данными.
 
     Допустимы ровно два исхода: `422` (запрос не прошел проверку схемы) и
@@ -138,7 +144,7 @@ def test_every_stub_endpoint_answers_not_implemented(client: TestClient) -> None
     кто-то подставил правдоподобный мок вместо честного отказа.
     """
     checked = 0
-    for method, path in routes_of(client):
+    for method, path in routes_of(openapi):
         concrete = re.sub(r"\{[^}]+\}", SAMPLE_ID, path)
         if (method, concrete) in REAL_ENDPOINTS:
             continue
