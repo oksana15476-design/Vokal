@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Response
+from fastapi import APIRouter, Query, Response
 
-from app.api.deps import SessionDep, UserDep
+from app.api.deps import IssueIdPath, ProjectIdPath, SessionDep, UserDep
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.enums import ReviewStatus
@@ -25,10 +25,6 @@ from app.api.schemas.review import (
 
 router = APIRouter(prefix="/projects/{project_id}/review-issues", tags=["проверка"])
 
-ProjectIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор проекта")]
-IssueIdPath = Annotated[
-    str, Path(min_length=1, max_length=64, description="Идентификатор места проверки")
-]
 
 REVIEW_MISSING = (
     "Confidence and Review Engine: места проверки строятся по разбору",
@@ -46,9 +42,7 @@ async def list_issues(
     project_id: ProjectIdPath,
     session: SessionDep,
     user_id: UserDep,
-    status: Annotated[
-        ReviewStatus | None, Query(description="Отбор по статусу проверки")
-    ] = None,
+    status: Annotated[ReviewStatus | None, Query(description="Отбор по статусу проверки")] = None,
 ) -> Response:
     return not_implemented(
         endpoint="GET /api/projects/{project_id}/review-issues",

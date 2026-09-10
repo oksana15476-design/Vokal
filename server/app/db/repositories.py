@@ -26,7 +26,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, ClassVar, Generic, TypeVar
 
 from sqlalchemy import Select, select, update
@@ -63,7 +63,7 @@ class _Unset:
 UNSET = _Unset()
 
 
-class DeletionScope(str, Enum):
+class DeletionScope(StrEnum):
     """Что именно удаляем: две операции из дизайн-дока."""
 
     SOURCE = "source"
@@ -531,7 +531,9 @@ class JobStepRepository(BaseRepository[models.JobStep, JobStepCreate, JobStepPat
         return result.scalars().all()
 
 
-class VersionRepository(_ProjectScoped, BaseRepository[models.Version, VersionCreate, VersionPatch]):
+class VersionRepository(
+    _ProjectScoped, BaseRepository[models.Version, VersionCreate, VersionPatch]
+):
     model = models.Version
     order_by = ("created_at",)
 

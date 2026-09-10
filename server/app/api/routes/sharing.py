@@ -8,11 +8,17 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import APIRouter, Response
 
-from fastapi import APIRouter, Path, Response
-
-from app.api.deps import PageDep, SessionDep, UserDep
+from app.api.deps import (
+    BundleIdPath,
+    LinkIdPath,
+    PageDep,
+    ProjectIdPath,
+    RecipientIdPath,
+    SessionDep,
+    UserDep,
+)
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.sharing import (
@@ -30,12 +36,6 @@ from app.api.schemas.sharing import (
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["выдача"])
 
-ProjectIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор проекта")]
-RecipientIdPath = Annotated[
-    str, Path(min_length=1, max_length=64, description="Идентификатор получателя")
-]
-LinkIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор ссылки")]
-BundleIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор архива")]
 
 SHARING_MISSING = (
     "выдача ссылок с отзываемым токеном",

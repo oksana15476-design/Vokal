@@ -21,17 +21,17 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class Scenario(str, Enum):
+class Scenario(StrEnum):
     """Сценарий работы: подготовка группы или урок."""
 
     BAND = "band"
     EDUCATION = "education"
 
 
-class ProcessingGoalId(str, Enum):
+class ProcessingGoalId(StrEnum):
     """Цель обработки. Префикс кода связан со сценарием и проверяется схемой."""
 
     BAND_ANALYSIS = "band-analysis"
@@ -60,7 +60,7 @@ GOAL_PREFIX_BY_SCENARIO: dict[Scenario, str] = {
 }
 
 
-class UploadFormat(str, Enum):
+class UploadFormat(StrEnum):
     """Формат исходника. `DEMO` — у демо-проектов, за ним нет файла."""
 
     MP3 = "MP3"
@@ -70,13 +70,13 @@ class UploadFormat(str, Enum):
     DEMO = "DEMO"
 
 
-class UploadQuality(str, Enum):
+class UploadQuality(StrEnum):
     GOOD = "good"
     MEDIUM = "medium"
     LOW = "low"
 
 
-class UploadState(str, Enum):
+class UploadState(StrEnum):
     """Состояние загрузки.
 
     `awaiting_file` отделено от `stored`: запись о загрузке заводится до того,
@@ -89,7 +89,7 @@ class UploadState(str, Enum):
     PURGED = "purged"
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     READY = "ready"
@@ -97,7 +97,7 @@ class JobStatus(str, Enum):
     ERROR = "error"
 
 
-class ProcessingStepStatus(str, Enum):
+class ProcessingStepStatus(StrEnum):
     """Статус шага обработки.
 
     `skipped` — шаг не выполняется на этом пути, результата у него не будет.
@@ -112,7 +112,7 @@ class ProcessingStepStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class AnalysisSource(str, Enum):
+class AnalysisSource(StrEnum):
     """Откуда взят разбор.
 
     Промежуточного состояния нет намеренно: подставлять чужой разбор к своему
@@ -123,7 +123,7 @@ class AnalysisSource(str, Enum):
     NONE = "none"
 
 
-class VersionKind(str, Enum):
+class VersionKind(StrEnum):
     ORIGINAL = "original"
     BAND = "band"
     EASY = "easy"
@@ -135,14 +135,14 @@ class VersionKind(str, Enum):
     AFTER_LESSON = "after-lesson"
 
 
-class VersionStatus(str, Enum):
+class VersionStatus(StrEnum):
     DRAFT = "draft"
     NEEDS_REVIEW = "needs_review"
     APPROVED = "approved"
     DISTRIBUTED = "distributed"
 
 
-class ArtifactType(str, Enum):
+class ArtifactType(StrEnum):
     SCORE = "score"
     PART = "part"
     TAB = "tab"
@@ -158,7 +158,7 @@ class ArtifactType(str, Enum):
     ZIP = "zip"
 
 
-class ArtifactFormat(str, Enum):
+class ArtifactFormat(StrEnum):
     PDF = "PDF"
     MIDI = "MIDI"
     WAV = "WAV"
@@ -167,7 +167,7 @@ class ArtifactFormat(str, Enum):
     VIEW = "VIEW"
 
 
-class ArtifactStatus(str, Enum):
+class ArtifactStatus(StrEnum):
     READY = "ready"
     DRAFT = "draft"
     NEEDS_REVIEW = "needs_review"
@@ -175,7 +175,7 @@ class ArtifactStatus(str, Enum):
     PENDING = "pending"
 
 
-class ArtifactAudience(str, Enum):
+class ArtifactAudience(StrEnum):
     """Кому предназначен материал. Разным ролям выдается разное."""
 
     ALL = "all"
@@ -185,7 +185,7 @@ class ArtifactAudience(str, Enum):
     INSTRUMENT = "instrument"
 
 
-class ArtifactPreviewKind(str, Enum):
+class ArtifactPreviewKind(StrEnum):
     NOTATION = "notation"
     WAVEFORM = "waveform"
     MIDI = "midi"
@@ -193,7 +193,7 @@ class ArtifactPreviewKind(str, Enum):
     TEXT = "text"
 
 
-class ReviewStatus(str, Enum):
+class ReviewStatus(StrEnum):
     NEEDS_REVIEW = "needs_review"
     CHECKED = "checked"
     FIXED = "fixed"
@@ -201,7 +201,7 @@ class ReviewStatus(str, Enum):
     ACCEPTED_FOR_REHEARSAL = "accepted_for_rehearsal"
 
 
-class DirectorActionId(str, Enum):
+class DirectorActionId(StrEnum):
     """Детерминированная команда директора.
 
     Список закрытый: LLM выбирает действие из него, а не правит материалы
@@ -221,25 +221,25 @@ class DirectorActionId(str, Enum):
     LESSON_ANALYSIS = "lesson-analysis"
 
 
-class DirectorSuggestionScope(str, Enum):
+class DirectorSuggestionScope(StrEnum):
     BAND = "band"
     EDUCATION = "education"
     BOTH = "both"
 
 
-class DirectorSuggestionImpact(str, Enum):
+class DirectorSuggestionImpact(StrEnum):
     ARRANGEMENT = "arrangement"
     EDUCATION = "education"
     EXPORT = "export"
     REVIEW = "review"
 
 
-class ChatAuthor(str, Enum):
+class ChatAuthor(StrEnum):
     USER = "user"
     DIRECTOR = "director"
 
 
-class MusicianRole(str, Enum):
+class MusicianRole(StrEnum):
     VOCAL = "vocal"
     GUITAR = "guitar"
     BASS = "bass"
@@ -248,49 +248,49 @@ class MusicianRole(str, Enum):
     BACKING_VOCAL = "backing_vocal"
 
 
-class MusicianLevel(str, Enum):
+class MusicianLevel(StrEnum):
     BEGINNER = "beginner"
     MIDDLE = "middle"
     ADVANCED = "advanced"
 
 
-class BassStrings(str, Enum):
+class BassStrings(StrEnum):
     FOUR = "4_strings"
     FIVE = "5_strings"
 
 
-class StudentLevel(str, Enum):
+class StudentLevel(StrEnum):
     STARTER = "starter"
     MIDDLE = "middle"
     STRONG = "strong"
 
 
-class NotationReading(str, Enum):
+class NotationReading(StrEnum):
     NONE = "none"
     SIMPLE = "simple"
     CONFIDENT = "confident"
 
 
-class TeacherFormat(str, Enum):
+class TeacherFormat(StrEnum):
     INDIVIDUAL = "individual"
     GROUP = "group"
     SCHOOL_ENSEMBLE = "school_ensemble"
 
 
-class LessonDifficulty(str, Enum):
+class LessonDifficulty(StrEnum):
     EASIER = "easier"
     ORIGINAL_LIKE = "original_like"
     HARDER = "harder"
 
 
-class AssignmentStatus(str, Enum):
+class AssignmentStatus(StrEnum):
     ASSIGNED = "assigned"
     IN_PROGRESS = "in_progress"
     ANALYZED = "analyzed"
     READY_FOR_CONCERT = "ready_for_concert"
 
 
-class ShareRecipientRole(str, Enum):
+class ShareRecipientRole(StrEnum):
     VOCALIST = "vocalist"
     GUITARIST = "guitarist"
     BASSIST = "bassist"
@@ -301,14 +301,14 @@ class ShareRecipientRole(str, Enum):
     PARENT = "parent"
 
 
-class ShareRecipientStatus(str, Enum):
+class ShareRecipientStatus(StrEnum):
     NOT_ISSUED = "not_issued"
     ISSUED = "issued"
     OPENED = "opened"
     NEEDS_FIX = "needs_fix"
 
 
-class ShareLinkStatus(str, Enum):
+class ShareLinkStatus(StrEnum):
     """Состояние выданной ссылки.
 
     `revoked` обязателен: `docs/DELETION_AND_RETENTION_DESIGN.md` требует, чтобы
@@ -322,25 +322,25 @@ class ShareLinkStatus(str, Enum):
     EXPIRED = "expired"
 
 
-class ExportBundleStatus(str, Enum):
+class ExportBundleStatus(StrEnum):
     READY = "ready"
     STALE = "stale"
     PENDING = "pending"
 
 
-class CostTier(str, Enum):
+class CostTier(StrEnum):
     FAST_DRAFT = "fast_draft"
     ACCURATE = "accurate"
     MULTI_VERSION = "multi_version"
 
 
-class CostComplexity(str, Enum):
+class CostComplexity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
 
 
-class DeletionState(str, Enum):
+class DeletionState(StrEnum):
     """Состояние удаления исходника или результатов.
 
     Флага «удалено» недостаточно: пока хранилище не отчиталось, показывать

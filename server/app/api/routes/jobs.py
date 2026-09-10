@@ -12,17 +12,15 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Path, Response
+from fastapi import APIRouter, Header, Response
 
-from app.api.deps import SessionDep, UserDep
+from app.api.deps import JobIdPath, ProjectIdPath, SessionDep, UserDep
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.jobs import JobCreateRequest, JobRetryRequest, ProcessingJobOut
 
 router = APIRouter(tags=["обработка"])
 
-ProjectIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор проекта")]
-JobIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор задания")]
 
 PIPELINE_MISSING = (
     "очередь заданий и обработчики",

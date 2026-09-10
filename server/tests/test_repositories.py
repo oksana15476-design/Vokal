@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import sqlalchemy as sa
@@ -45,7 +45,7 @@ pytestmark = pytest.mark.asyncio
 
 
 def _now() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 async def _make_user(repos: Repositories, contact: str = "band@example.test") -> models.User:
@@ -201,7 +201,9 @@ async def test_touch_opened_moves_project_to_top(session: AsyncSession) -> None:
     user = await _make_user(repos)
     base = _now()
     first = await _make_project(repos, user, name="Первая", last_opened_at=base)
-    second = await _make_project(repos, user, name="Вторая", last_opened_at=base - timedelta(days=1))
+    second = await _make_project(
+        repos, user, name="Вторая", last_opened_at=base - timedelta(days=1)
+    )
     await session.flush()
 
     await repos.projects.touch_opened(second.id, at=base + timedelta(minutes=1))
@@ -318,7 +320,9 @@ async def _project_with_full_tree(
         )
     )
     await session.flush()
-    job = await repos.jobs.create(JobCreate(project_id=project.id, idempotency_key=uuid.uuid4().hex))
+    job = await repos.jobs.create(
+        JobCreate(project_id=project.id, idempotency_key=uuid.uuid4().hex)
+    )
     await session.flush()
     step = await repos.job_steps.create(
         JobStepCreate(job_id=job.id, step_key="normalize", label="Нормализация аудио", position=0)

@@ -74,7 +74,12 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     # создания в миграции неразрешим.
     current_version_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("versions.id", ondelete="SET NULL", use_alter=True, name="fk_projects_current_version_versions"),
+        ForeignKey(
+            "versions.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_projects_current_version_versions",
+        ),
         nullable=True,
     )
 
@@ -122,7 +127,9 @@ class Project(Base, TimestampMixin, SoftDeleteMixin):
     source_deletion_requested_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
-    source_purged_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    source_purged_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
     source_purge_receipt: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_purge_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -220,20 +227,22 @@ class Job(Base, TimestampMixin, SoftDeleteMixin):
         default=enums.JobStatus.QUEUED,
         server_default=text("'queued'"),
     )
-    progress_percent: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    progress_percent: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
     warnings: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     model_version: Mapped[str | None] = mapped_column(String(128), nullable=True)
     cost_credits: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    retry_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("idempotency_key", name="uq_jobs_idempotency_key"),
-        CheckConstraint(
-            "progress_percent BETWEEN 0 AND 100", name="progress_percent_range"
-        ),
+        CheckConstraint("progress_percent BETWEEN 0 AND 100", name="progress_percent_range"),
         Index("ix_jobs_project", "project_id", postgresql_where=text("deleted_at IS NULL")),
     )
 
@@ -254,7 +263,9 @@ class JobStep(Base, TimestampMixin, SoftDeleteMixin):
         server_default=text("'queued'"),
     )
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
-    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    position: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
 
     __table_args__ = (
         UniqueConstraint("job_id", "step_key", name="uq_job_steps_job_id_step_key"),
@@ -347,12 +358,16 @@ class Artifact(Base, TimestampMixin, SoftDeleteMixin):
         default=enums.ArtifactAudience.ALL,
         server_default=text("'all'"),
     )
-    is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    is_stale: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     preview: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     storage_key: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
-        CheckConstraint("confidence IS NULL OR (confidence >= 0 AND confidence <= 1)", name="confidence_range"),
+        CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)", name="confidence_range"
+        ),
         Index(
             "ix_artifacts_project_version",
             "project_id",
@@ -386,7 +401,9 @@ class ReviewIssue(Base, TimestampMixin, SoftDeleteMixin):
     confidence: Mapped[float | None] = mapped_column(Numeric(4, 3, asdecimal=False), nullable=True)
 
     __table_args__ = (
-        Index("ix_review_issues_project", "project_id", postgresql_where=text("deleted_at IS NULL")),
+        Index(
+            "ix_review_issues_project", "project_id", postgresql_where=text("deleted_at IS NULL")
+        ),
     )
 
 
@@ -429,11 +446,11 @@ class Musician(Base, TimestampMixin, SoftDeleteMixin):
     level: Mapped[enums.MusicianLevel] = mapped_column(
         domain_enum(enums.MusicianLevel, "musician_level"), nullable=False
     )
-    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
-
-    __table_args__ = (
-        Index("ix_musicians_project_position", "project_id", "position"),
+    position: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
     )
+
+    __table_args__ = (Index("ix_musicians_project_position", "project_id", "position"),)
 
 
 class ShareRecipient(Base, TimestampMixin, SoftDeleteMixin):
@@ -454,7 +471,9 @@ class ShareRecipient(Base, TimestampMixin, SoftDeleteMixin):
         default=enums.ShareRecipientStatus.NOT_ISSUED,
         server_default=text("'not_issued'"),
     )
-    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
+    position: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
 
     __table_args__ = (
         Index(

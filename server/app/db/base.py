@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import MetaData, TIMESTAMP, func
+from sqlalchemy import TIMESTAMP, MetaData, func
 from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -29,7 +29,7 @@ class Base(DeclarativeBase):
 
 def utcnow() -> datetime:
     """Единая точка получения времени: везде UTC с явной зоной."""
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def uuid_pk() -> Mapped[uuid.UUID]:

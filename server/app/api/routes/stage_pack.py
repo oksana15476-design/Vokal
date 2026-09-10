@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Response
+from fastapi import APIRouter, Query, Response
 
-from app.api.deps import SessionDep, UserDep
+from app.api.deps import ArtifactIdPath, ProjectIdPath, SessionDep, UserDep
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.artifacts import (
@@ -29,10 +29,6 @@ from app.api.schemas.enums import ArtifactAudience, ArtifactType
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["материалы"])
 
-ProjectIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор проекта")]
-ArtifactIdPath = Annotated[
-    str, Path(min_length=1, max_length=64, description="Идентификатор материала")
-]
 
 MATERIALS_MISSING = (
     "обработка звука и сборка материалов",

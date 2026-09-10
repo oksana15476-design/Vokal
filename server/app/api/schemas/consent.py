@@ -37,7 +37,9 @@ class ConsentVersionListResponse(ApiModel):
 class ConsentAcceptance(ApiModel):
     """Согласие, полученное на экране. Приходит вместе с созданием проекта."""
 
-    accepted: bool = Field(description="Отметка пользователя. Значение false — отказ создать проект")
+    accepted: bool = Field(
+        description="Отметка пользователя. Значение false — отказ создать проект"
+    )
     version_id: str = Field(
         min_length=1,
         max_length=64,

@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Path, Query, Response
+from fastapi import APIRouter, Header, Query, Response
 
-from app.api.deps import PageDep, SessionDep, UserDep
+from app.api.deps import PageDep, ProjectIdPath, SessionDep, UserDep
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.enums import Scenario
@@ -27,13 +27,6 @@ from app.api.schemas.projects import (
 )
 
 router = APIRouter(prefix="/projects", tags=["проекты"])
-
-ProjectIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор проекта")]
-
-# Идентификаторы намеренно описаны как непрозрачные строки, а не как UUID.
-# Сервер выдает UUID, у демо-проектов идентификаторы читаемые, и жестко
-# зафиксировать формат в контракте — значит однажды сломать клиент из-за
-# смены генератора идентификаторов, а не из-за настоящей ошибки.
 
 PROJECT_STORE_MISSING = (
     "слой данных проекта (батч БД)",

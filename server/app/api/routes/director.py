@@ -11,11 +11,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import APIRouter, Response
 
-from fastapi import APIRouter, Path, Response
-
-from app.api.deps import SessionDep, UserDep
+from app.api.deps import ProjectIdPath, SessionDep, UserDep
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.director import (
@@ -29,7 +27,6 @@ from app.api.schemas.director import (
 
 router = APIRouter(prefix="/projects/{project_id}/director", tags=["директор"])
 
-ProjectIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор проекта")]
 
 ARRANGEMENT_MISSING = (
     "Arrangement Engine: правила применения действий",

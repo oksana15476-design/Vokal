@@ -9,11 +9,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import APIRouter, Response
 
-from fastapi import APIRouter, Path, Response
-
-from app.api.deps import SessionDep, UserDep
+from app.api.deps import SessionDep, UploadIdPath, UserDep
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.uploads import (
@@ -29,7 +27,6 @@ from app.api.schemas.uploads import (
 
 router = APIRouter(prefix="/uploads", tags=["загрузка"])
 
-UploadIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор загрузки")]
 
 STORAGE_MISSING = (
     "объектное хранилище (провайдер не выбран, docs/DATA_MAP.md)",

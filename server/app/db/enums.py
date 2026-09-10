@@ -17,15 +17,15 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class Scenario(str, Enum):
+class Scenario(StrEnum):
     BAND = "band"
     EDUCATION = "education"
 
 
-class ProcessingGoalId(str, Enum):
+class ProcessingGoalId(StrEnum):
     BAND_ANALYSIS = "band-analysis"
     BAND_REHEARSAL = "band-rehearsal"
     BAND_PERFORMANCE = "band-performance"
@@ -44,7 +44,7 @@ class ProcessingGoalId(str, Enum):
     LESSON_PRACTICE_TRACKS = "lesson-practice-tracks"
 
 
-class UploadFormat(str, Enum):
+class UploadFormat(StrEnum):
     MP3 = "MP3"
     WAV = "WAV"
     FLAC = "FLAC"
@@ -52,13 +52,13 @@ class UploadFormat(str, Enum):
     DEMO = "DEMO"
 
 
-class UploadQuality(str, Enum):
+class UploadQuality(StrEnum):
     GOOD = "good"
     MEDIUM = "medium"
     LOW = "low"
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     READY = "ready"
@@ -66,7 +66,7 @@ class JobStatus(str, Enum):
     ERROR = "error"
 
 
-class JobStepStatus(str, Enum):
+class JobStepStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     DONE = "done"
@@ -77,7 +77,7 @@ class JobStepStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class VersionKind(str, Enum):
+class VersionKind(StrEnum):
     ORIGINAL = "original"
     BAND = "band"
     EASY = "easy"
@@ -89,14 +89,14 @@ class VersionKind(str, Enum):
     AFTER_LESSON = "after-lesson"
 
 
-class VersionStatus(str, Enum):
+class VersionStatus(StrEnum):
     DRAFT = "draft"
     NEEDS_REVIEW = "needs_review"
     APPROVED = "approved"
     DISTRIBUTED = "distributed"
 
 
-class ArtifactType(str, Enum):
+class ArtifactType(StrEnum):
     SCORE = "score"
     PART = "part"
     TAB = "tab"
@@ -112,7 +112,7 @@ class ArtifactType(str, Enum):
     ZIP = "zip"
 
 
-class ArtifactFormat(str, Enum):
+class ArtifactFormat(StrEnum):
     PDF = "PDF"
     MIDI = "MIDI"
     WAV = "WAV"
@@ -121,7 +121,7 @@ class ArtifactFormat(str, Enum):
     VIEW = "VIEW"
 
 
-class ArtifactStatus(str, Enum):
+class ArtifactStatus(StrEnum):
     READY = "ready"
     DRAFT = "draft"
     NEEDS_REVIEW = "needs_review"
@@ -129,7 +129,7 @@ class ArtifactStatus(str, Enum):
     PENDING = "pending"
 
 
-class ArtifactAudience(str, Enum):
+class ArtifactAudience(StrEnum):
     ALL = "all"
     BAND = "band"
     TEACHER = "teacher"
@@ -137,7 +137,7 @@ class ArtifactAudience(str, Enum):
     INSTRUMENT = "instrument"
 
 
-class ReviewStatus(str, Enum):
+class ReviewStatus(StrEnum):
     NEEDS_REVIEW = "needs_review"
     CHECKED = "checked"
     FIXED = "fixed"
@@ -145,7 +145,7 @@ class ReviewStatus(str, Enum):
     ACCEPTED_FOR_REHEARSAL = "accepted_for_rehearsal"
 
 
-class MusicianRole(str, Enum):
+class MusicianRole(StrEnum):
     VOCAL = "vocal"
     GUITAR = "guitar"
     BASS = "bass"
@@ -154,13 +154,13 @@ class MusicianRole(str, Enum):
     BACKING_VOCAL = "backing_vocal"
 
 
-class MusicianLevel(str, Enum):
+class MusicianLevel(StrEnum):
     BEGINNER = "beginner"
     MIDDLE = "middle"
     ADVANCED = "advanced"
 
 
-class ShareRecipientRole(str, Enum):
+class ShareRecipientRole(StrEnum):
     VOCALIST = "vocalist"
     GUITARIST = "guitarist"
     BASSIST = "bassist"
@@ -171,14 +171,14 @@ class ShareRecipientRole(str, Enum):
     PARENT = "parent"
 
 
-class ShareRecipientStatus(str, Enum):
+class ShareRecipientStatus(StrEnum):
     NOT_ISSUED = "not_issued"
     ISSUED = "issued"
     OPENED = "opened"
     NEEDS_FIX = "needs_fix"
 
 
-class DeletionState(str, Enum):
+class DeletionState(StrEnum):
     """Состояние удаления исходника или результатов.
 
     Флага «удалено» недостаточно. `DELETION_AND_RETENTION_DESIGN.md` требует

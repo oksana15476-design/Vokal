@@ -67,9 +67,7 @@ class DirectorActionBatchRequest(ApiModel):
         description="Порядок значим: действия применяются в нем",
     )
     base_version_id: str
-    label: str | None = Field(
-        default=None, max_length=200, description="Подпись будущей версии"
-    )
+    label: str | None = Field(default=None, max_length=200, description="Подпись будущей версии")
     comment: str | None = Field(default=None, max_length=2000)
 
     @field_validator("action_ids")

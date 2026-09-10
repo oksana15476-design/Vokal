@@ -34,9 +34,7 @@ def resolve_retention_until(deleted_at: datetime) -> datetime | None:
     """
     if DEFAULT_RETENTION is None:
         return None
-    raise NotImplementedError(
-        "DEFAULT_RETENTION задан, но правило вычисления срока не написано."
-    )
+    raise NotImplementedError("DEFAULT_RETENTION задан, но правило вычисления срока не написано.")
 
 
 def purge_objects(storage_keys: Sequence[str]) -> NoReturn:

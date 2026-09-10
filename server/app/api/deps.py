@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
-from fastapi import Depends, Query
+from fastapi import Depends, Path, Query
 
 
 async def db_session() -> AsyncIterator[Any | None]:
@@ -55,3 +55,22 @@ class Pagination:
 
 
 PageDep = Annotated[Pagination, Depends(Pagination)]
+
+
+def _id_path(description: str) -> Any:
+    return Path(min_length=1, max_length=64, description=description)
+
+
+# Идентификаторы описаны как непрозрачные строки, а не как UUID. Сервер выдает
+# UUID, у демо-проектов идентификаторы читаемые, и жестко зафиксировать формат
+# в контракте — значит однажды сломать клиент из-за смены генератора
+# идентификаторов, а не из-за настоящей ошибки.
+ProjectIdPath = Annotated[str, _id_path("Идентификатор проекта")]
+UploadIdPath = Annotated[str, _id_path("Идентификатор загрузки")]
+JobIdPath = Annotated[str, _id_path("Идентификатор задания")]
+VersionIdPath = Annotated[str, _id_path("Идентификатор версии")]
+IssueIdPath = Annotated[str, _id_path("Идентификатор места проверки")]
+ArtifactIdPath = Annotated[str, _id_path("Идентификатор материала")]
+RecipientIdPath = Annotated[str, _id_path("Идентификатор получателя")]
+LinkIdPath = Annotated[str, _id_path("Идентификатор ссылки")]
+BundleIdPath = Annotated[str, _id_path("Идентификатор архива")]

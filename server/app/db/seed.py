@@ -58,8 +58,7 @@ DEMO_PROJECT_KEYS: tuple[str, ...] = (
 #: там — это новая версия здесь, а не редактирование этой строки.
 CONSENT_VERSION_ID = "consent-2026-09-10"
 CONSENT_TEXT = (
-    "Я вправе обработать этот материал для приватной репетиции, урока или "
-    "внутренней подготовки."
+    "Я вправе обработать этот материал для приватной репетиции, урока или внутренней подготовки."
 )
 
 DEMO_MOMENT = datetime(2026, 9, 9, 12, 0, tzinfo=timezone(timedelta(hours=4)))
@@ -162,7 +161,11 @@ def _artifacts(scenario: enums.Scenario) -> list[_DemoArtifact]:
             {
                 "kind": "notation",
                 "title": "Партитура",
-                "lines": ["1 | Gm | Eb | Bb | F", "21 | Eb | Bb | F | Gm", "37 | Cm | Eb | пауза | D"],
+                "lines": [
+                    "1 | Gm | Eb | Bb | F",
+                    "21 | Eb | Bb | F | Gm",
+                    "37 | Cm | Eb | пауза | D",
+                ],
             },
         ),
         _DemoArtifact(
@@ -215,7 +218,11 @@ def _artifacts(scenario: enums.Scenario) -> list[_DemoArtifact]:
             {
                 "kind": "notation",
                 "title": "Бас",
-                "lines": ["Куплет: тоника и пятая", "Припев: движение к Eb", "Coda: оставить простую опору"],
+                "lines": [
+                    "Куплет: тоника и пятая",
+                    "Припев: движение к Eb",
+                    "Coda: оставить простую опору",
+                ],
             },
         ),
         _DemoArtifact(
@@ -230,7 +237,11 @@ def _artifacts(scenario: enums.Scenario) -> list[_DemoArtifact]:
             {
                 "kind": "text",
                 "title": "Аккорды",
-                "lines": ["Intro: Gm | Eb | Bb | F", "Verse: Bb | F | Gm | Eb", "Chorus: Eb | Bb | F | Gm"],
+                "lines": [
+                    "Intro: Gm | Eb | Bb | F",
+                    "Verse: Bb | F | Gm | Eb",
+                    "Chorus: Eb | Bb | F | Gm",
+                ],
             },
         ),
         _DemoArtifact(
@@ -245,7 +256,12 @@ def _artifacts(scenario: enums.Scenario) -> list[_DemoArtifact]:
             {
                 "kind": "midi",
                 "title": "MIDI дорожки",
-                "lines": ["Vocal: 78 нот", "Bass: 142 события", "Keys: 4 слоя", "Drums: groove + fills"],
+                "lines": [
+                    "Vocal: 78 нот",
+                    "Bass: 142 события",
+                    "Keys: 4 слоя",
+                    "Drums: groove + fills",
+                ],
             },
         ),
         _DemoArtifact(
@@ -272,7 +288,11 @@ def _artifacts(scenario: enums.Scenario) -> list[_DemoArtifact]:
             enums.ArtifactStatus.READY,
             0.88,
             enums.ArtifactAudience.ALL,
-            {"kind": "waveform", "title": "Минус", "lines": ["Intro", "Verse", "Chorus", "Bridge", "Chorus"]},
+            {
+                "kind": "waveform",
+                "title": "Минус",
+                "lines": ["Intro", "Verse", "Chorus", "Bridge", "Chorus"],
+            },
         ),
         _DemoArtifact(
             "click-track",
@@ -283,7 +303,11 @@ def _artifacts(scenario: enums.Scenario) -> list[_DemoArtifact]:
             enums.ArtifactStatus.READY,
             0.93,
             enums.ArtifactAudience.ALL,
-            {"kind": "waveform", "title": "Клик", "lines": ["Count-in 2 bars", "Bridge cue", "Final stop"]},
+            {
+                "kind": "waveform",
+                "title": "Клик",
+                "lines": ["Count-in 2 bars", "Bridge cue", "Final stop"],
+            },
         ),
         _DemoArtifact(
             "practice-bass",
@@ -294,7 +318,11 @@ def _artifacts(scenario: enums.Scenario) -> list[_DemoArtifact]:
             enums.ArtifactStatus.READY,
             0.84,
             enums.ArtifactAudience.INSTRUMENT,
-            {"kind": "waveform", "title": "Без баса", "lines": ["Vocals", "Drums", "Guitar", "Keys", "Click cue"]},
+            {
+                "kind": "waveform",
+                "title": "Без баса",
+                "lines": ["Vocals", "Drums", "Guitar", "Keys", "Click cue"],
+            },
         ),
     ]
 
@@ -371,13 +399,49 @@ BAND_ANALYSIS: dict[str, Any] = {
         "Песня держится на плотном припеве, вокальном hook и двух гитарных слоях. "
         "Для одного гитариста нужна адаптация."
     ),
-    "confidenceByPart": {"Вокал": 0.91, "Барабаны": 0.88, "Бас": 0.84, "Гитара": 0.72, "Клавиши": 0.78},
+    "confidenceByPart": {
+        "Вокал": 0.91,
+        "Барабаны": 0.88,
+        "Бас": 0.84,
+        "Гитара": 0.72,
+        "Клавиши": 0.78,
+    },
     "sections": [
-        {"id": "intro", "label": "Intro", "startBar": 1, "endBar": 4, "note": "Гитарный рифф и короткий pickup."},
-        {"id": "verse-1", "label": "Куплет 1", "startBar": 5, "endBar": 20, "note": "Вокал ниже, бас играет простую опору."},
-        {"id": "chorus-1", "label": "Припев 1", "startBar": 21, "endBar": 36, "note": "Струнный слой и вторая гитара добавляют энергию."},
-        {"id": "bridge", "label": "Bridge", "startBar": 37, "endBar": 44, "note": "Пауза перед возвратом припева."},
-        {"id": "chorus-2", "label": "Припев 2", "startBar": 45, "endBar": 60, "note": "Концертную концовку можно усилить стопом."},
+        {
+            "id": "intro",
+            "label": "Intro",
+            "startBar": 1,
+            "endBar": 4,
+            "note": "Гитарный рифф и короткий pickup.",
+        },
+        {
+            "id": "verse-1",
+            "label": "Куплет 1",
+            "startBar": 5,
+            "endBar": 20,
+            "note": "Вокал ниже, бас играет простую опору.",
+        },
+        {
+            "id": "chorus-1",
+            "label": "Припев 1",
+            "startBar": 21,
+            "endBar": 36,
+            "note": "Струнный слой и вторая гитара добавляют энергию.",
+        },
+        {
+            "id": "bridge",
+            "label": "Bridge",
+            "startBar": 37,
+            "endBar": 44,
+            "note": "Пауза перед возвратом припева.",
+        },
+        {
+            "id": "chorus-2",
+            "label": "Припев 2",
+            "startBar": 45,
+            "endBar": 60,
+            "note": "Концертную концовку можно усилить стопом.",
+        },
     ],
     "chords": [
         {"bar": 1, "beat": 1, "chord": "Gm", "confidence": 0.92},
@@ -406,10 +470,34 @@ LESSON_ANALYSIS: dict[str, Any] = {
     ),
     "confidenceByPart": {"Мелодия": 0.88, "Аккорды": 0.9, "Гитара": 0.82, "Бас": 0.75},
     "sections": [
-        {"id": "lesson-intro", "label": "Intro", "startBar": 1, "endBar": 4, "note": "Можно пропустить для первой домашки."},
-        {"id": "lesson-verse", "label": "Куплет", "startBar": 5, "endBar": 20, "note": "Основной паттерн правой руки."},
-        {"id": "lesson-chorus", "label": "Припев", "startBar": 21, "endBar": 36, "note": "Подходит для первой цельной версии."},
-        {"id": "lesson-outro", "label": "Outro", "startBar": 37, "endBar": 40, "note": "Сокращенная концовка для урока."},
+        {
+            "id": "lesson-intro",
+            "label": "Intro",
+            "startBar": 1,
+            "endBar": 4,
+            "note": "Можно пропустить для первой домашки.",
+        },
+        {
+            "id": "lesson-verse",
+            "label": "Куплет",
+            "startBar": 5,
+            "endBar": 20,
+            "note": "Основной паттерн правой руки.",
+        },
+        {
+            "id": "lesson-chorus",
+            "label": "Припев",
+            "startBar": 21,
+            "endBar": 36,
+            "note": "Подходит для первой цельной версии.",
+        },
+        {
+            "id": "lesson-outro",
+            "label": "Outro",
+            "startBar": 37,
+            "endBar": 40,
+            "note": "Сокращенная концовка для урока.",
+        },
     ],
     "chords": [
         {"bar": 1, "beat": 1, "chord": "C", "confidence": 0.94},
@@ -436,10 +524,34 @@ ENSEMBLE_ANALYSIS: dict[str, Any] = {
     ),
     "confidenceByPart": {"Вокал": 0.86, "Гитара": 0.8, "Клавиши": 0.83, "Перкуссия": 0.88},
     "sections": [
-        {"id": "ensemble-intro", "label": "Intro", "startBar": 1, "endBar": 8, "note": "Клавиши дают вступление, перкуссия входит с 5 такта."},
-        {"id": "ensemble-verse", "label": "Куплет", "startBar": 9, "endBar": 24, "note": "Гитара держит аккорды, вокал отвечает короткими фразами."},
-        {"id": "ensemble-chorus", "label": "Припев", "startBar": 25, "endBar": 40, "note": "Можно добавить второй голос и хлопки."},
-        {"id": "ensemble-coda", "label": "Coda", "startBar": 41, "endBar": 48, "note": "Нелинейная концовка с повтором последней строки."},
+        {
+            "id": "ensemble-intro",
+            "label": "Intro",
+            "startBar": 1,
+            "endBar": 8,
+            "note": "Клавиши дают вступление, перкуссия входит с 5 такта.",
+        },
+        {
+            "id": "ensemble-verse",
+            "label": "Куплет",
+            "startBar": 9,
+            "endBar": 24,
+            "note": "Гитара держит аккорды, вокал отвечает короткими фразами.",
+        },
+        {
+            "id": "ensemble-chorus",
+            "label": "Припев",
+            "startBar": 25,
+            "endBar": 40,
+            "note": "Можно добавить второй голос и хлопки.",
+        },
+        {
+            "id": "ensemble-coda",
+            "label": "Coda",
+            "startBar": 41,
+            "endBar": 48,
+            "note": "Нелинейная концовка с повтором последней строки.",
+        },
     ],
     "chords": [
         {"bar": 1, "beat": 1, "chord": "D", "confidence": 0.91},
@@ -491,18 +603,72 @@ def _cost(complexity: str, credits: int) -> dict[str, Any]:
 
 
 BAND_RECIPIENTS: tuple[_DemoRecipient, ...] = (
-    _DemoRecipient("vocalist-1", "Оксана", enums.ShareRecipientRole.VOCALIST, "Вокал + текст", enums.ShareRecipientStatus.OPENED),
-    _DemoRecipient("guitarist-1", "Илья", enums.ShareRecipientRole.GUITARIST, "Гитара + TAB", enums.ShareRecipientStatus.NOT_ISSUED),
-    _DemoRecipient("bassist-1", "Марк", enums.ShareRecipientRole.BASSIST, "Бас + трек без баса", enums.ShareRecipientStatus.NOT_ISSUED),
-    _DemoRecipient("keys-1", "Лена", enums.ShareRecipientRole.KEYS, "Клавиши + струнный слой", enums.ShareRecipientStatus.NEEDS_FIX),
-    _DemoRecipient("drummer-1", "Даня", enums.ShareRecipientRole.DRUMMER, "Партия барабанов + клик", enums.ShareRecipientStatus.NOT_ISSUED),
+    _DemoRecipient(
+        "vocalist-1",
+        "Оксана",
+        enums.ShareRecipientRole.VOCALIST,
+        "Вокал + текст",
+        enums.ShareRecipientStatus.OPENED,
+    ),
+    _DemoRecipient(
+        "guitarist-1",
+        "Илья",
+        enums.ShareRecipientRole.GUITARIST,
+        "Гитара + TAB",
+        enums.ShareRecipientStatus.NOT_ISSUED,
+    ),
+    _DemoRecipient(
+        "bassist-1",
+        "Марк",
+        enums.ShareRecipientRole.BASSIST,
+        "Бас + трек без баса",
+        enums.ShareRecipientStatus.NOT_ISSUED,
+    ),
+    _DemoRecipient(
+        "keys-1",
+        "Лена",
+        enums.ShareRecipientRole.KEYS,
+        "Клавиши + струнный слой",
+        enums.ShareRecipientStatus.NEEDS_FIX,
+    ),
+    _DemoRecipient(
+        "drummer-1",
+        "Даня",
+        enums.ShareRecipientRole.DRUMMER,
+        "Партия барабанов + клик",
+        enums.ShareRecipientStatus.NOT_ISSUED,
+    ),
 )
 
 EDUCATION_RECIPIENTS: tuple[_DemoRecipient, ...] = (
-    _DemoRecipient("student-1", "Аня", enums.ShareRecipientRole.STUDENT, "Партия ученика", enums.ShareRecipientStatus.NOT_ISSUED),
-    _DemoRecipient("student-2", "Миша", enums.ShareRecipientRole.STUDENT, "Клавиши easy", enums.ShareRecipientStatus.NOT_ISSUED),
-    _DemoRecipient("student-3", "Соня", enums.ShareRecipientRole.STUDENT, "Перкуссия", enums.ShareRecipientStatus.OPENED),
-    _DemoRecipient("teacher-1", "Преподаватель", enums.ShareRecipientRole.TEACHER, "Версия преподавателя", enums.ShareRecipientStatus.OPENED),
+    _DemoRecipient(
+        "student-1",
+        "Аня",
+        enums.ShareRecipientRole.STUDENT,
+        "Партия ученика",
+        enums.ShareRecipientStatus.NOT_ISSUED,
+    ),
+    _DemoRecipient(
+        "student-2",
+        "Миша",
+        enums.ShareRecipientRole.STUDENT,
+        "Клавиши easy",
+        enums.ShareRecipientStatus.NOT_ISSUED,
+    ),
+    _DemoRecipient(
+        "student-3",
+        "Соня",
+        enums.ShareRecipientRole.STUDENT,
+        "Перкуссия",
+        enums.ShareRecipientStatus.OPENED,
+    ),
+    _DemoRecipient(
+        "teacher-1",
+        "Преподаватель",
+        enums.ShareRecipientRole.TEACHER,
+        "Версия преподавателя",
+        enums.ShareRecipientStatus.OPENED,
+    ),
 )
 
 
@@ -517,12 +683,20 @@ DEMO_PROJECTS: tuple[_DemoProject, ...] = (
         quality=enums.UploadQuality.MEDIUM,
         analysis=BAND_ANALYSIS,
         versions=(
-            _DemoVersion("original", "Оригинал", enums.VersionKind.ORIGINAL, ["Исходная структура и найденные партии."]),
+            _DemoVersion(
+                "original",
+                "Оригинал",
+                enums.VersionKind.ORIGINAL,
+                ["Исходная структура и найденные партии."],
+            ),
             _DemoVersion(
                 "band-main",
                 "Для группы",
                 enums.VersionKind.BAND,
-                ["Две гитары сведены в рабочий черновик.", "Струнные отмечены для переноса на клавиши."],
+                [
+                    "Две гитары сведены в рабочий черновик.",
+                    "Струнные отмечены для переноса на клавиши.",
+                ],
             ),
         ),
         issues=(
@@ -548,11 +722,46 @@ DEMO_PROJECTS: tuple[_DemoProject, ...] = (
             ),
         ),
         musicians=(
-            _DemoMusician("vocalist-1", "Оксана", enums.MusicianRole.VOCAL, "ведущий вокал", "диапазон A2-G4", enums.MusicianLevel.ADVANCED),
-            _DemoMusician("guitarist-1", "Илья", enums.MusicianRole.GUITAR, "электрогитара, строй E", "играет один за две партии", enums.MusicianLevel.MIDDLE),
-            _DemoMusician("bassist-1", "Марк", enums.MusicianRole.BASS, "5 струн, нижняя E1", "слэп не играет", enums.MusicianLevel.MIDDLE),
-            _DemoMusician("keys-1", "Лена", enums.MusicianRole.KEYS, "2 слоя, Nord Stage", "закрывает струнные оригинала", enums.MusicianLevel.ADVANCED),
-            _DemoMusician("drummer-1", "Даня", enums.MusicianRole.DRUMS, "акустическая установка", "без двойной педали", enums.MusicianLevel.BEGINNER),
+            _DemoMusician(
+                "vocalist-1",
+                "Оксана",
+                enums.MusicianRole.VOCAL,
+                "ведущий вокал",
+                "диапазон A2-G4",
+                enums.MusicianLevel.ADVANCED,
+            ),
+            _DemoMusician(
+                "guitarist-1",
+                "Илья",
+                enums.MusicianRole.GUITAR,
+                "электрогитара, строй E",
+                "играет один за две партии",
+                enums.MusicianLevel.MIDDLE,
+            ),
+            _DemoMusician(
+                "bassist-1",
+                "Марк",
+                enums.MusicianRole.BASS,
+                "5 струн, нижняя E1",
+                "слэп не играет",
+                enums.MusicianLevel.MIDDLE,
+            ),
+            _DemoMusician(
+                "keys-1",
+                "Лена",
+                enums.MusicianRole.KEYS,
+                "2 слоя, Nord Stage",
+                "закрывает струнные оригинала",
+                enums.MusicianLevel.ADVANCED,
+            ),
+            _DemoMusician(
+                "drummer-1",
+                "Даня",
+                enums.MusicianRole.DRUMS,
+                "акустическая установка",
+                "без двойной педали",
+                enums.MusicianLevel.BEGINNER,
+            ),
         ),
         recipients=BAND_RECIPIENTS,
         cost_estimate=_cost("medium", 7),
@@ -593,7 +802,9 @@ DEMO_PROJECTS: tuple[_DemoProject, ...] = (
         quality=enums.UploadQuality.GOOD,
         analysis=LESSON_ANALYSIS,
         versions=(
-            _DemoVersion("lesson-original", "Оригинал", enums.VersionKind.ORIGINAL, ["Исходная форма песни."]),
+            _DemoVersion(
+                "lesson-original", "Оригинал", enums.VersionKind.ORIGINAL, ["Исходная форма песни."]
+            ),
             _DemoVersion(
                 "lesson-easy",
                 "Easy",
@@ -636,7 +847,12 @@ DEMO_PROJECTS: tuple[_DemoProject, ...] = (
             "desiredDifficulty": "проще оригинала",
         },
         assignments=[
-            {"id": "assignment-1", "title": "8 тактов припева с кликом", "recipient": "Аня", "status": "assigned"}
+            {
+                "id": "assignment-1",
+                "title": "8 тактов припева с кликом",
+                "recipient": "Аня",
+                "status": "assigned",
+            }
         ],
         setup_snapshot={
             "scenario": "education",
@@ -661,7 +877,9 @@ DEMO_PROJECTS: tuple[_DemoProject, ...] = (
         quality=enums.UploadQuality.MEDIUM,
         analysis=ENSEMBLE_ANALYSIS,
         versions=(
-            _DemoVersion("ensemble-original", "Оригинал", enums.VersionKind.ORIGINAL, ["Исходная песня."]),
+            _DemoVersion(
+                "ensemble-original", "Оригинал", enums.VersionKind.ORIGINAL, ["Исходная песня."]
+            ),
             _DemoVersion(
                 "ensemble-main",
                 "Ансамблевая",
@@ -692,9 +910,30 @@ DEMO_PROJECTS: tuple[_DemoProject, ...] = (
             ),
         ),
         musicians=(
-            _DemoMusician("student-1", "Аня", enums.MusicianRole.GUITAR, "акустическая гитара", "читает простые ноты", enums.MusicianLevel.BEGINNER),
-            _DemoMusician("student-2", "Миша", enums.MusicianRole.KEYS, "цифровое пианино", "октава без растяжки", enums.MusicianLevel.BEGINNER),
-            _DemoMusician("student-3", "Соня", enums.MusicianRole.DRUMS, "перкуссия", "без установки", enums.MusicianLevel.MIDDLE),
+            _DemoMusician(
+                "student-1",
+                "Аня",
+                enums.MusicianRole.GUITAR,
+                "акустическая гитара",
+                "читает простые ноты",
+                enums.MusicianLevel.BEGINNER,
+            ),
+            _DemoMusician(
+                "student-2",
+                "Миша",
+                enums.MusicianRole.KEYS,
+                "цифровое пианино",
+                "октава без растяжки",
+                enums.MusicianLevel.BEGINNER,
+            ),
+            _DemoMusician(
+                "student-3",
+                "Соня",
+                enums.MusicianRole.DRUMS,
+                "перкуссия",
+                "без установки",
+                enums.MusicianLevel.MIDDLE,
+            ),
         ),
         recipients=EDUCATION_RECIPIENTS,
         cost_estimate=_cost("high", 10),
@@ -723,9 +962,24 @@ DEMO_PROJECTS: tuple[_DemoProject, ...] = (
             "desiredDifficulty": "близко к оригиналу",
         },
         assignments=[
-            {"id": "assignment-ensemble-1", "title": "Гитара: аккорды припева", "recipient": "Аня", "status": "in_progress"},
-            {"id": "assignment-ensemble-2", "title": "Клавиши: hook припева", "recipient": "Миша", "status": "assigned"},
-            {"id": "assignment-ensemble-3", "title": "Перкуссия: пульс и стоп", "recipient": "Соня", "status": "ready_for_concert"},
+            {
+                "id": "assignment-ensemble-1",
+                "title": "Гитара: аккорды припева",
+                "recipient": "Аня",
+                "status": "in_progress",
+            },
+            {
+                "id": "assignment-ensemble-2",
+                "title": "Клавиши: hook припева",
+                "recipient": "Миша",
+                "status": "assigned",
+            },
+            {
+                "id": "assignment-ensemble-3",
+                "title": "Перкуссия: пульс и стоп",
+                "recipient": "Соня",
+                "status": "ready_for_concert",
+            },
         ],
         setup_snapshot={
             "scenario": "education",
@@ -752,9 +1006,7 @@ async def _ensure_owner(repos: Repositories, contact: str) -> models.User:
     )
 
 
-async def _seed_one(
-    repos: Repositories, owner: models.User, demo: _DemoProject
-) -> models.Project:
+async def _seed_one(repos: Repositories, owner: models.User, demo: _DemoProject) -> models.Project:
     project_id = demo_uuid("project", demo.key)
     existing = await repos.projects.get(project_id)
     if existing is not None:

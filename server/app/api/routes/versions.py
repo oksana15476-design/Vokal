@@ -8,11 +8,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import APIRouter, Response
 
-from fastapi import APIRouter, Path, Response
-
-from app.api.deps import SessionDep, UserDep
+from app.api.deps import ProjectIdPath, SessionDep, UserDep, VersionIdPath
 from app.api.not_implemented import not_implemented
 from app.api.responses import errors
 from app.api.schemas.versions import (
@@ -25,8 +23,6 @@ from app.api.schemas.versions import (
 
 router = APIRouter(prefix="/projects/{project_id}/versions", tags=["версии"])
 
-ProjectIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор проекта")]
-VersionIdPath = Annotated[str, Path(min_length=1, max_length=64, description="Идентификатор версии")]
 
 VERSION_ENGINE_MISSING = (
     "Version Engine: история версий и снимки материалов",

@@ -431,7 +431,8 @@ def test_stage_pack_response_has_materials_analysis_and_review(openapi: dict[str
 
 def test_artifact_schema_marks_staleness_and_confidence(openapi: dict[str, Any]) -> None:
     required = required_properties(openapi, "ArtifactOut")
-    assert {"id", "type", "name", "format", "status", "confidence", "audience", "isStale"} <= required
+    expected = {"id", "type", "name", "format", "status", "confidence", "audience", "isStale"}
+    assert expected <= required
 
 
 def test_stage_pack_endpoint_is_not_implemented(client: TestClient) -> None:
@@ -479,7 +480,8 @@ def test_batch_director_action_builds_single_version(client: TestClient) -> None
 
 def test_director_action_result_lists_stale_artifacts(openapi: dict[str, Any]) -> None:
     required = required_properties(openapi, "DirectorActionResultOut")
-    assert {"versionLabel", "versionKind", "historyTitle", "changes", "staleArtifactTypes"} <= required
+    expected = {"versionLabel", "versionKind", "historyTitle", "changes", "staleArtifactTypes"}
+    assert expected <= required
 
 
 # --- Задача 6: версии и откат -------------------------------------------
@@ -500,7 +502,8 @@ def test_rollback_accepts_any_version_id(client: TestClient) -> None:
 
 
 def test_rollback_declares_version_conflict(openapi: dict[str, Any]) -> None:
-    operation = openapi["paths"]["/api/projects/{project_id}/versions/{version_id}/rollback"]["post"]
+    path = "/api/projects/{project_id}/versions/{version_id}/rollback"
+    operation = openapi["paths"][path]["post"]
     assert "409" in operation["responses"]
 
 
