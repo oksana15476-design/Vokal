@@ -924,3 +924,25 @@ deleted
 - music21 documentation: Python toolkit for musicology, notation and analysis: https://music21.org/music21docs/
 - OpenAI model docs: LLM model options and Responses API: https://platform.openai.com/docs/models
 - Google DeepMind Lyria: music generation model family for possible future backing-track generation: https://deepmind.google/models/lyria/
+
+## Решение по бэкенду (2026-09-10)
+
+Развилка NestJS / FastAPI закрыта: **FastAPI**.
+
+Основание не вкусовое. Ядро продукта — обработка звука, и вся экосистема,
+на которую мы опираемся (Demucs, Basic Pitch, beat tracking, работа с
+аудиобуферами), живет в Python. Держать конвейер в одном языке с моделями
+дешевле, чем гонять аудио через сервисную границу ради единства языка с
+фронтендом.
+
+Следствия, которые принимаем осознанно:
+- фронтенд и бэкенд на разных языках, общий контракт — OpenAPI с
+  генерацией типов на сторону фронтенда;
+- типы домена дублируются: `src/domain/types.ts` и pydantic-схемы. Источник
+  правды — OpenAPI, из него генерируется клиент;
+- команда должна уметь оба языка.
+
+Юридический трек закрыт решением владельца от 2026-09-10: юрлицо и
+документы есть. Технические ограничения из `docs/DATA_MAP.md` и
+`docs/DELETION_AND_RETENTION_DESIGN.md` остаются в силе как требования к
+хранилищу и срокам — они не про согласование, а про то, как устроен код.
