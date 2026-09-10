@@ -88,9 +88,20 @@ test.describe("Сценарий «Для группы»: от демо-разб�
     await openTab(page, /Материалы/);
 
     const pane = page.locator(".material-preview-pane");
-    const first = await pane.innerText();
-    await page.locator(".artifact-row").nth(2).click();
-    await expect(pane).not.toHaveText(first);
+    const rows = page.locator(".artifact-row");
+
+    // Отрицательное сравнение здесь не работало: innerText и textContent
+    // склеивают блоки по-разному, поэтому «не равно» было истинно всегда.
+    // Проверено мутацией: превью залипало на первом материале, а проверка
+    // проходила. Утверждаем положительно — по имени выбранного материала.
+    const secondName = (await rows.nth(1).locator("span").first().innerText()).trim();
+    const thirdName = (await rows.nth(2).locator("span").first().innerText()).trim();
+    expect(secondName).not.toBe(thirdName);
+
+    await rows.nth(1).click();
+    await expect(pane.getByRole("heading")).toHaveText(secondName);
+    await rows.nth(2).click();
+    await expect(pane.getByRole("heading")).toHaveText(thirdName);
   });
 
   test("проверка: пять статусов и свой комментарий", async ({ page }) => {
@@ -98,12 +109,22 @@ test.describe("Сценарий «Для группы»: от демо-разб�
     await openTab(page, /Проверка/);
 
     const item = page.locator(".review-item").first();
+    // Текущий статус в списке кнопок не предлагается, поэтому кнопок всегда
+    // на одну меньше, чем статусов. Пять статусов — четыре кнопки.
+    await expect(item.locator(".review-actions button")).toHaveCount(4);
     await expect(item.getByRole("button", { name: "сомнительно" })).toBeVisible();
 
+    // Смотрим строку статуса, а не весь блок: подпись кнопки «проверено»
+    // лежит внутри того же .review-item и удовлетворяла проверку сама,
+    // даже если смена статуса не срабатывала.
+    const status = item.locator("small").first();
     await item.getByRole("button", { name: "проверено" }).click();
-    await expect(item).toContainText("проверено");
+    await expect(status).toContainText("проверено");
+    await expect(item.getByRole("button", { name: "проверено" })).toHaveCount(0);
+
     await item.getByRole("button", { name: "нужно проверить" }).click();
-    await expect(item).toContainText("нужно проверить");
+    await expect(status).toContainText("нужно проверить");
+    await expect(item.getByRole("button", { name: "нужно проверить" })).toHaveCount(0);
 
     await item.getByLabel("Комментарий к месту").fill("Гитарист играет иначе, оставили");
     await item.getByRole("button", { name: /Записать/ }).click();
@@ -236,7 +257,49 @@ test.describe("Сценарий «Для группы»: от демо-разб�
   test("обработка на демо-пути доходит до конца", async ({ page }) => {
     await page.getByRole("button", { name: /Открыть демо-разбор/ }).click();
     await expect(page.getByRole("heading", { name: /Собираем демо-разбор/ })).toBeVisible();
-    await expect(page.getByLabel("Прогресс 100%")).toBeVisible({ timeout: PROCESSING_MS });
-    await expect(page.locator(".processing-milestone.skipped")).toHaveCount(0);
+    // Финальное состояние вех живет около полусекунды до автоперехода в
+    // Stage Pack — гоняться за мгновенным снимком хрупко. Собираем всю
+    // траекторию и проверяем инвариант.
+    //
+    // Требование пустой траектории здесь ключевое: раздельные проверки вида
+    // «пропущенных ноль» проходили и на размонтированном экране, где нулю
+    // равно вообще все.
+    const trail: string[][] = [];
+    let lastProgress = "";
+    const deadline = Date.now() + PROCESSING_MS;
+    while (Date.now() < deadline) {
+      const snapshot = await page.evaluate(() => ({
+        milestones: [...document.querySelectorAll(".processing-milestone")].map((node) =>
+          node.className.replace("processing-milestone", "").trim(),
+        ),
+        progress: document.querySelector(".progress-track")?.getAttribute("aria-label") ?? "",
+      }));
+      if (snapshot.milestones.length) {
+        trail.push(snapshot.milestones);
+        lastProgress = snapshot.progress;
+      } else if (trail.length) {
+        break; // экран сменился, обработка окончена
+      }
+      await page.waitForTimeout(150);
+    }
+
+    expect(trail.length, "экран обработки не наблюдался вовсе").toBeGreaterThan(3);
+    // Демо-разбор существует, поэтому его шаги настоящие: пропущенных быть
+    // не может ни в один момент.
+    expect(trail.flat().filter((state) => state === "skipped")).toEqual([]);
+    // К моменту перехода ни одна веха не осталась в очереди или в работе.
+    const last = trail[trail.length - 1];
+    expect(last).toHaveLength(4);
+    expect(last.filter((state) => state === "queued" || state === "running")).toEqual([]);
+    // «Форма» намеренно заканчивается предупреждением: в демо есть замечание
+    // по структуре. Остальные три доходят до готовности.
+    expect(last.filter((state) => state === "done")).toHaveLength(3);
+    expect(last).toContain("warning");
+    // Прогресс проверяем по последнему наблюдению, а не после перехода:
+    // на Stage Pack полосы прогресса уже нет.
+    expect(lastProgress).toBe("Прогресс 100%");
+
+    // Экран действительно сменился на рабочую область.
+    await expect(page.getByRole("tab", { name: /Материалы/ })).toBeVisible({ timeout: PROCESSING_MS });
   });
 });

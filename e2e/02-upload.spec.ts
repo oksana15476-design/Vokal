@@ -22,21 +22,30 @@ test.describe("Сценарий «свой файл»: правда о том, �
     await startOwnFileJob(page);
     await expect(page.getByRole("heading", { name: /Читаем ваш файл/ })).toBeVisible();
 
-    // Обработки нет: ни одна веха не может быть «готово».
-    await expect(page.locator(".processing-milestone.done")).toHaveCount(0);
-    const skipped = page.locator(".processing-milestone.skipped");
-    expect(await skipped.count()).toBeGreaterThan(0);
-    await expect(skipped.first()).toContainText("не выполняется");
+    // Утверждаем положительно. Отрицания вида «готовых вех ноль» проходили
+    // и после того, как экран сменился на Stage Pack: там нулю равно всё.
+    // Все четыре вехи обязаны быть именно пропущенными, а не отсутствующими.
+    await expect(page.locator(".processing-milestone")).toHaveCount(4);
+    await expect(page.locator(".processing-milestone.skipped")).toHaveCount(4);
+    await expect(page.locator(".processing-milestone.skipped").first()).toContainText("не выполняется");
 
     await expect(page.getByText(/Разбор не создается/)).toBeVisible();
-    await expect(page.getByText(/Шаги идут по таймеру/)).toHaveCount(0);
+    const disclaimer = await page.locator(".processing-disclaimer").innerText();
+    expect(disclaimer).toContain("Звук не обрабатывается");
+    expect(disclaimer).not.toContain("Шаги идут по таймеру");
     await expect(page.getByLabel("Прогресс 100%")).toBeVisible({ timeout: PROCESSING_MS });
   });
 
   test("не оценивает работу, которая не будет выполнена", async ({ page }) => {
     await startOwnFileJob(page);
-    await expect(page.getByRole("heading", { name: /Читаем ваш файл/ })).toBeVisible();
-    await expect(page.getByText(/Оценка сложности/)).toHaveCount(0);
+    // Экран обработки на этом пути живет доли секунды, поэтому сначала
+    // убеждаемся, что он на месте и показывает свое содержимое, и только
+    // потом — что оценки на нем нет. Иначе проверка «ноль» проходила бы
+    // просто потому, что экран уже сменился.
+    await expect(page.locator(".processing-focus")).toContainText("Разбор не создается");
+    const card = await page.locator(".processing-card").innerText();
+    expect(card).not.toContain("Оценка сложности");
+    expect(card).not.toContain("условных единиц");
   });
 
   test("полоса метрик не показывает нули вместо состояния", async ({ page }) => {

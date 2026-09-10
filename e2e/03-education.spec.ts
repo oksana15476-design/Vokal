@@ -30,12 +30,17 @@ test.describe("Сценарий «Для обучения»", () => {
     const levels = page.getByRole("radiogroup", { name: /Уровень сложности/ });
     await expect(levels.getByRole("radio")).toHaveCount(3);
 
-    const detail = page.locator(".level-detail");
-    const middle = await detail.innerText();
-    await levels.getByRole("radio", { name: /Продвинутый/ }).click();
-    await expect(detail).not.toHaveText(middle);
-    await levels.getByRole("radio", { name: /Начинающий/ }).click();
-    await expect(detail).not.toHaveText(middle);
+    // Отрицательное сравнение не работало: innerText и textContent склеивают
+    // блоки по-разному, «не равно» было истинно всегда. Собираем заголовок
+    // на каждом уровне и требуем, чтобы все три различались.
+    const title = page.locator(".level-detail strong");
+    const seen: string[] = [];
+    for (const level of [/Начинающий/, /Средний/, /Продвинутый/]) {
+      await levels.getByRole("radio", { name: level }).click();
+      await expect(levels.getByRole("radio", { name: level })).toHaveAttribute("aria-checked", "true");
+      seen.push((await title.innerText()).trim());
+    }
+    expect(new Set(seen).size, `уровни показывают одно и то же: ${seen.join(" | ")}`).toBe(3);
   });
 
   test("уровни не показываются там, где учеников нет", async ({ page }) => {

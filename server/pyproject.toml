@@ -1,0 +1,59 @@
+[project]
+name = "vokal-server"
+version = "0.1.0"
+description = "Бэкенд Vokal Director: каркас HTTP-слоя"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+
+# Ядро каркаса. Версии закреплены по нижней границе, а не намертво:
+# лок-файл (uv.lock) фиксирует точные версии, pyproject задает совместимость.
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+]
+
+[project.optional-dependencies]
+# Именно extras, а не [dependency-groups]: extras понимают и uv, и обычный pip,
+# а задача разрешает оба способа установки.
+dev = [
+    "pytest>=8.2",
+    "httpx>=0.27",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+# Точки входа вместо Makefile: Makefile не входит в зону этого батча,
+# а pyproject входит. После установки пакета доступны как команды в venv.
+vokal-dev = "app.core.scripts:dev"
+vokal-test = "app.core.scripts:test"
+vokal-lint = "app.core.scripts:lint"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+# Пакет `app` собран без __init__.py (пространство имен), и editable-установка
+# без этой строки не кладет корень server/ в sys.path — команды vokal-* тогда
+# ставятся, но падают на импорте.
+dev-mode-dirs = ["."]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Пакет app импортируется из корня server/ и без установки колеса,
+# чтобы прогон тестов не зависел от того, ставили ли проект в editable-режиме.
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
