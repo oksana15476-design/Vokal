@@ -390,6 +390,10 @@ async def create_upload(
     check_new_upload(file_name=request.file_name, size_bytes=request.size_bytes)
 
     facts = _facts_from_client(request)
+    # Колонка качества обязательна и в базе, и в контракте, а оценивать пока
+    # нечего. Из трех значений берется то, которое ничего не обещает: оценка
+    # вниз никого не введет в заблуждение, а «хорошо» на месте неизвестности —
+    # введет. Что оценки еще нет, сказано состоянием и `source_note`.
     quality = (
         quality_from_audio(channels=facts.channels, sample_rate=facts.sample_rate, peak=facts.peak)
         if facts is not None
@@ -482,6 +486,10 @@ async def store_file(
         await _reject(repos, upload, "Загрузка отклонена: файл пустой.")
         raise UploadRefusal(422, "empty_file", "Файл пустой. Выберите запись со звуком.")
 
+    # Второй рубеж по размеру. Первый — `BodySizeLimitMiddleware`, он режет
+    # тело до обработчика по Content-Length. Но предел посредника задается
+    # переменной окружения и может оказаться шире нашего, а на приложении без
+    # посредника (сборка контракта) его нет вовсе.
     if len(data) > MAX_UPLOAD_BYTES:
         await _reject(repos, upload, "Загрузка отклонена: файл больше допустимого размера.")
         raise UploadRefusal(

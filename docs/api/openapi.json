@@ -77,8 +77,8 @@
         "tags": [
           "загрузка"
         ],
-        "summary": "Завести загрузку и получить ссылку для отправки файла",
-        "description": "Файл в теле не передается: он уходит прямо в хранилище по выданной ссылке. Формат и размер проверяются здесь, до отправки.",
+        "summary": "Завести загрузку и получить адрес для отправки файла",
+        "description": "Файл в теле не передается: формат и размер проверяются здесь, до отправки. Куда отправлять файл, сказано в `target`.",
         "operationId": "create_upload_api_uploads_post",
         "requestBody": {
           "content": {
@@ -111,8 +111,48 @@
               }
             }
           },
+          "403": {
+            "description": "Доступ к этому объекту закрыт.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Объект не найден или уже удален.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Состояние объекта изменилось: обновите данные и повторите.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "413": {
             "description": "Тело запроса больше допустимого.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Формат содержимого не поддерживается.",
             "content": {
               "application/json": {
                 "schema": {
@@ -144,12 +184,151 @@
         }
       }
     },
+    "/api/uploads/{upload_id}/content": {
+      "put": {
+        "tags": [
+          "загрузка"
+        ],
+        "summary": "Отправить файл",
+        "description": "Тело запроса — сам файл, без обертки. Сервер считает контрольную сумму и размер, кладет объект в хранилище и читает из файла длительность, частоту и каналы. Повторная отправка того же файла в ту же загрузку дубля не создает.",
+        "operationId": "put_upload_content_api_uploads__upload_id__content_put",
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Идентификатор загрузки",
+              "title": "Upload Id"
+            },
+            "description": "Идентификатор загрузки"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Нужен вход в аккаунт.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Доступ к этому объекту закрыт.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Объект не найден или уже удален.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Состояние объекта изменилось: обновите данные и повторите.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Тело запроса больше допустимого.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Формат содержимого не поддерживается.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Данные запроса не прошли проверку схемы.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Адрес объявлен, реализации еще нет. В details.missing сказано, чего не хватает.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Сервис временно недоступен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/uploads/{upload_id}/complete": {
       "post": {
         "tags": [
           "загрузка"
         ],
         "summary": "Подтвердить, что файл доехал",
+        "description": "Клиент называет размер и контрольную сумму того, что отправил, сервер сверяет их с принятым. Оборванная передача видна только здесь.",
         "operationId": "complete_upload_api_uploads__upload_id__complete_post",
         "parameters": [
           {
@@ -246,6 +425,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Сервис временно недоступен.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -256,6 +445,7 @@
           "загрузка"
         ],
         "summary": "Состояние загрузки",
+        "description": "Состояния: `awaiting_file` — заявка есть, файла нет; `stored` — файл принят; `rejected` — сервер отказался его принять; `purged` — исходник удален.",
         "operationId": "read_upload_api_uploads__upload_id__get",
         "parameters": [
           {
@@ -3561,6 +3751,16 @@
               }
             }
           },
+          "403": {
+            "description": "Доступ к этому объекту закрыт.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Объект не найден или уже удален.",
             "content": {
@@ -3608,6 +3808,7 @@
           "проекты"
         ],
         "summary": "Список проектов",
+        "description": "Сверху то, что открывали последним: список песен читается сверху вниз.",
         "operationId": "list_projects_api_projects_get",
         "parameters": [
           {
@@ -3698,6 +3899,52 @@
           },
           "422": {
             "description": "Данные запроса не прошли проверку схемы.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Адрес объявлен, реализации еще нет. В details.missing сказано, чего не хватает.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/demo": {
+      "get": {
+        "tags": [
+          "проекты"
+        ],
+        "summary": "Демо-проекты",
+        "description": "Три подготовленные песни для знакомства с продуктом. Разбор у них есть, потому что он сделан заранее: `analysisSource = demo`. Своего файла за ними нет.",
+        "operationId": "read_demo_projects_api_projects_demo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectOut"
+                  },
+                  "type": "array",
+                  "title": "Response Read Demo Projects Api Projects Demo Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Нужен вход в аккаунт.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7203,6 +7450,30 @@
               }
             ],
             "title": "Channels"
+          },
+          "projectId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectid",
+            "description": "Песня, к которой относится исходник. Без него сервер отвечает 501 и называет причину: строка загрузки в базе требует проекта (`uploads.project_id`), а создание проекта требует принятой загрузки. Развилка вынесена владельцу."
+          },
+          "consent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConsentAcceptance"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Согласие на обработку материала. Обязательно там, где файл действительно принимается: запись «согласие получено» задним числом не восстанавливается."
           }
         },
         "additionalProperties": false,
@@ -7212,7 +7483,7 @@
           "sizeBytes"
         ],
         "title": "UploadCreateRequest",
-        "description": "Заявка на загрузку. Файл в теле не передается.\n\nТело запроса — только сведения о файле: сам файл уходит прямо в хранилище\nпо выданной ссылке, минуя приложение. Иначе каждая песня проходила бы через\nпроцесс API, занимая его на все время передачи."
+        "description": "Заявка на загрузку. Файл в теле не передается.\n\nТело запроса — только сведения о файле. Сам файл уходит вторым запросом по\nадресу из `UploadTarget`: формат и размер должны быть проверены до того,\nкак пользователь потратит время на передачу десятков мегабайт.\n\nРазвилка «файл мимо приложения по подписанной ссылке или через него»\nзакрыта в `app/storage/base.py` в пользу приема через API: провайдер\nобъектного хранения не выбран, и presign против несуществующего провайдера\nснаружи неотличим от рабочего."
       },
       "UploadCreateResponse": {
         "properties": {
@@ -7352,12 +7623,12 @@
           "method": {
             "type": "string",
             "title": "Method",
-            "description": "HTTP-метод запроса в хранилище, например PUT"
+            "description": "HTTP-метод отправки, например PUT"
           },
           "url": {
             "type": "string",
             "title": "Url",
-            "description": "Подписанная ссылка. В логи не попадает никогда."
+            "description": "Адрес отправки. В логи не попадает никогда."
           },
           "headers": {
             "additionalProperties": {
@@ -7371,7 +7642,7 @@
             "type": "string",
             "format": "date-time",
             "title": "Expiresat",
-            "description": "Когда ссылка перестанет действовать"
+            "description": "Докуда заявка действительна. После этого срока файл не примут."
           }
         },
         "additionalProperties": false,
@@ -7382,7 +7653,7 @@
           "expiresAt"
         ],
         "title": "UploadTarget",
-        "description": "Куда класть файл: подписанная ссылка в хранилище."
+        "description": "Куда отправлять файл.\n\nЭто адрес нашего API, а не подписанная ссылка в хранилище: развилка закрыта\nв `app/storage/base.py`. Форма ответа рассчитана на оба режима — когда\nпровайдер хранения будет выбран, сюда встанет подписанная ссылка, и клиент\nменять не придется: он и сейчас отправляет файл туда, куда сказано."
       },
       "ValidationError": {
         "properties": {
