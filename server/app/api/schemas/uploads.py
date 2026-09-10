@@ -16,6 +16,7 @@ from datetime import datetime
 from pydantic import Field, field_validator
 
 from app.api.schemas.common import ApiModel
+from app.api.schemas.consent import ConsentAcceptance
 from app.api.schemas.enums import UploadFormat, UploadQuality, UploadState
 
 #: Столько же принимает фронтенд и столько же пропускает каркас
@@ -73,9 +74,14 @@ class UploadConstraints(ApiModel):
 class UploadCreateRequest(ApiModel):
     """Заявка на загрузку. Файл в теле не передается.
 
-    Тело запроса — только сведения о файле: сам файл уходит прямо в хранилище
-    по выданной ссылке, минуя приложение. Иначе каждая песня проходила бы через
-    процесс API, занимая его на все время передачи.
+    Тело запроса — только сведения о файле. Сам файл уходит вторым запросом по
+    адресу из `UploadTarget`: формат и размер должны быть проверены до того,
+    как пользователь потратит время на передачу десятков мегабайт.
+
+    Развилка «файл мимо приложения по подписанной ссылке или через него»
+    закрыта в `app/storage/base.py` в пользу приема через API: провайдер
+    объектного хранения не выбран, и presign против несуществующего провайдера
+    снаружи неотличим от рабочего.
     """
 
     file_name: str = Field(min_length=1, max_length=400, description="Имя файла с расширением")
@@ -88,6 +94,22 @@ class UploadCreateRequest(ApiModel):
     )
     sample_rate: int | None = Field(default=None, gt=0)
     channels: int | None = Field(default=None, gt=0, le=32)
+    project_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "Песня, к которой относится исходник. Без него сервер отвечает 501 и называет "
+            "причину: строка загрузки в базе требует проекта (`uploads.project_id`), а "
+            "создание проекта требует принятой загрузки. Развилка вынесена владельцу."
+        ),
+    )
+    consent: ConsentAcceptance | None = Field(
+        default=None,
+        description=(
+            "Согласие на обработку материала. Обязательно там, где файл действительно "
+            "принимается: запись «согласие получено» задним числом не восстанавливается."
+        ),
+    )
 
     @field_validator("file_name")
     @classmethod
@@ -109,14 +131,22 @@ class UploadCreateRequest(ApiModel):
 
 
 class UploadTarget(ApiModel):
-    """Куда класть файл: подписанная ссылка в хранилище."""
+    """Куда отправлять файл.
 
-    method: str = Field(description="HTTP-метод запроса в хранилище, например PUT")
-    url: str = Field(description="Подписанная ссылка. В логи не попадает никогда.")
+    Это адрес нашего API, а не подписанная ссылка в хранилище: развилка закрыта
+    в `app/storage/base.py`. Форма ответа рассчитана на оба режима — когда
+    провайдер хранения будет выбран, сюда встанет подписанная ссылка, и клиент
+    менять не придется: он и сейчас отправляет файл туда, куда сказано.
+    """
+
+    method: str = Field(description="HTTP-метод отправки, например PUT")
+    url: str = Field(description="Адрес отправки. В логи не попадает никогда.")
     headers: dict[str, str] = Field(
         default_factory=dict, description="Заголовки, обязательные при отправке"
     )
-    expires_at: datetime = Field(description="Когда ссылка перестанет действовать")
+    expires_at: datetime = Field(
+        description="Докуда заявка действительна. После этого срока файл не примут."
+    )
 
 
 class UploadOut(ApiModel):
