@@ -173,7 +173,9 @@ test.describe("Сценарий «Для группы»: от демо-разб�
     await openTab(page, /AI-директор/);
 
     const versions = page.locator(".version-row");
-    const startLabel = await page.locator(".version-row.active span").first().innerText();
+    // Первая строка списка — самая ранняя версия. Активной в демо стоит не
+    // она: проверка сравнивала с изначально активной и падала законно.
+    const firstLabel = await versions.first().locator("span").first().innerText();
 
     const before = await versions.count();
     await page.locator(".suggestions-grid button").first().click();
@@ -181,9 +183,11 @@ test.describe("Сценарий «Для группы»: от демо-разб�
     await page.locator(".suggestions-grid button").first().click();
     await expect(versions).toHaveCount(before + 2);
 
-    // Возврат к самой первой версии, а не на шаг назад.
-    await page.locator(".version-row").first().click();
-    await expect(page.locator(".version-row.active span").first()).toHaveText(startLabel);
+    // Возврат к самой ранней версии, а не на шаг назад.
+    await versions.first().click();
+    await expect(page.locator(".version-row.active span").first()).toHaveText(firstLabel);
+    // История вперед остается на месте: откат не удаляет версии.
+    await expect(versions).toHaveCount(before + 2);
   });
 
   test("выдача: получатели, ссылки и приватность", async ({ page }) => {

@@ -8,8 +8,23 @@ export const openDemo = async (page: Page, name = /Открыть демо-ра�
   await expect(page.getByRole("tab", { name: /Материалы/ })).toBeVisible({ timeout: PROCESSING_MS });
 };
 
+/**
+ * Открывает демо по названию.
+ *
+ * Рекомендованное для текущего сценария демо показано плашкой: название там
+ * в заголовке, а кнопка подписана «Открыть демо-разбор». Кнопкой с именем
+ * рендерятся только остальные демо. Поиск строго по имени кнопки поэтому не
+ * находил рекомендованное и падал по таймауту.
+ */
 export const openDemoByTitle = async (page: Page, title: string | RegExp) => {
-  await page.getByRole("button", { name: title }).click();
+  const named = page.getByRole("button", { name: title });
+  if (await named.count()) {
+    await named.first().click();
+  } else {
+    const spotlight = page.locator(".demo-spotlight");
+    await expect(spotlight, `демо «${title}» не найдено ни кнопкой, ни плашкой`).toContainText(title);
+    await spotlight.getByRole("button", { name: /Открыть демо-разбор/ }).click();
+  }
   await expect(page.getByRole("tab", { name: /Материалы/ })).toBeVisible({ timeout: PROCESSING_MS });
 };
 
