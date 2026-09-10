@@ -5,6 +5,7 @@ import {
   processingGoals,
 } from "../domain/mockData";
 import { formatDuration } from "./audioFile";
+import { currentConsent } from "../domain/consent";
 import type {
   ArtifactStatus,
   ArtifactType,
@@ -230,9 +231,12 @@ export const createProjectFromUpload = (input: UploadProjectInput): Project => {
         title: input.scenario === "band" ? "Состав группы" : "Учебная задача",
         fields: [],
       },
+    // Записываем ровно то, что человек видел на экране. До этого записывался
+    // другой текст: запись свидетельствовала о том, чего он не читал.
     legalConsent: {
       accepted: input.acceptedConsent,
-      text: "Материал используется для приватной репетиции, урока или внутренней подготовки.",
+      versionId: currentConsent().id,
+      text: currentConsent().text,
       acceptedAt: input.acceptedConsent ? now() : undefined,
     },
     changeLog: [

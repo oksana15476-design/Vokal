@@ -1,3 +1,4 @@
+import { currentConsent } from "./consent";
 import type {
   ArrangementVersion,
   Artifact,
@@ -697,7 +698,7 @@ export const demoProjects: Project[] = [
         { label: "Стиль версии", value: "плотнее и сценически" },
       ],
     },
-    legalConsent: { accepted: true, text: "Материал используется для приватной репетиции или внутренней подготовки.", acceptedAt: "2026-09-09T12:00:00+04:00" },
+    legalConsent: { accepted: true, versionId: currentConsent().id, text: currentConsent().text, acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Исходник и результаты можно удалить из проекта." },
   },
   {
@@ -741,7 +742,7 @@ export const demoProjects: Project[] = [
         { label: "Кому выдать", value: "ученику и преподавателю" },
       ],
     },
-    legalConsent: { accepted: true, text: "Материал используется для приватного урока и домашней практики.", acceptedAt: "2026-09-09T12:00:00+04:00" },
+    legalConsent: { accepted: true, versionId: currentConsent().id, text: currentConsent().text, acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Учебные материалы можно удалить после урока." },
   },
   {
@@ -791,7 +792,7 @@ export const demoProjects: Project[] = [
         { label: "Кому выдать", value: "ансамблю и преподавателю" },
       ],
     },
-    legalConsent: { accepted: true, text: "Материал используется для приватной школьной подготовки.", acceptedAt: "2026-09-09T12:00:00+04:00" },
+    legalConsent: { accepted: true, versionId: currentConsent().id, text: currentConsent().text, acceptedAt: "2026-09-09T12:00:00+04:00" },
     dataRetention: { sourceDeleted: false, resultsDeleted: false, retentionNote: "Материалы можно удалить после концерта." },
   },
 ];

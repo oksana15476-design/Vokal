@@ -20,6 +20,7 @@ import {
   Sparkles,
   Share2,
 } from "lucide-react";
+import { currentConsent } from "./domain/consent";
 import { lessonLevels, processingGoals, processingMilestones } from "./domain/mockData";
 import {
   listStoredProjects,
@@ -748,7 +749,7 @@ function StartScreen({
               checked={acceptedConsent}
               onChange={(event) => setAcceptedConsent(event.target.checked)}
             />
-            <span>Я вправе обработать этот материал для приватной репетиции, урока или внутренней подготовки.</span>
+            <span>{currentConsent().text}</span>
           </label>
 
           <div className="job-result-row" aria-label="Что покажем в разборе">

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { forbiddenClaims, requiredDisclosures } from "./domain/claims";
+import { currentConsent } from "./domain/consent";
 
 // В jsdom нет AudioContext, поэтому декодер подменяется. Ровно ради этого он
 // вынесен за интерфейс в audioFile.ts.
@@ -232,6 +233,27 @@ describe("доменные поля на экране", () => {
 // пропустила «моковый» в <head>. Третья использовала \b на кириллице, где
 // он определен только по ASCII, и три запрета не могли совпасть НИКОГДА.
 const forbidden = forbiddenClaims.map((claim) => claim.pattern);
+
+describe("согласие записывается тем же текстом, что показано (B58)", () => {
+  it("записывает в проект ровно ту формулировку, которую видел пользователь", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const shown = screen.getByRole("checkbox").closest("label")!.textContent!.trim();
+    await pickFile();
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: /Разобрать мой файл/ }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Материалы/ })).toBeTruthy(), {
+      timeout: PROCESSING_MS,
+    });
+    await user.click(screen.getByRole("tab", { name: /Выдача/ }));
+
+    // Раньше на экране показывалась одна формулировка, а в проект писалась
+    // другая: запись свидетельствовала о том, чего пользователь не читал.
+    expect(document.body.textContent).toContain(shown);
+    expect(shown).toBe(currentConsent().text);
+  });
+});
 
 describe("список песен (B94)", () => {
   it("собирает открытые песни в один список", async () => {
