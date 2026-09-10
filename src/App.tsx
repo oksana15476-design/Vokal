@@ -299,7 +299,10 @@ export default function App() {
       return;
     }
 
-    if (processingIndex >= runnableStepIds(project).length) {
+    const runnableIds = runnableStepIds(project);
+
+    if (processingIndex >= runnableIds.length) {
+      const finishDelayMs = runnableIds.length === 0 ? 1800 : 650;
       const timer = window.setTimeout(() => {
         setProject((current) =>
           current
@@ -319,7 +322,7 @@ export default function App() {
         );
         setSelectedArtifactId(project.stagePack.artifacts[0]?.id ?? null);
         setScreen("stage-pack");
-      }, 650);
+      }, finishDelayMs);
 
       return () => window.clearTimeout(timer);
     }

@@ -6,6 +6,12 @@ import App from "./App";
 import { forbiddenClaims, requiredDisclosures } from "./domain/claims";
 import { currentConsent } from "./domain/consent";
 
+Object.defineProperty(window, "scrollTo", {
+  configurable: true,
+  value: vi.fn(),
+  writable: true,
+});
+
 // В jsdom нет AudioContext, поэтому декодер подменяется. Ровно ради этого он
 // вынесен за интерфейс в audioFile.ts.
 vi.mock("./services/audioFile", async () => {

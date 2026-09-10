@@ -74,10 +74,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Завести загрузку и получить ссылку для отправки файла
-         * @description Файл в теле не передается: он уходит прямо в хранилище по выданной ссылке. Формат и размер проверяются здесь, до отправки.
+         * Завести загрузку и получить адрес для отправки файла
+         * @description Файл в теле не передается: формат и размер проверяются здесь, до отправки. Куда отправлять файл, сказано в `target`.
          */
         post: operations["create_upload_api_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/uploads/{upload_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Отправить файл
+         * @description Тело запроса — сам файл, без обертки. Сервер считает контрольную сумму и размер, кладет объект в хранилище и читает из файла длительность, частоту и каналы. Повторная отправка того же файла в ту же загрузку дубля не создает.
+         */
+        put: operations["put_upload_content_api_uploads__upload_id__content_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -93,7 +113,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Подтвердить, что файл доехал */
+        /**
+         * Подтвердить, что файл доехал
+         * @description Клиент называет размер и контрольную сумму того, что отправил, сервер сверяет их с принятым. Оборванная передача видна только здесь.
+         */
         post: operations["complete_upload_api_uploads__upload_id__complete_post"];
         delete?: never;
         options?: never;
@@ -108,7 +131,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Состояние загрузки */
+        /**
+         * Состояние загрузки
+         * @description Состояния: `awaiting_file` — заявка есть, файла нет; `stored` — файл принят; `rejected` — сервер отказался его принять; `purged` — исходник удален.
+         */
         get: operations["read_upload_api_uploads__upload_id__get"];
         put?: never;
         post?: never;
@@ -2133,9 +2159,14 @@ export interface components {
          * UploadCreateRequest
          * @description Заявка на загрузку. Файл в теле не передается.
          *
-         *     Тело запроса — только сведения о файле: сам файл уходит прямо в хранилище
-         *     по выданной ссылке, минуя приложение. Иначе каждая песня проходила бы через
-         *     процесс API, занимая его на все время передачи.
+         *     Тело запроса — только сведения о файле. Сам файл уходит вторым запросом по
+         *     адресу из `UploadTarget`: формат и размер должны быть проверены до того,
+         *     как пользователь потратит время на передачу десятков мегабайт.
+         *
+         *     Развилка «файл мимо приложения по подписанной ссылке или через него»
+         *     закрыта в `app/storage/base.py` в пользу приема через API: провайдер
+         *     объектного хранения не выбран, и presign против несуществующего провайдера
+         *     снаружи неотличим от рабочего.
          */
         UploadCreateRequest: {
             /**
@@ -2162,6 +2193,13 @@ export interface components {
             sampleRate?: number | null;
             /** Channels */
             channels?: number | null;
+            /**
+             * Projectid
+             * @description Песня, к которой относится исходник. Без него сервер отвечает 501 и называет причину: строка загрузки в базе требует проекта (`uploads.project_id`), а создание проекта требует принятой загрузки. Развилка вынесена владельцу.
+             */
+            projectId?: string | null;
+            /** @description Согласие на обработку материала. Обязательно там, где файл действительно принимается: запись «согласие получено» задним числом не восстанавливается. */
+            consent?: components["schemas"]["ConsentAcceptance"] | null;
         };
         /** UploadCreateResponse */
         UploadCreateResponse: {
@@ -2224,17 +2262,22 @@ export interface components {
         UploadState: "awaiting_file" | "stored" | "rejected" | "purged";
         /**
          * UploadTarget
-         * @description Куда класть файл: подписанная ссылка в хранилище.
+         * @description Куда отправлять файл.
+         *
+         *     Это адрес нашего API, а не подписанная ссылка в хранилище: развилка закрыта
+         *     в `app/storage/base.py`. Форма ответа рассчитана на оба режима — когда
+         *     провайдер хранения будет выбран, сюда встанет подписанная ссылка, и клиент
+         *     менять не придется: он и сейчас отправляет файл туда, куда сказано.
          */
         UploadTarget: {
             /**
              * Method
-             * @description HTTP-метод запроса в хранилище, например PUT
+             * @description HTTP-метод отправки, например PUT
              */
             method: string;
             /**
              * Url
-             * @description Подписанная ссылка. В логи не попадает никогда.
+             * @description Адрес отправки. В логи не попадает никогда.
              */
             url: string;
             /**
@@ -2247,7 +2290,7 @@ export interface components {
             /**
              * Expiresat
              * Format: date-time
-             * @description Когда ссылка перестанет действовать
+             * @description Докуда заявка действительна. После этого срока файл не примут.
              */
             expiresAt: string;
         };
@@ -2422,8 +2465,44 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description Доступ к этому объекту закрыт. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Объект не найден или уже удален. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Состояние объекта изменилось: обновите данные и повторите. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description Тело запроса больше допустимого. */
             413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Формат содержимого не поддерживается. */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2442,6 +2521,114 @@ export interface operations {
             };
             /** @description Адрес объявлен, реализации еще нет. В details.missing сказано, чего не хватает. */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    put_upload_content_api_uploads__upload_id__content_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Идентификатор загрузки */
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadOut"];
+                };
+            };
+            /** @description Нужен вход в аккаунт. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Доступ к этому объекту закрыт. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Объект не найден или уже удален. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Состояние объекта изменилось: обновите данные и повторите. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Тело запроса больше допустимого. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Формат содержимого не поддерживается. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Данные запроса не прошли проверку схемы. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Адрес объявлен, реализации еще нет. В details.missing сказано, чего не хватает. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Сервис временно недоступен. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2523,6 +2710,15 @@ export interface operations {
             };
             /** @description Адрес объявлен, реализации еще нет. В details.missing сказано, чего не хватает. */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Сервис временно недоступен. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

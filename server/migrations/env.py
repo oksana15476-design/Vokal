@@ -22,8 +22,8 @@ SERVER_ROOT = Path(__file__).resolve().parents[1]
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
-from app.db.base import Base  # noqa: E402
 from app.db import models  # noqa: E402,F401  (импорт наполняет metadata)
+from app.db.base import Base  # noqa: E402
 
 config = context.config
 

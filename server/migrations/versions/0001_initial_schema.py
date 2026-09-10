@@ -179,7 +179,12 @@ def upgrade() -> None:
         sa.Column("assignments", postgresql.JSONB(), nullable=True),
         sa.Column("analysis", postgresql.JSONB(), nullable=True),
         sa.Column("cost_estimate", postgresql.JSONB(), nullable=True),
-        sa.Column("consent_accepted", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "consent_accepted",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
         sa.Column("consent_version_id", sa.String(length=64), nullable=True),
         sa.Column("consent_text", sa.Text(), nullable=True),
         sa.Column("consent_accepted_at", _ts(), nullable=True),
